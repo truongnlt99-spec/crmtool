@@ -444,7 +444,7 @@
   /* ---------- Modals ---------- */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(20,28,25,.4); display:flex; align-items:center; justify-content:center;
-    opacity:0; pointer-events:none; transition:opacity .15s ease; z-index:50;
+    opacity:0; pointer-events:none; transition:opacity .15s ease; z-index:70;
   }
   .modal-overlay.show{opacity:1; pointer-events:auto;}
   .modal{
@@ -712,104 +712,13 @@ const LOST_REASONS = [
   'Khách không phản hồi nhiều lần',
 ];
 
-let planRevenue = 150000000;
-let planLeads = 15;
+let planRevenue = 100000000;
+let planLeads = 10;
 
-let leads = [
-  { id:'L1', name:'Chị Ngọc Hân & Anh Minh Khoa', facebook:'fb.com/hankhoa.wedding', weddingDate:'2026-11-14',
-    package:'HayDay Package', revenueExpected:60000000, stage:'leadin', deadline:'2026-07-31', createdAt:'2026-07-31',
-    schedule:'Tiệc tối 18h, nhà hàng Riverside, 250 khách', persona:'Cặp đôi trẻ, thích phong cách lãng mạn, rất chủ động nhắn tin',
-    objection:'Đang so sánh giá với 2 studio khác', notes:'Mới nhắn chào, chờ khách xem album mẫu.', tags:['Tiềm năng'],
-    todos:[{text:'Gửi album mẫu HayDay Package', done:false}] },
+// Đã xóa toàn bộ lead mẫu (demo) — bắt đầu với danh sách trống để em nhập lead thật
+let leads = [];
 
-  { id:'L2', name:'Chị Bảo Trâm & Anh Đức Anh', facebook:'fb.com/tramanh.love', weddingDate:'2026-12-06',
-    package:'Signature', revenueExpected:40000000, stage:'leadin', deadline:'2026-07-30', createdAt:'2026-07-30',
-    schedule:'Tiệc trưa, tư gia + nhà hàng, 180 khách', persona:'Ba mẹ cô dâu là người quyết định chính, cần báo giá rõ ràng',
-    objection:'Chưa chốt ngày cưới chính xác', notes:'', tags:[],
-    todos:[{text:'Nhắn chào khách trong 30 phút', done:false}] },
-
-  { id:'L3', name:'Chị Thu Uyên & Anh Việt Hoàng', facebook:'fb.com/uyenhoang.wedding', weddingDate:'2027-02-14',
-    package:'Unique', revenueExpected:25000000, stage:'leadin', deadline:'2026-08-01', createdAt:'2026-07-29',
-    schedule:'Chưa xác định địa điểm', persona:'Cặp đôi ở xa, trao đổi chủ yếu qua tin nhắn',
-    objection:'', notes:'Khách hẹn cuối tuần mới rep lại.', tags:[], todos:[] },
-
-  { id:'L4', name:'Chị Hồng Ánh & Anh Tấn Phát', facebook:'fb.com/anhphat.2026', weddingDate:'2026-10-18',
-    package:'Standard', revenueExpected:15000000, stage:'baogia', deadline:'2026-07-31', createdAt:'2026-07-25',
-    schedule:'Tiệc tối, 150 khách', persona:'Ngân sách hạn chế, đang so sánh nhiều nơi',
-    objection:'Đang cân nhắc giữa gói Standard và gói lẻ', notes:'Đã gửi báo giá, chờ khách xem.', tags:[],
-    todos:[{text:'Follow lại nếu chưa rep sau 3 ngày', done:false}] },
-
-  { id:'L5', name:'Chị Mỹ Duyên & Anh Quang Huy', facebook:'fb.com/duyenhuy.official', weddingDate:'2026-11-01',
-    package:'HayDay Package', revenueExpected:65000000, stage:'baogia', deadline:'2026-07-29', createdAt:'2026-07-20',
-    schedule:'2 ngày: lễ gia tiên + tiệc tối, 300 khách', persona:'Gia đình khá giả, yêu cầu cao về chất lượng ảnh',
-    objection:'Muốn thêm ekip quay flycam', notes:'Cần báo giá lại có kèm flycam.', tags:['Tiềm năng'], todos:[] },
-
-  { id:'L6', name:'Chị Diệu Linh & Anh Bình', facebook:'fb.com/linhbinh.wedding', weddingDate:'2026-09-20',
-    package:'Unique', revenueExpected:27000000, stage:'follow1', deadline:'2026-07-31', createdAt:'2026-07-18',
-    schedule:'Tiệc tối, 200 khách', persona:'', objection:'Im lặng sau báo giá 3 ngày',
-    notes:'Follow up lần 1 hôm nay.', tags:[], todos:[{text:'Nhắn follow up lần 1', done:false}] },
-
-  { id:'L7', name:'Chị Kim Chi & Anh Hữu Lộc', facebook:'fb.com/chiloc.love', weddingDate:'2026-10-05',
-    package:'Signature', revenueExpected:42000000, stage:'follow1', deadline:'2026-08-02', createdAt:'2026-07-15',
-    schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-
-  { id:'L8', name:'Chị Yến Nhi & Anh Thành Đạt', facebook:'fb.com/nhidat.2026', weddingDate:'2026-09-01',
-    package:'Standard', revenueExpected:16000000, stage:'follow2', deadline:'2026-07-28', createdAt:'2026-07-10',
-    schedule:'', persona:'', objection:'Khách bận việc gia đình chưa rep',
-    notes:'Follow up lần 2 đã quá hạn 3 ngày.', tags:[], todos:[{text:'Gọi điện thay vì nhắn tin', done:false}] },
-
-  { id:'L9', name:'Anh Trọng Nghĩa & Chị Bích Ngọc', facebook:'fb.com/nghiangoc.wedding', weddingDate:'2026-12-20',
-    package:'Gói lẻ', revenueExpected:9000000, stage:'follow2', deadline:'2026-07-31', createdAt:'2026-07-12',
-    schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-
-  { id:'L10', name:'Chị Phương Thảo & Anh Nhật Minh', facebook:'fb.com/thaominh.wed', weddingDate:'2026-08-30',
-    package:'Unique', revenueExpected:24000000, stage:'follow3', deadline:'2026-08-03', createdAt:'2026-07-05',
-    schedule:'', persona:'', objection:'Follow up lần 3, sắp chuyển nuôi dài hạn nếu không phản hồi',
-    notes:'', tags:[], todos:[] },
-
-  { id:'L11', name:'Chị Thanh Mai & Anh Quốc Bảo', facebook:'fb.com/maibao.far', weddingDate:'2027-06-12',
-    package:'Standard', revenueExpected:15000000, stage:'nuoidaihan', deadline:null, createdAt:'2026-06-20',
-    schedule:'Ngày cưới còn xa', persona:'Đã im lặng sau 3 lần follow up', objection:'Không phản hồi',
-    notes:'Nuôi dài hạn, nhắc lại vào dịp lễ/Tết.', tags:[], todos:[] },
-
-  { id:'L12', name:'Chị Ái Vy & Anh Công Danh', facebook:'fb.com/vydanh.wedding', weddingDate:'2027-03-08',
-    package:'HayDay Package', revenueExpected:60000000, stage:'nuoidaihan', deadline:null, createdAt:'2026-06-28',
-    schedule:'', persona:'', objection:'Ngày cưới còn xa, khách chưa gấp', notes:'', tags:[], todos:[] },
-
-  { id:'L13', name:'Chị Gia Hân & Anh Đăng Khôi', facebook:'fb.com/hankhoi.2026', weddingDate:'2026-09-14',
-    package:'HayDay Package', revenueExpected:60000000, revenueActual:62000000, stage:'won',
-    wonAt:'2026-07-10', createdAt:'2026-07-01', schedule:'', persona:'', objection:'',
-    notes:'Đã chốt, khách đặt cọc 50%.', tags:['Tiềm năng'], todos:[{text:'Gửi hợp đồng bản chính thức', done:true}] },
-
-  { id:'L14', name:'Chị Ngọc Diễm & Anh Thiên Ân', facebook:'fb.com/diemantime', weddingDate:'2026-10-25',
-    package:'Signature', revenueExpected:40000000, revenueActual:40000000, stage:'won',
-    wonAt:'2026-07-18', createdAt:'2026-07-02', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-
-  { id:'L15', name:'Chị Hoài Thương & Anh Tuấn Kiệt', facebook:'fb.com/thuongkiet.love', weddingDate:'2026-11-08',
-    package:'Unique', revenueExpected:25000000, revenueActual:25000000, stage:'won',
-    wonAt:'2026-07-24', createdAt:'2026-07-08', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-
-  { id:'L16', name:'Chị Cẩm Tú & Anh Hoàng Long', facebook:'fb.com/tulong.wed', weddingDate:'2026-09-06',
-    package:'Standard', revenueExpected:15000000, stage:'lost', lostReason:'Đã chọn đơn vị khác',
-    lostAt:'2026-07-14', createdAt:'2026-07-03', schedule:'', persona:'', objection:'',
-    notes:'Khách chọn studio khác giá tốt hơn.', tags:[], todos:[] },
-
-  { id:'L17', name:'Anh Minh Tuấn & Chị Thùy Dương', facebook:'fb.com/tuanduong.w', weddingDate:'2026-08-16',
-    package:'Gói lẻ', revenueExpected:8000000, stage:'lost', lostReason:'Khách không phản hồi nhiều lần',
-    lostAt:'2026-07-20', createdAt:'2026-07-04', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-
-  { id:'L18', name:'Chị Lan Chi & Anh Bảo Long', facebook:'fb.com/chilong.wedding', weddingDate:'2026-09-28',
-    package:'Unique', revenueExpected:22000000, stage:'lost', lostReason:'Chi phí thấp',
-    lostAt:'2026-07-27', createdAt:'2026-07-06', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
-];
-
-let dailyTodos = [
-  { text:'Check tin nhắn Fanpage buổi sáng', done:true },
-  { text:'Follow up các lead đang trễ hẹn', done:false },
-  { text:'Gửi hợp đồng cho Gia Hân & Đăng Khôi', done:false },
-  { text:'Cập nhật doanh thu thực tế lên bảng', done:false },
-  { text:'Đăng story cảm ơn khách mới cưới', done:true },
-];
+let dailyTodos = [];
 
 // Dựng sẵn log hoạt động ban đầu cho từng lead dựa trên trạng thái hiện có
 leads.forEach(l => {
