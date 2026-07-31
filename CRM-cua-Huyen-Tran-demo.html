@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM của Huyền Trân</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --green-50:#EAF7F0;
+    --green-100:#CFEEDD;
+    --green-500:#1FAE6F;
+    --green-600:#178F5B;
+    --green-700:#0F6E45;
+    --ink:#1C2622;
+    --ink-soft:#5B6B64;
+    --ink-faint:#8B9992;
+    --bg:#F5F7F4;
+    --card:#FFFFFF;
+    --border:#E4E8E2;
+    --border-soft:#EDF0EB;
+    --blush:#E8899B;
+    --blush-soft:#FBEAEE;
+    --red:#DD525C;
+    --red-soft:#FCEBEC;
+    --gray-tag:#94A099;
+    --gray-tag-soft:#EEF1ED;
+    --amber:#C98A2E;
+    --amber-soft:#FBF1DF;
+    --purple:#8467C9;
+    --purple-soft:#F1ECFB;
+    --slate:#6E88A0;
+    --slate-soft:#EAF0F5;
+    --radius-sm:6px;
+    --radius-md:10px;
+    --radius-lg:18px;
+    --shadow-card:0 1px 2px rgba(28,38,34,.07), 0 1px 1px rgba(28,38,34,.04);
+    --shadow-card-hover:0 6px 20px rgba(28,38,34,.10);
+    --shadow-pop:0 20px 48px rgba(20,28,25,.20);
+  }
+
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    font-family:'Be Vietnam Pro', system-ui, -apple-system, sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    font-size:14px;
+    -webkit-font-smoothing:antialiased;
+  }
+  button, input, select, textarea{font-family:inherit; font-size:inherit; color:inherit;}
+  h1,h2,h3,p{margin:0;}
+  ::-webkit-scrollbar{height:10px; width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:#D6DCD3; border-radius:10px;}
+  ::-webkit-scrollbar-thumb:hover{background:#C3CBC0;}
+
+  /* ---------- Layout shell ---------- */
+  .app{display:flex; height:100vh; width:100%; overflow:hidden;}
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width:224px; flex:none; background:var(--card); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; padding:20px 14px;
+  }
+  .brand{display:flex; align-items:center; gap:10px; padding:4px 6px 20px 6px;}
+  .brand-mark{width:34px; height:34px; flex:none;}
+  .brand-text{display:flex; flex-direction:column; line-height:1.15;}
+  .brand-title{font-weight:700; font-size:14.5px; color:var(--ink);}
+  .brand-sub{font-size:11px; color:var(--ink-faint); font-weight:500;}
+
+  .nav{display:flex; flex-direction:column; gap:2px; margin-top:6px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--radius-sm);
+    color:var(--ink-soft); font-weight:600; font-size:13.5px; cursor:pointer; border:none; background:none;
+    text-align:left; width:100%; transition:background .12s ease, color .12s ease;
+  }
+  .nav-item svg{width:18px; height:18px; flex:none;}
+  .nav-item:hover{background:var(--green-50); color:var(--green-700);}
+  .nav-item.active{background:var(--green-500); color:#fff;}
+  .nav-item.active svg{color:#fff;}
+
+  .sidebar-divider{height:1px; background:var(--border-soft); margin:16px 4px;}
+
+  .sidebar-stat{padding:12px; background:var(--green-50); border-radius:var(--radius-md); margin:0 2px;}
+  .sidebar-stat-label{font-size:11px; color:var(--green-700); font-weight:600; text-transform:uppercase; letter-spacing:.03em;}
+  .sidebar-stat-value{font-size:19px; font-weight:800; color:var(--ink); margin-top:4px;}
+  .sidebar-stat-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .sidebar-footer{margin-top:auto; padding:10px 8px 2px 8px; display:flex; align-items:center; gap:10px;}
+  .avatar{
+    width:32px; height:32px; border-radius:50%; background:var(--blush-soft); color:var(--blush);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; flex:none;
+  }
+  .sidebar-footer-name{font-weight:700; font-size:13px;}
+  .sidebar-footer-role{font-size:11px; color:var(--ink-faint);}
+
+  /* ---------- Main column ---------- */
+  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+
+  .topbar{
+    height:64px; flex:none; border-bottom:1px solid var(--border); background:var(--card);
+    display:flex; align-items:center; gap:14px; padding:0 22px;
+  }
+  .page-title{font-weight:800; font-size:16.5px; margin-right:6px; white-space:nowrap;}
+  .page-title-sub{font-size:12px; color:var(--ink-faint); font-weight:500; margin-top:1px;}
+  .topbar-search{
+    display:flex; align-items:center; gap:8px; background:var(--bg); border:1px solid var(--border);
+    border-radius:999px; padding:7px 14px; min-width:220px; flex:0 1 280px;
+  }
+  .topbar-search svg{width:15px; height:15px; color:var(--ink-faint); flex:none;}
+  .topbar-search input{border:none; background:none; outline:none; width:100%; font-size:13px;}
+
+  .select-pill{
+    border:1px solid var(--border); background:var(--card); border-radius:999px; padding:7px 12px;
+    font-size:12.5px; font-weight:600; color:var(--ink-soft); outline:none; cursor:pointer;
+  }
+  .topbar-spacer{flex:1;}
+
+  .btn{
+    display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:9px 16px;
+    font-weight:700; font-size:13px; border:none; cursor:pointer; transition:transform .08s ease, box-shadow .12s ease, background .12s ease;
+    white-space:nowrap;
+  }
+  .btn svg{width:15px; height:15px;}
+  .btn-primary{background:var(--green-500); color:#fff; box-shadow:0 2px 8px rgba(31,174,111,.35);}
+  .btn-primary:hover{background:var(--green-600);}
+  .btn-secondary{background:var(--bg); color:var(--ink); border:1px solid var(--border);}
+  .btn-secondary:hover{background:var(--border-soft);}
+  .btn-ghost{background:none; color:var(--ink-soft); padding:8px 10px;}
+  .btn-ghost:hover{background:var(--border-soft); color:var(--ink);}
+  .btn-danger{background:var(--red-soft); color:var(--red);}
+  .btn-danger:hover{background:#F8D9DB;}
+  .btn:active{transform:scale(.97);}
+
+  .user-chip{display:flex; align-items:center; gap:8px; padding-left:8px;}
+
+  /* ---------- Views ---------- */
+  .view{display:none; flex:1; min-height:0; overflow:auto;}
+  .view.active{display:flex; flex-direction:column;}
+
+  /* ---------- Pipeline board ---------- */
+  .board-wrap{flex:1; min-height:0; overflow:auto; padding:18px 22px 22px 22px;}
+  .board{display:flex; gap:14px; align-items:flex-start; min-height:100%;}
+  .column{
+    flex:0 0 278px; background:#EFF2ED; border-radius:var(--radius-lg); padding:12px;
+    display:flex; flex-direction:column; max-height:100%;
+  }
+  .column-header{padding:4px 6px 12px 6px;}
+  .column-title-row{display:flex; align-items:center; gap:7px;}
+  .column-dot{width:8px; height:8px; border-radius:50%; flex:none;}
+  .column-title{font-weight:700; font-size:13px; flex:1;}
+  .column-count{
+    font-size:11px; font-weight:700; color:var(--ink-soft); background:#fff; border-radius:999px;
+    padding:1px 8px; border:1px solid var(--border);
+  }
+  .column-sum{font-size:11.5px; color:var(--ink-faint); font-weight:600; margin-top:4px; padding-left:15px;}
+
+  .column-body{
+    display:flex; flex-direction:column; gap:9px; overflow-y:auto; padding:2px 2px 8px 2px; min-height:60px;
+    border-radius:var(--radius-md); transition:background .12s ease;
+  }
+  .column-body.drag-over{background:var(--green-100);}
+  .column-empty{
+    font-size:12px; color:var(--ink-faint); text-align:center; padding:18px 8px; border:1.5px dashed var(--border);
+    border-radius:var(--radius-md); font-weight:500;
+  }
+
+  .card{
+    background:var(--card); border-radius:var(--radius-md); padding:11px 12px; cursor:grab;
+    box-shadow:var(--shadow-card); border-left:4px solid var(--gray-tag); transition:box-shadow .12s ease, transform .12s ease;
+  }
+  .card:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px);}
+  .card.dragging{opacity:.4;}
+  .card.status-red{border-left-color:var(--red);}
+  .card.status-green{border-left-color:var(--green-500);}
+  .card.status-gray{border-left-color:var(--gray-tag);}
+  .card.status-won{border-left-color:var(--green-700);}
+  .card.status-lost{border-left-color:#C9CDC7;}
+
+  .card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:6px;}
+  .card-name{font-weight:700; font-size:13.5px; line-height:1.3;}
+  .card-tag{
+    font-size:10px; font-weight:700; color:var(--blush); background:var(--blush-soft); border-radius:999px;
+    padding:2px 7px; white-space:nowrap; flex:none;
+  }
+  .card-date{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); margin-top:6px; font-weight:500;}
+  .card-date svg{width:12px; height:12px; color:var(--ink-faint);}
+  .card-badges{display:flex; align-items:center; gap:6px; margin-top:8px; flex-wrap:wrap;}
+  .badge-pkg{font-size:10.5px; font-weight:700; border-radius:6px; padding:3px 8px;}
+  .card-revenue{font-weight:800; font-size:13.5px; margin-top:8px; letter-spacing:-.01em;}
+  .card-footer{display:flex; align-items:center; justify-content:space-between; margin-top:9px; padding-top:9px; border-top:1px solid var(--border-soft);}
+  .status-pill{display:flex; align-items:center; gap:5px; font-size:11px; font-weight:700;}
+  .status-pill .dot{width:6px; height:6px; border-radius:50%;}
+  .status-pill.red{color:var(--red);}
+  .status-pill.green{color:var(--green-600);}
+  .status-pill.gray{color:var(--ink-faint);}
+  .status-pill.won{color:var(--green-700);}
+  .status-pill.lost{color:var(--ink-faint);}
+  .status-pill .dot.red{background:var(--red);}
+  .status-pill .dot.green{background:var(--green-500);}
+  .status-pill .dot.gray{background:var(--gray-tag);}
+  .status-pill .dot.won{background:var(--green-700);}
+  .status-pill .dot.lost{background:var(--gray-tag);}
+  .card-todo{font-size:11px; color:var(--ink-faint); font-weight:600;}
+
+  /* ---------- Dashboard ---------- */
+  .dash-wrap{flex:1; overflow:auto; padding:22px;}
+  .dash-greeting{margin-bottom:18px;}
+  .dash-greeting h2{font-size:19px; font-weight:800;}
+  .dash-greeting p{font-size:12.5px; color:var(--ink-faint); margin-top:3px; font-weight:500;}
+
+  .dash-grid{display:grid; grid-template-columns:repeat(12, 1fr); gap:16px;}
+  .card-box{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:18px;
+    grid-column:span 4;
+  }
+  .card-box.span-6{grid-column:span 6;}
+  .card-box.span-8{grid-column:span 8;}
+  .card-box.span-12{grid-column:span 12;}
+
+  .box-label{font-size:11.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;}
+  .box-value{font-size:26px; font-weight:800; margin-top:8px; letter-spacing:-.02em;}
+  .box-sub{font-size:12px; color:var(--ink-soft); margin-top:4px; font-weight:500;}
+
+  .kpi-row{display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; gap:10px;}
+  .kpi-row input{
+    width:120px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 8px; font-size:12px;
+    font-weight:700; text-align:right;
+  }
+  .progress-track{height:8px; background:var(--border-soft); border-radius:999px; margin-top:12px; overflow:hidden;}
+  .progress-fill{height:100%; border-radius:999px; background:var(--green-500); transition:width .25s ease;}
+  .progress-fill.over{background:var(--blush);}
+  .kpi-percent{font-size:12px; font-weight:700; color:var(--green-600); margin-top:8px;}
+
+  .trio{display:flex; gap:14px; margin-top:10px;}
+  .trio-item{flex:1; text-align:left;}
+  .trio-num{font-size:22px; font-weight:800;}
+  .trio-label{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:2px;}
+
+  .list-box .box-label{margin-bottom:10px;}
+  .list-item{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 4px;
+    border-top:1px solid var(--border-soft); cursor:pointer; border-radius:var(--radius-sm);
+  }
+  .list-item:first-child{border-top:none;}
+  .list-item:hover{background:var(--bg);}
+  .list-item-name{font-weight:700; font-size:12.5px;}
+  .list-item-sub{font-size:11px; color:var(--ink-faint); font-weight:500;}
+  .list-item-tag{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
+  .list-item-tag.red{color:var(--red); background:var(--red-soft);}
+  .list-item-tag.green{color:var(--green-600); background:var(--green-50);}
+  .list-empty{font-size:12px; color:var(--ink-faint); font-weight:500; padding:10px 4px;}
+
+  .todo-row{display:flex; align-items:center; gap:10px; padding:8px 4px; border-top:1px solid var(--border-soft);}
+  .todo-row:first-child{border-top:none;}
+  .todo-check{
+    width:18px; height:18px; border-radius:5px; border:1.5px solid var(--border); flex:none; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; background:#fff;
+  }
+  .todo-check.done{background:var(--green-500); border-color:var(--green-500);}
+  .todo-check svg{width:12px; height:12px; color:#fff; display:none;}
+  .todo-check.done svg{display:block;}
+  .todo-text{font-size:12.5px; font-weight:600;}
+  .todo-text.done{color:var(--ink-faint); text-decoration:line-through;}
+
+  .reason-row{display:flex; align-items:center; gap:10px; padding:7px 0;}
+  .reason-bar-track{flex:1; height:8px; background:var(--border-soft); border-radius:999px; overflow:hidden;}
+  .reason-bar-fill{height:100%; border-radius:999px; background:var(--blush);}
+  .reason-label{font-size:12px; font-weight:600; width:190px; flex:none;}
+  .reason-count{font-size:12px; font-weight:700; width:20px; text-align:right; flex:none;}
+
+  /* ---------- Drawer ---------- */
+  .overlay{
+    position:fixed; inset:0; background:rgba(20,28,25,.35); opacity:0; pointer-events:none; transition:opacity .16s ease;
+    z-index:40;
+  }
+  .overlay.show{opacity:1; pointer-events:auto;}
+  .drawer{
+    position:fixed; top:0; right:0; height:100%; width:420px; max-width:92vw; background:var(--card);
+    box-shadow:var(--shadow-pop); transform:translateX(100%); transition:transform .2s ease; z-index:41;
+    display:flex; flex-direction:column;
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer-header{
+    padding:18px 20px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+  }
+  .drawer-header-title{font-weight:800; font-size:15px;}
+  .drawer-header-sub{font-size:11.5px; color:var(--ink-faint); margin-top:3px; font-weight:600;}
+  .drawer-body{flex:1; overflow:auto; padding:18px 20px;}
+  .drawer-section{margin-bottom:18px;}
+  .drawer-section-title{font-size:11.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:8px;}
+  .field-row{display:flex; gap:10px;}
+  .field-group{margin-bottom:12px; flex:1;}
+  .field-label{font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; display:block;}
+  .field-input{
+    width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-size:13px;
+    outline:none; background:#fff; font-weight:500; resize:vertical;
+  }
+  .field-input:focus{border-color:var(--green-500);}
+  textarea.field-input{min-height:56px; font-family:inherit;}
+  .drawer-footer{padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px;}
+  .add-todo-row{display:flex; gap:8px; margin-top:8px;}
+  .add-todo-row input{flex:1;}
+  .todo-item-drawer{display:flex; align-items:center; gap:9px; padding:6px 0;}
+  .todo-item-drawer .todo-text{flex:1;}
+  .icon-btn-mini{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:4px;}
+  .icon-btn-mini:hover{color:var(--red);}
+  .icon-btn-mini svg{width:14px; height:14px;}
+
+  /* ---------- Modals ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(20,28,25,.4); display:flex; align-items:center; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .15s ease; z-index:50;
+  }
+  .modal-overlay.show{opacity:1; pointer-events:auto;}
+  .modal{
+    background:var(--card); border-radius:var(--radius-lg); width:420px; max-width:92vw; box-shadow:var(--shadow-pop);
+    transform:scale(.96); transition:transform .15s ease; max-height:88vh; display:flex; flex-direction:column;
+  }
+  .modal-overlay.show .modal{transform:scale(1);}
+  .modal-header{padding:18px 20px 12px 20px; border-bottom:1px solid var(--border);}
+  .modal-header h3{font-size:15.5px; font-weight:800;}
+  .modal-header p{font-size:12px; color:var(--ink-faint); margin-top:3px; font-weight:500;}
+  .modal-body{padding:16px 20px; overflow:auto;}
+  .modal-footer{padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px;}
+  .reason-option{
+    display:flex; align-items:center; justify-content:space-between; padding:11px 13px; border:1.5px solid var(--border);
+    border-radius:var(--radius-md); margin-bottom:8px; cursor:pointer; font-weight:600; font-size:13px; transition:border-color .12s ease, background .12s ease;
+  }
+  .reason-option:hover{border-color:var(--blush); background:var(--blush-soft);}
+
+  @media (max-width:880px){
+    .sidebar{width:76px; padding:16px 8px;}
+    .brand-text, .nav-item span, .sidebar-stat, .sidebar-footer-name, .sidebar-footer-role{display:none;}
+    .nav-item{justify-content:center;}
+    .brand{justify-content:center;}
+    .topbar-search{min-width:0; flex:0 1 160px;}
+    .page-title-sub{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="13" cy="17" r="9" stroke="#1FAE6F" stroke-width="2.4"/>
+        <circle cx="21" cy="17" r="9" stroke="#E8899B" stroke-width="2.4"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-title">CRM của Huyền Trân</div>
+        <div class="brand-sub">HayDay Wedding</div>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-item active" id="navPipeline" onclick="setView('pipeline')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 4v5.5a2 2 0 0 0 .59 1.41L11 15v5M18 4v5.5a2 2 0 0 1-.59 1.41L13 15"/></svg>
+        <span>Pipeline</span>
+      </button>
+      <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
+        <span>Dashboard</span>
+      </button>
+    </nav>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-stat">
+      <div class="sidebar-stat-label">Cần xử lý hôm nay</div>
+      <div class="sidebar-stat-value" id="sidebarTodayCount">0</div>
+      <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 lead trễ hẹn</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar">HT</div>
+      <div>
+        <div class="sidebar-footer-name">Huyền Trân</div>
+        <div class="sidebar-footer-role">HayDay Wedding</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <div class="main">
+    <header class="topbar">
+      <div>
+        <div class="page-title" id="pageTitle">Pipeline</div>
+        <div class="page-title-sub" id="pageTitleSub">Theo dõi lead theo từng giai đoạn</div>
+      </div>
+
+      <div class="topbar-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="searchInput" placeholder="Tìm theo tên khách..." oninput="onSearch(this.value)">
+      </div>
+
+      <select class="select-pill" id="filterPackage" onchange="onFilterPackage(this.value)">
+        <option value="all">Tất cả gói</option>
+        <option value="Standard">Standard</option>
+        <option value="Unique">Unique</option>
+        <option value="Signature">Signature</option>
+        <option value="HayDay Package">HayDay Package</option>
+        <option value="Gói lẻ">Gói lẻ</option>
+      </select>
+
+      <select class="select-pill" id="filterStatus" onchange="onFilterStatus(this.value)">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="red">🔴 Trễ hẹn</option>
+        <option value="green">🟢 Hôm nay</option>
+        <option value="gray">⚪ Sắp tới</option>
+      </select>
+
+      <div class="topbar-spacer"></div>
+
+      <button class="btn btn-primary" onclick="openAddLead()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        Thêm lead
+      </button>
+    </header>
+
+    <!-- ============ PIPELINE VIEW ============ -->
+    <section class="view active" id="viewPipeline">
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+      </div>
+    </section>
+
+    <!-- ============ DASHBOARD VIEW ============ -->
+    <section class="view" id="viewDashboard">
+      <div class="dash-wrap">
+        <div class="dash-greeting">
+          <h2 id="dashGreeting">Chào Huyền Trân 👋</h2>
+          <p id="dashDate"></p>
+        </div>
+        <div class="dash-grid" id="dashGrid"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============ OVERLAY + DRAWER (lead detail) ============ -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-header-title" id="drawerTitle">—</div>
+      <div class="drawer-header-sub" id="drawerSub">—</div>
+    </div>
+    <button class="btn btn-ghost" onclick="closeDrawer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-footer">
+    <button class="btn btn-danger" onclick="deleteCurrentLead()">Xóa lead</button>
+    <button class="btn btn-secondary" onclick="closeDrawer()">Đóng</button>
+  </div>
+</aside>
+
+<!-- ============ MODAL: Add lead ============ -->
+<div class="modal-overlay" id="addLeadOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Thêm lead mới</h3>
+      <p>Lead mới sẽ vào giai đoạn "Lead in"</p>
+    </div>
+    <div class="modal-body" id="addLeadBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddLead()">Hủy</button>
+      <button class="btn btn-primary" onclick="submitAddLead()">Thêm lead</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Lost reason ============ -->
+<div class="modal-overlay" id="lostReasonOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Vì sao lead này bị mất?</h3>
+      <p>Chọn lý do để lên báo cáo lost chính xác hơn</p>
+    </div>
+    <div class="modal-body" id="lostReasonBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeLostReason()">Hủy</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Won confirm ============ -->
+<div class="modal-overlay" id="wonConfirmOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Chốt deal thành công 🎉</h3>
+      <p>Xác nhận doanh thu thực tế của lead này</p>
+    </div>
+    <div class="modal-body" id="wonConfirmBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeWonConfirm()">Hủy</button>
+      <button class="btn btn-primary" onclick="submitWonConfirm()">Xác nhận Won</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ======================= DATA ======================= */
+
+// Ngày "hôm nay" cố định cho bản demo để trạng thái trễ hẹn/hôm nay/sắp tới luôn nhất quán
+const TODAY = new Date(2026, 6, 31); // 31/07/2026
+
+const STAGES = [
+  { id:'leadin',     name:'Lead in' },
+  { id:'baogia',     name:'Báo giá' },
+  { id:'follow1',    name:'Follow up lần 1' },
+  { id:'follow2',    name:'Follow up lần 2' },
+  { id:'follow3',    name:'Follow up lần 3' },
+  { id:'nuoidaihan', name:'Nuôi dài hạn' },
+  { id:'won',        name:'Won' },
+  { id:'lost',       name:'Lost' },
+];
+const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.id, s]));
+
+const PACKAGES = ['Standard','Unique','Signature','HayDay Package','Gói lẻ'];
+const PACKAGE_STYLE = {
+  'Standard':       { bg:'var(--slate-soft)',  fg:'var(--slate)'  },
+  'Unique':         { bg:'var(--purple-soft)', fg:'var(--purple)' },
+  'Signature':      { bg:'var(--amber-soft)',  fg:'var(--amber)'  },
+  'HayDay Package': { bg:'var(--green-50)',    fg:'var(--green-700)' },
+  'Gói lẻ':         { bg:'var(--gray-tag-soft)', fg:'var(--gray-tag)' },
+};
+
+const LOST_REASONS = [
+  'Chi phí thấp',
+  'Khách không phải tệp tiềm năng của HayDay',
+  'Đã chọn đơn vị khác',
+  'Khách không phản hồi nhiều lần',
+];
+
+let planRevenue = 150000000;
+let planLeads = 15;
+
+let leads = [
+  { id:'L1', name:'Chị Ngọc Hân & Anh Minh Khoa', facebook:'fb.com/hankhoa.wedding', weddingDate:'2026-11-14',
+    package:'HayDay Package', revenueExpected:60000000, stage:'leadin', deadline:'2026-07-31', createdAt:'2026-07-31',
+    schedule:'Tiệc tối 18h, nhà hàng Riverside, 250 khách', persona:'Cặp đôi trẻ, thích phong cách lãng mạn, rất chủ động nhắn tin',
+    objection:'Đang so sánh giá với 2 studio khác', notes:'Mới nhắn chào, chờ khách xem album mẫu.', tags:['Tiềm năng'],
+    todos:[{text:'Gửi album mẫu HayDay Package', done:false}] },
+
+  { id:'L2', name:'Chị Bảo Trâm & Anh Đức Anh', facebook:'fb.com/tramanh.love', weddingDate:'2026-12-06',
+    package:'Signature', revenueExpected:40000000, stage:'leadin', deadline:'2026-07-30', createdAt:'2026-07-30',
+    schedule:'Tiệc trưa, tư gia + nhà hàng, 180 khách', persona:'Ba mẹ cô dâu là người quyết định chính, cần báo giá rõ ràng',
+    objection:'Chưa chốt ngày cưới chính xác', notes:'', tags:[],
+    todos:[{text:'Nhắn chào khách trong 30 phút', done:false}] },
+
+  { id:'L3', name:'Chị Thu Uyên & Anh Việt Hoàng', facebook:'fb.com/uyenhoang.wedding', weddingDate:'2027-02-14',
+    package:'Unique', revenueExpected:25000000, stage:'leadin', deadline:'2026-08-01', createdAt:'2026-07-29',
+    schedule:'Chưa xác định địa điểm', persona:'Cặp đôi ở xa, trao đổi chủ yếu qua tin nhắn',
+    objection:'', notes:'Khách hẹn cuối tuần mới rep lại.', tags:[], todos:[] },
+
+  { id:'L4', name:'Chị Hồng Ánh & Anh Tấn Phát', facebook:'fb.com/anhphat.2026', weddingDate:'2026-10-18',
+    package:'Standard', revenueExpected:15000000, stage:'baogia', deadline:'2026-07-31', createdAt:'2026-07-25',
+    schedule:'Tiệc tối, 150 khách', persona:'Ngân sách hạn chế, đang so sánh nhiều nơi',
+    objection:'Đang cân nhắc giữa gói Standard và gói lẻ', notes:'Đã gửi báo giá, chờ khách xem.', tags:[],
+    todos:[{text:'Follow lại nếu chưa rep sau 3 ngày', done:false}] },
+
+  { id:'L5', name:'Chị Mỹ Duyên & Anh Quang Huy', facebook:'fb.com/duyenhuy.official', weddingDate:'2026-11-01',
+    package:'HayDay Package', revenueExpected:65000000, stage:'baogia', deadline:'2026-07-29', createdAt:'2026-07-20',
+    schedule:'2 ngày: lễ gia tiên + tiệc tối, 300 khách', persona:'Gia đình khá giả, yêu cầu cao về chất lượng ảnh',
+    objection:'Muốn thêm ekip quay flycam', notes:'Cần báo giá lại có kèm flycam.', tags:['Tiềm năng'], todos:[] },
+
+  { id:'L6', name:'Chị Diệu Linh & Anh Bình', facebook:'fb.com/linhbinh.wedding', weddingDate:'2026-09-20',
+    package:'Unique', revenueExpected:27000000, stage:'follow1', deadline:'2026-07-31', createdAt:'2026-07-18',
+    schedule:'Tiệc tối, 200 khách', persona:'', objection:'Im lặng sau báo giá 3 ngày',
+    notes:'Follow up lần 1 hôm nay.', tags:[], todos:[{text:'Nhắn follow up lần 1', done:false}] },
+
+  { id:'L7', name:'Chị Kim Chi & Anh Hữu Lộc', facebook:'fb.com/chiloc.love', weddingDate:'2026-10-05',
+    package:'Signature', revenueExpected:42000000, stage:'follow1', deadline:'2026-08-02', createdAt:'2026-07-15',
+    schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+
+  { id:'L8', name:'Chị Yến Nhi & Anh Thành Đạt', facebook:'fb.com/nhidat.2026', weddingDate:'2026-09-01',
+    package:'Standard', revenueExpected:16000000, stage:'follow2', deadline:'2026-07-28', createdAt:'2026-07-10',
+    schedule:'', persona:'', objection:'Khách bận việc gia đình chưa rep',
+    notes:'Follow up lần 2 đã quá hạn 3 ngày.', tags:[], todos:[{text:'Gọi điện thay vì nhắn tin', done:false}] },
+
+  { id:'L9', name:'Anh Trọng Nghĩa & Chị Bích Ngọc', facebook:'fb.com/nghiangoc.wedding', weddingDate:'2026-12-20',
+    package:'Gói lẻ', revenueExpected:9000000, stage:'follow2', deadline:'2026-07-31', createdAt:'2026-07-12',
+    schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+
+  { id:'L10', name:'Chị Phương Thảo & Anh Nhật Minh', facebook:'fb.com/thaominh.wed', weddingDate:'2026-08-30',
+    package:'Unique', revenueExpected:24000000, stage:'follow3', deadline:'2026-08-03', createdAt:'2026-07-05',
+    schedule:'', persona:'', objection:'Follow up lần 3, sắp chuyển nuôi dài hạn nếu không phản hồi',
+    notes:'', tags:[], todos:[] },
+
+  { id:'L11', name:'Chị Thanh Mai & Anh Quốc Bảo', facebook:'fb.com/maibao.far', weddingDate:'2027-06-12',
+    package:'Standard', revenueExpected:15000000, stage:'nuoidaihan', deadline:null, createdAt:'2026-06-20',
+    schedule:'Ngày cưới còn xa', persona:'Đã im lặng sau 3 lần follow up', objection:'Không phản hồi',
+    notes:'Nuôi dài hạn, nhắc lại vào dịp lễ/Tết.', tags:[], todos:[] },
+
+  { id:'L12', name:'Chị Ái Vy & Anh Công Danh', facebook:'fb.com/vydanh.wedding', weddingDate:'2027-03-08',
+    package:'HayDay Package', revenueExpected:60000000, stage:'nuoidaihan', deadline:null, createdAt:'2026-06-28',
+    schedule:'', persona:'', objection:'Ngày cưới còn xa, khách chưa gấp', notes:'', tags:[], todos:[] },
+
+  { id:'L13', name:'Chị Gia Hân & Anh Đăng Khôi', facebook:'fb.com/hankhoi.2026', weddingDate:'2026-09-14',
+    package:'HayDay Package', revenueExpected:60000000, revenueActual:62000000, stage:'won',
+    wonAt:'2026-07-10', createdAt:'2026-07-01', schedule:'', persona:'', objection:'',
+    notes:'Đã chốt, khách đặt cọc 50%.', tags:['Tiềm năng'], todos:[{text:'Gửi hợp đồng bản chính thức', done:true}] },
+
+  { id:'L14', name:'Chị Ngọc Diễm & Anh Thiên Ân', facebook:'fb.com/diemantime', weddingDate:'2026-10-25',
+    package:'Signature', revenueExpected:40000000, revenueActual:40000000, stage:'won',
+    wonAt:'2026-07-18', createdAt:'2026-07-02', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+
+  { id:'L15', name:'Chị Hoài Thương & Anh Tuấn Kiệt', facebook:'fb.com/thuongkiet.love', weddingDate:'2026-11-08',
+    package:'Unique', revenueExpected:25000000, revenueActual:25000000, stage:'won',
+    wonAt:'2026-07-24', createdAt:'2026-07-08', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+
+  { id:'L16', name:'Chị Cẩm Tú & Anh Hoàng Long', facebook:'fb.com/tulong.wed', weddingDate:'2026-09-06',
+    package:'Standard', revenueExpected:15000000, stage:'lost', lostReason:'Đã chọn đơn vị khác',
+    lostAt:'2026-07-14', createdAt:'2026-07-03', schedule:'', persona:'', objection:'',
+    notes:'Khách chọn studio khác giá tốt hơn.', tags:[], todos:[] },
+
+  { id:'L17', name:'Anh Minh Tuấn & Chị Thùy Dương', facebook:'fb.com/tuanduong.w', weddingDate:'2026-08-16',
+    package:'Gói lẻ', revenueExpected:8000000, stage:'lost', lostReason:'Khách không phản hồi nhiều lần',
+    lostAt:'2026-07-20', createdAt:'2026-07-04', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+
+  { id:'L18', name:'Chị Lan Chi & Anh Bảo Long', facebook:'fb.com/chilong.wedding', weddingDate:'2026-09-28',
+    package:'Unique', revenueExpected:22000000, stage:'lost', lostReason:'Chi phí thấp',
+    lostAt:'2026-07-27', createdAt:'2026-07-06', schedule:'', persona:'', objection:'', notes:'', tags:[], todos:[] },
+];
+
+let dailyTodos = [
+  { text:'Check tin nhắn Fanpage buổi sáng', done:true },
+  { text:'Follow up các lead đang trễ hẹn', done:false },
+  { text:'Gửi hợp đồng cho Gia Hân & Đăng Khôi', done:false },
+  { text:'Cập nhật doanh thu thực tế lên bảng', done:false },
+  { text:'Đăng story cảm ơn khách mới cưới', done:true },
+];
+
+/* ======================= STATE ======================= */
+let searchQuery = '';
+let filterPackage = 'all';
+let filterStatus = 'all';
+let currentLeadId = null;
+let pendingDropId = null;
+let pendingDropStage = null;
+
+/* ======================= HELPERS ======================= */
+function esc(str){
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function todayISO(){
+  const y = TODAY.getFullYear(), m = String(TODAY.getMonth()+1).padStart(2,'0'), d = String(TODAY.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function formatDate(dateStr){
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('vi-VN');
+}
+function formatMoney(n){
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('vi-VN') + ' đ';
+}
+function inSameMonth(dateStr){
+  if (!dateStr) return false;
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getMonth() === TODAY.getMonth() && d.getFullYear() === TODAY.getFullYear();
+}
+function daysDiff(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return Math.round((d - TODAY) / 86400000);
+}
+function leadStatus(lead){
+  if (lead.stage === 'won')  return { type:'won',  label:'Đã chốt ✓' };
+  if (lead.stage === 'lost') return { type:'lost', label:'Đã đóng' };
+  if (!lead.deadline) return { type:'gray', label:'Chưa hẹn' };
+  const diff = daysDiff(lead.deadline);
+  if (diff < 0) return { type:'red',   label:`Trễ ${Math.abs(diff)} ngày` };
+  if (diff === 0) return { type:'green', label:'Hôm nay' };
+  return { type:'gray', label:`Còn ${diff} ngày` };
+}
+function matchesFilters(lead){
+  if (filterPackage !== 'all' && lead.package !== filterPackage) return false;
+  if (filterStatus !== 'all' && leadStatus(lead).type !== filterStatus) return false;
+  if (searchQuery.trim()){
+    if (!lead.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
+  }
+  return true;
+}
+
+/* ======================= VIEW SWITCH ======================= */
+function setView(view){
+  document.getElementById('viewPipeline').classList.toggle('active', view === 'pipeline');
+  document.getElementById('viewDashboard').classList.toggle('active', view === 'dashboard');
+  document.getElementById('navPipeline').classList.toggle('active', view === 'pipeline');
+  document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
+  document.getElementById('pageTitle').textContent = view === 'pipeline' ? 'Pipeline' : 'Dashboard';
+  document.getElementById('pageTitleSub').textContent = view === 'pipeline'
+    ? 'Theo dõi lead theo từng giai đoạn'
+    : 'Báo cáo tổng quan theo tháng';
+  renderAll();
+}
+
+/* ======================= RENDER: PIPELINE ======================= */
+function renderPipeline(){
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  STAGES.forEach(stage => {
+    const stageLeads = leads.filter(l => l.stage === stage.id);
+    const visibleLeads = stageLeads.filter(matchesFilters);
+    const sum = stageLeads.reduce((s,l) => s + (stage.id === 'won' ? (l.revenueActual||0) : (l.revenueExpected||0)), 0);
+
+    const col = document.createElement('div');
+    col.className = 'column';
+
+    const dotColor = stage.id === 'won' ? 'var(--green-700)' : stage.id === 'lost' ? 'var(--gray-tag)' : 'var(--green-500)';
+
+    col.innerHTML = `
+      <div class="column-header">
+        <div class="column-title-row">
+          <span class="column-dot" style="background:${dotColor}"></span>
+          <span class="column-title">${esc(stage.name)}</span>
+          <span class="column-count">${stageLeads.length}</span>
+        </div>
+        <div class="column-sum">${formatMoney(sum)}</div>
+      </div>
+      <div class="column-body" data-stage="${stage.id}" ondragover="allowDrop(event)" ondrop="handleDrop(event,'${stage.id}')" ondragleave="dragLeave(event)">
+        ${visibleLeads.length ? visibleLeads.map(cardHtml).join('') : `<div class="column-empty">${stageLeads.length ? 'Không khớp bộ lọc' : 'Chưa có lead nào'}</div>`}
+      </div>
+    `;
+    board.appendChild(col);
+  });
+}
+
+function cardHtml(lead){
+  const status = leadStatus(lead);
+  const pkg = PACKAGE_STYLE[lead.package] || PACKAGE_STYLE['Standard'];
+  const todoCount = lead.todos && lead.todos.length ? `<span class="card-todo">✓ ${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '<span></span>';
+  const tag = (lead.tags && lead.tags[0]) ? `<span class="card-tag">🔥 ${esc(lead.tags[0])}</span>` : '';
+  return `
+    <div class="card status-${status.type}" draggable="true" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')">
+      <div class="card-top">
+        <div class="card-name">${esc(lead.name)}</div>
+        ${tag}
+      </div>
+      <div class="card-date">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        ${formatDate(lead.weddingDate)}
+      </div>
+      <div class="card-badges">
+        <span class="badge-pkg" style="background:${pkg.bg}; color:${pkg.fg}">${esc(lead.package)}</span>
+      </div>
+      <div class="card-revenue">${formatMoney(lead.stage==='won' ? lead.revenueActual : lead.revenueExpected)}</div>
+      <div class="card-footer">
+        <span class="status-pill ${status.type}"><span class="dot ${status.type}"></span>${status.label}</span>
+        ${todoCount}
+      </div>
+    </div>
+  `;
+}
+
+/* ======================= DRAG & DROP ======================= */
+function handleDragStart(ev, id){
+  ev.dataTransfer.setData('text/plain', id);
+  setTimeout(() => ev.target.classList.add('dragging'), 0);
+}
+function handleDragEnd(ev){
+  ev.target.classList.remove('dragging');
+}
+function allowDrop(ev){
+  ev.preventDefault();
+  ev.currentTarget.classList.add('drag-over');
+}
+function dragLeave(ev){
+  ev.currentTarget.classList.remove('drag-over');
+}
+function handleDrop(ev, stageId){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const id = ev.dataTransfer.getData('text/plain');
+  const lead = leads.find(l => l.id === id);
+  if (!lead || lead.stage === stageId) return;
+
+  if (stageId === 'lost'){ openLostReason(id); return; }
+  if (stageId === 'won'){ openWonConfirm(id); return; }
+
+  lead.stage = stageId;
+  renderAll();
+}
+
+/* ======================= LEAD DETAIL DRAWER ======================= */
+function openLead(id){
+  currentLeadId = id;
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+
+  document.getElementById('drawerTitle').textContent = lead.name;
+  document.getElementById('drawerSub').textContent = `${STAGE_MAP[lead.stage].name} · Cưới ngày ${formatDate(lead.weddingDate)}`;
+
+  const stageOptions = STAGES.map(s => `<option value="${s.id}" ${s.id===lead.stage?'selected':''}>${esc(s.name)}</option>`).join('');
+  const pkgOptions = PACKAGES.map(p => `<option value="${p}" ${p===lead.package?'selected':''}>${esc(p)}</option>`).join('');
+
+  let extra = '';
+  if (lead.stage === 'won'){
+    extra = `
+      <div class="field-group">
+        <label class="field-label">Doanh thu thực tế</label>
+        <input class="field-input" type="number" value="${lead.revenueActual||0}" oninput="onFieldChange('${id}','revenueActual', Number(this.value))">
+      </div>
+      <div class="field-group"><label class="field-label">Ngày chốt Won</label><input class="field-input" value="${formatDate(lead.wonAt)}" disabled></div>
+    `;
+  } else if (lead.stage === 'lost'){
+    const reasonOptions = LOST_REASONS.map(r => `<option value="${esc(r)}" ${r===lead.lostReason?'selected':''}>${esc(r)}</option>`).join('');
+    extra = `
+      <div class="field-group">
+        <label class="field-label">Lý do lost</label>
+        <select class="field-input" onchange="onFieldChange('${id}','lostReason', this.value)">${reasonOptions}</select>
+      </div>
+      <div class="field-group"><label class="field-label">Ngày đóng</label><input class="field-input" value="${formatDate(lead.lostAt)}" disabled></div>
+    `;
+  } else {
+    extra = `
+      <div class="field-group">
+        <label class="field-label">Deadline hành động tiếp theo</label>
+        <input class="field-input" type="date" value="${lead.deadline||''}" oninput="onFieldChange('${id}','deadline', this.value)">
+      </div>
+    `;
+  }
+
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="drawer-section">
+      <div class="drawer-section-title">Giai đoạn</div>
+      <select class="field-input" onchange="changeStageFromDrawer('${id}', this.value)">${stageOptions}</select>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Thông tin khách hàng</div>
+      <div class="field-group">
+        <label class="field-label">Tên khách hàng</label>
+        <input class="field-input" value="${esc(lead.name)}" oninput="onFieldChange('${id}','name', this.value)">
+      </div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Ngày cưới</label>
+          <input class="field-input" type="date" value="${lead.weddingDate||''}" oninput="onFieldChange('${id}','weddingDate', this.value)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Facebook</label>
+          <input class="field-input" value="${esc(lead.facebook)}" oninput="onFieldChange('${id}','facebook', this.value)">
+        </div>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Lịch trình</label>
+        <textarea class="field-input" oninput="onFieldChange('${id}','schedule', this.value)">${esc(lead.schedule)}</textarea>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Chân dung khách hàng</label>
+        <textarea class="field-input" oninput="onFieldChange('${id}','persona', this.value)">${esc(lead.persona)}</textarea>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Objection khách đang gặp</label>
+        <textarea class="field-input" oninput="onFieldChange('${id}','objection', this.value)">${esc(lead.objection)}</textarea>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Gói dịch vụ & doanh thu</div>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label">Gói dịch vụ</label>
+          <select class="field-input" onchange="onFieldChange('${id}','package', this.value)">${pkgOptions}</select>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Doanh thu dự kiến</label>
+          <input class="field-input" type="number" value="${lead.revenueExpected||0}" oninput="onFieldChange('${id}','revenueExpected', Number(this.value))">
+        </div>
+      </div>
+      ${extra}
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Ghi chú</div>
+      <textarea class="field-input" style="min-height:80px" oninput="onFieldChange('${id}','notes', this.value)">${esc(lead.notes)}</textarea>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Việc cần làm</div>
+      <div id="drawerTodos"></div>
+      <div class="add-todo-row">
+        <input class="field-input" id="newTodoInput" placeholder="Thêm việc cần làm..." onkeydown="if(event.key==='Enter') addTodo('${id}')">
+        <button class="btn btn-secondary" onclick="addTodo('${id}')">Thêm</button>
+      </div>
+    </div>
+  `;
+
+  renderDrawerTodos(lead);
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function renderDrawerTodos(lead){
+  const box = document.getElementById('drawerTodos');
+  if (!box) return;
+  if (!lead.todos || !lead.todos.length){
+    box.innerHTML = `<div class="list-empty">Chưa có việc cần làm.</div>`;
+    return;
+  }
+  box.innerHTML = lead.todos.map((t, i) => `
+    <div class="todo-item-drawer">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${lead.id}', ${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
+      <button class="icon-btn-mini" onclick="removeTodo('${lead.id}', ${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function onFieldChange(id, field, value){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  lead[field] = value;
+  if (field === 'name' || field === 'weddingDate' || field === 'stage'){
+    document.getElementById('drawerTitle').textContent = lead.name;
+    document.getElementById('drawerSub').textContent = `${STAGE_MAP[lead.stage].name} · Cưới ngày ${formatDate(lead.weddingDate)}`;
+  }
+  renderPipeline();
+  if (document.getElementById('viewDashboard').classList.contains('active')) renderDashboard();
+}
+
+function changeStageFromDrawer(id, newStage){
+  const lead = leads.find(l => l.id === id);
+  if (!lead || newStage === lead.stage) return;
+  if (newStage === 'lost'){ openLostReason(id); return; }
+  if (newStage === 'won'){ openWonConfirm(id); return; }
+  lead.stage = newStage;
+  renderAll();
+  openLead(id);
+}
+
+function toggleTodo(id, i){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  lead.todos[i].done = !lead.todos[i].done;
+  renderDrawerTodos(lead);
+  renderPipeline();
+}
+function removeTodo(id, i){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  lead.todos.splice(i,1);
+  renderDrawerTodos(lead);
+  renderPipeline();
+}
+function addTodo(id){
+  const input = document.getElementById('newTodoInput');
+  const text = input.value.trim();
+  if (!text) return;
+  const lead = leads.find(l => l.id === id);
+  lead.todos = lead.todos || [];
+  lead.todos.push({ text, done:false });
+  input.value = '';
+  renderDrawerTodos(lead);
+  renderPipeline();
+}
+
+function closeDrawer(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('open');
+  currentLeadId = null;
+}
+function deleteCurrentLead(){
+  if (!currentLeadId) return;
+  if (!confirm('Xóa lead này khỏi pipeline?')) return;
+  leads = leads.filter(l => l.id !== currentLeadId);
+  closeDrawer();
+  renderAll();
+}
+
+/* ======================= LOST REASON MODAL ======================= */
+function openLostReason(id){
+  pendingDropId = id;
+  document.getElementById('lostReasonBody').innerHTML = LOST_REASONS.map(r => `
+    <div class="reason-option" onclick="confirmLostReason('${esc(r)}')">${esc(r)}</div>
+  `).join('');
+  document.getElementById('lostReasonOverlay').classList.add('show');
+}
+function confirmLostReason(reason){
+  const lead = leads.find(l => l.id === pendingDropId);
+  if (lead){
+    lead.stage = 'lost';
+    lead.lostReason = reason;
+    lead.lostAt = todayISO();
+  }
+  closeLostReason();
+  renderAll();
+}
+function closeLostReason(){
+  document.getElementById('lostReasonOverlay').classList.remove('show');
+  pendingDropId = null;
+}
+
+/* ======================= WON CONFIRM MODAL ======================= */
+function openWonConfirm(id){
+  pendingDropId = id;
+  const lead = leads.find(l => l.id === id);
+  document.getElementById('wonConfirmBody').innerHTML = `
+    <div class="field-group">
+      <label class="field-label">${esc(lead.name)}</label>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Doanh thu thực tế</label>
+      <input class="field-input" id="wonRevenueInput" type="number" value="${lead.revenueExpected||0}">
+    </div>
+  `;
+  document.getElementById('wonConfirmOverlay').classList.add('show');
+}
+function submitWonConfirm(){
+  const lead = leads.find(l => l.id === pendingDropId);
+  const val = Number(document.getElementById('wonRevenueInput').value) || 0;
+  if (lead){
+    lead.stage = 'won';
+    lead.revenueActual = val;
+    lead.wonAt = todayISO();
+  }
+  closeWonConfirm();
+  renderAll();
+}
+function closeWonConfirm(){
+  document.getElementById('wonConfirmOverlay').classList.remove('show');
+  pendingDropId = null;
+}
+
+/* ======================= ADD LEAD MODAL ======================= */
+function openAddLead(){
+  document.getElementById('addLeadBody').innerHTML = `
+    <div class="field-group">
+      <label class="field-label">Tên khách hàng</label>
+      <input class="field-input" id="newName" placeholder="VD: Chị A & Anh B">
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label">Ngày cưới</label>
+        <input class="field-input" id="newWeddingDate" type="date">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Facebook</label>
+        <input class="field-input" id="newFacebook" placeholder="fb.com/...">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label">Gói dịch vụ</label>
+        <select class="field-input" id="newPackage">${PACKAGES.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
+      </div>
+      <div class="field-group">
+        <label class="field-label">Doanh thu dự kiến</label>
+        <input class="field-input" id="newRevenue" type="number" placeholder="0">
+      </div>
+    </div>
+    <div class="field-group">
+      <label class="field-label">Deadline hành động tiếp theo</label>
+      <input class="field-input" id="newDeadline" type="date" value="${todayISO()}">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Ghi chú</label>
+      <textarea class="field-input" id="newNotes" placeholder="Ghi chú thêm (nếu có)"></textarea>
+    </div>
+  `;
+  document.getElementById('addLeadOverlay').classList.add('show');
+}
+function closeAddLead(){
+  document.getElementById('addLeadOverlay').classList.remove('show');
+}
+function submitAddLead(){
+  const name = document.getElementById('newName').value.trim();
+  if (!name){ alert('Vui lòng nhập tên khách hàng.'); return; }
+  const lead = {
+    id: 'L' + Date.now(),
+    name,
+    facebook: document.getElementById('newFacebook').value.trim(),
+    weddingDate: document.getElementById('newWeddingDate').value || null,
+    package: document.getElementById('newPackage').value,
+    revenueExpected: Number(document.getElementById('newRevenue').value) || 0,
+    stage: 'leadin',
+    deadline: document.getElementById('newDeadline').value || todayISO(),
+    createdAt: todayISO(),
+    schedule:'', persona:'', objection:'',
+    notes: document.getElementById('newNotes').value.trim(),
+    tags:[], todos:[],
+  };
+  leads.unshift(lead);
+  closeAddLead();
+  setView('pipeline');
+}
+
+/* ======================= FILTER / SEARCH HANDLERS ======================= */
+function onSearch(v){ searchQuery = v; renderPipeline(); }
+function onFilterPackage(v){ filterPackage = v; renderPipeline(); }
+function onFilterStatus(v){ filterStatus = v; renderPipeline(); }
+
+/* ======================= DASHBOARD ======================= */
+function updatePlan(key, value){
+  const num = Number(value) || 0;
+  if (key === 'revenue') planRevenue = num;
+  if (key === 'leads') planLeads = num;
+  renderDashboard();
+}
+
+function renderDashboard(){
+  document.getElementById('dashDate').textContent = `Hôm nay là ${formatDate(todayISO())} · Tháng ${TODAY.getMonth()+1}/${TODAY.getFullYear()}`;
+
+  const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const monthLeads = leads.filter(l => inSameMonth(l.createdAt));
+  const wonThisMonth = leads.filter(l => l.stage === 'won' && inSameMonth(l.wonAt));
+  const lostThisMonth = leads.filter(l => l.stage === 'lost' && inSameMonth(l.lostAt));
+  const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
+  const pipelineValue = activeLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
+  const overdueLeads = activeLeads.filter(l => leadStatus(l).type === 'red').sort((a,b) => daysDiff(a.deadline) - daysDiff(b.deadline));
+  const todayLeads = activeLeads.filter(l => leadStatus(l).type === 'green');
+
+  const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
+  const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
+
+  const reasonCounts = {};
+  LOST_REASONS.forEach(r => reasonCounts[r] = 0);
+  lostThisMonth.forEach(l => { if (l.lostReason) reasonCounts[l.lostReason] = (reasonCounts[l.lostReason]||0) + 1; });
+  const maxReasonCount = Math.max(1, ...Object.values(reasonCounts));
+
+  const grid = document.getElementById('dashGrid');
+  grid.innerHTML = `
+    <div class="card-box">
+      <div class="box-label">Giá trị pipeline đang chăm</div>
+      <div class="box-value">${formatMoney(pipelineValue)}</div>
+      <div class="box-sub">${activeLeads.length} lead đang được chăm sóc</div>
+    </div>
+
+    <div class="card-box span-4">
+      <div class="box-label">Doanh thu thực tế tháng</div>
+      <div class="kpi-row">
+        <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
+        <input type="number" value="${planRevenue}" oninput="updatePlan('revenue', this.value)" title="Chỉnh KPI kế hoạch">
+      </div>
+      <div class="progress-track"><div class="progress-fill ${revenuePct>=100?'over':''}" style="width:${revenuePct}%"></div></div>
+      <div class="kpi-percent">${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}</div>
+    </div>
+
+    <div class="card-box span-4">
+      <div class="box-label">Số lead nhận trong tháng</div>
+      <div class="kpi-row">
+        <div class="box-value" style="font-size:22px">${monthLeads.length}</div>
+        <input type="number" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
+      </div>
+      <div class="progress-track"><div class="progress-fill ${leadsPct>=100?'over':''}" style="width:${leadsPct}%"></div></div>
+      <div class="kpi-percent">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
+    </div>
+
+    <div class="card-box span-12">
+      <div class="box-label">Tổng quan lead trong tháng</div>
+      <div class="trio">
+        <div class="trio-item"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
+        <div class="trio-item"><div class="trio-num" style="color:var(--green-600)">${wonThisMonth.length}</div><div class="trio-label">Won</div></div>
+        <div class="trio-item"><div class="trio-num" style="color:var(--red)">${lostThisMonth.length}</div><div class="trio-label">Lost</div></div>
+        <div class="trio-item"><div class="trio-num" style="color:var(--blush)">${overdueLeads.length}</div><div class="trio-label">Đang trễ hẹn</div></div>
+        <div class="trio-item"><div class="trio-num">${todayLeads.length}</div><div class="trio-label">Cần xử lý hôm nay</div></div>
+      </div>
+    </div>
+
+    <div class="card-box span-6 list-box">
+      <div class="box-label">Lý do Lost trong tháng (${lostThisMonth.length})</div>
+      ${LOST_REASONS.map(r => `
+        <div class="reason-row">
+          <div class="reason-label">${esc(r)}</div>
+          <div class="reason-bar-track"><div class="reason-bar-fill" style="width:${(reasonCounts[r]/maxReasonCount)*100}%"></div></div>
+          <div class="reason-count">${reasonCounts[r]}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="card-box span-6 list-box">
+      <div class="box-label">Lead đang trễ hẹn</div>
+      ${overdueLeads.length ? overdueLeads.map(l => `
+        <div class="list-item" onclick="jumpToLead('${l.id}')">
+          <div>
+            <div class="list-item-name">${esc(l.name)}</div>
+            <div class="list-item-sub">${STAGE_MAP[l.stage].name} · ${esc(l.package)}</div>
+          </div>
+          <div class="list-item-tag red">Trễ ${Math.abs(daysDiff(l.deadline))} ngày</div>
+        </div>
+      `).join('') : '<div class="list-empty">Không có lead nào trễ hẹn 🎉</div>'}
+    </div>
+
+    <div class="card-box span-6 list-box">
+      <div class="box-label">Cần xử lý hôm nay</div>
+      ${todayLeads.length ? todayLeads.map(l => `
+        <div class="list-item" onclick="jumpToLead('${l.id}')">
+          <div>
+            <div class="list-item-name">${esc(l.name)}</div>
+            <div class="list-item-sub">${STAGE_MAP[l.stage].name} · ${esc(l.package)}</div>
+          </div>
+          <div class="list-item-tag green">Hôm nay</div>
+        </div>
+      `).join('') : '<div class="list-empty">Không có lead nào cần xử lý gấp hôm nay.</div>'}
+    </div>
+
+    <div class="card-box span-6 list-box">
+      <div class="box-label">Việc cần làm hôm nay</div>
+      <div id="dailyTodoList"></div>
+    </div>
+  `;
+
+  renderDailyTodos();
+}
+
+function renderDailyTodos(){
+  const box = document.getElementById('dailyTodoList');
+  if (!box) return;
+  box.innerHTML = dailyTodos.map((t,i) => `
+    <div class="todo-row">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleDailyTodo(${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+      </div>
+      <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
+    </div>
+  `).join('');
+}
+function toggleDailyTodo(i){
+  dailyTodos[i].done = !dailyTodos[i].done;
+  renderDailyTodos();
+}
+
+function jumpToLead(id){
+  setView('pipeline');
+  setTimeout(() => openLead(id), 60);
+}
+
+/* ======================= SIDEBAR STATS ======================= */
+function renderSidebarStats(){
+  const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const todayCount = activeLeads.filter(l => leadStatus(l).type === 'green').length;
+  const overdueCount = activeLeads.filter(l => leadStatus(l).type === 'red').length;
+  document.getElementById('sidebarTodayCount').textContent = todayCount;
+  document.getElementById('sidebarOverdueCount').textContent = `${overdueCount} lead trễ hẹn`;
+}
+
+/* ======================= MASTER RENDER ======================= */
+function renderAll(){
+  renderPipeline();
+  renderDashboard();
+  renderSidebarStats();
+}
+
+renderAll();
+</script>
+</body>
+</html>
+
