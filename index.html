@@ -364,6 +364,12 @@
   .btn-won-action:hover{background:var(--green-600);}
   .btn-lost-action{background:#fff; color:var(--red); border:1.5px solid var(--red);}
   .btn-lost-action:hover{background:var(--red-soft);}
+  .tag-toggle{
+    display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:999px; border:1.5px solid var(--border);
+    background:#fff; font-weight:700; font-size:12.5px; cursor:pointer; color:var(--ink-faint); transition:all .12s ease;
+  }
+  .tag-toggle:hover{border-color:var(--blush); color:var(--blush);}
+  .tag-toggle.active{background:var(--blush-soft); border-color:var(--blush); color:var(--blush);}
   .drawer-header-title{font-weight:800; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .drawer-header-sub{font-size:11.5px; color:var(--ink-faint); margin-top:2px; font-weight:600;}
   .drawer-body{flex:1; overflow:auto; padding:26px 28px 60px 28px;}
@@ -475,6 +481,13 @@
   .today-todo-tag{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; flex:none;}
   .today-todo-tag.red{color:var(--red); background:var(--red-soft);}
   .today-todo-tag.green{color:var(--green-600); background:var(--green-50);}
+  .reminder-section{margin-bottom:18px;}
+  .reminder-section:last-child{margin-bottom:0;}
+  .reminder-section-title{
+    font-size:12px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;
+    display:flex; align-items:center; gap:8px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--border-soft);
+  }
+  .reminder-section-count{font-size:11px; font-weight:700; background:var(--bg); border-radius:999px; padding:1px 8px; color:var(--ink-soft);}
 
   @media (max-width:880px){
     .sidebar{width:76px; padding:16px 8px;}
@@ -484,9 +497,43 @@
     .topbar-search{min-width:0; flex:0 1 160px;}
     .page-title-sub{display:none;}
   }
+
+  /* ---------- Lock screen ---------- */
+  .lock-screen{
+    position:fixed; inset:0; z-index:1000; background:var(--bg);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+    transition:opacity .25s ease; opacity:1;
+  }
+  .lock-screen.unlocked{opacity:0; pointer-events:none;}
+  .lock-card{
+    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-pop);
+    padding:36px 32px; width:320px; max-width:100%; text-align:center;
+  }
+  .lock-icon{width:34px; height:34px; color:var(--green-600); margin-bottom:14px;}
+  .lock-title{font-weight:800; font-size:16px;}
+  .lock-sub{font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-top:4px; margin-bottom:18px;}
+  .lock-input{
+    width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; font-size:15px;
+    outline:none; text-align:center; letter-spacing:.2em; font-weight:700; margin-bottom:12px;
+  }
+  .lock-input:focus{border-color:var(--green-500);}
+  .lock-btn{width:100%; justify-content:center;}
+  .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
 </style>
 </head>
 <body>
+
+<!-- ============ LOCK SCREEN ============ -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-card">
+    <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    <div class="lock-title">CRM của Huyền Trân</div>
+    <div class="lock-sub">Nhập mật khẩu để mở</div>
+    <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
+    <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
+    <div class="lock-error" id="lockError"></div>
+  </div>
+</div>
 
 <div class="app">
   <!-- ============ SIDEBAR ============ -->
@@ -518,13 +565,13 @@
 
     <div class="sidebar-divider"></div>
 
-    <div class="sidebar-stat" onclick="openTodayTodosModal()" title="Xem danh sách việc cần làm">
+    <div class="sidebar-stat" onclick="openRemindersModal()" title="Xem danh sách nhắc nhở">
       <div class="sidebar-stat-label">
-        Cần xử lý hôm nay
+        Nhắc nhở
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
       </div>
       <div class="sidebar-stat-value" id="sidebarTodayCount">0</div>
-      <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 lead trễ hẹn</div>
+      <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
 
     <div class="sidebar-footer">
@@ -662,16 +709,16 @@
   </div>
 </div>
 
-<!-- ============ MODAL: Today's todos ============ -->
-<div class="modal-overlay" id="todayTodosOverlay">
+<!-- ============ MODAL: Nhắc nhở ============ -->
+<div class="modal-overlay" id="remindersOverlay">
   <div class="modal wide">
     <div class="modal-header">
-      <h3>Việc cần làm hôm nay</h3>
-      <p>Todo từ các lead đang trễ hẹn hoặc cần xử lý hôm nay — bấm vào việc để mở lead tương ứng</p>
+      <h3>Nhắc nhở</h3>
+      <p>Việc cần làm theo từng lead, chia theo mốc thời gian — bấm vào việc để mở lead tương ứng</p>
     </div>
-    <div class="modal-body" id="todayTodosBody"></div>
+    <div class="modal-body" id="remindersBody"></div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeTodayTodosModal()">Đóng</button>
+      <button class="btn btn-secondary" onclick="closeRemindersModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -763,6 +810,23 @@ function formatMoney(n){
   if (n === null || n === undefined || isNaN(n)) return '—';
   return Number(n).toLocaleString('vi-VN') + ' đ';
 }
+function moneyDisplay(n){
+  const num = Number(n) || 0;
+  return num ? num.toLocaleString('vi-VN') : '';
+}
+// Định dạng dấu phẩy/chấm phân cách hàng nghìn ngay khi đang gõ số tiền
+function formatMoneyInput(el){
+  const distFromEnd = el.value.length - (el.selectionStart || el.value.length);
+  const digits = el.value.replace(/\D/g, '');
+  const num = digits ? parseInt(digits, 10) : 0;
+  el.value = num ? num.toLocaleString('vi-VN') : '';
+  const pos = Math.max(0, el.value.length - distFromEnd);
+  el.setSelectionRange(pos, pos);
+}
+function moneyInputValue(el){
+  const digits = (el.value || '').replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
 function inSameMonth(dateStr){
   if (!dateStr) return false;
   const d = new Date(dateStr + 'T00:00:00');
@@ -809,6 +873,21 @@ function matchesFilters(lead){
     if (!lead.name.toLowerCase().includes(searchQuery.trim().toLowerCase())) return false;
   }
   return true;
+}
+
+/* ======================= LOCK SCREEN ======================= */
+const APP_PASSWORD = '8386';
+function checkLockPassword(){
+  const input = document.getElementById('lockPasswordInput');
+  if (input.value === APP_PASSWORD){
+    const screen = document.getElementById('lockScreen');
+    screen.classList.add('unlocked');
+    setTimeout(() => screen.remove(), 300);
+  } else {
+    document.getElementById('lockError').textContent = 'Sai mật khẩu, thử lại nhé.';
+    input.value = '';
+    input.focus();
+  }
 }
 
 /* ======================= VIEW SWITCH ======================= */
@@ -1011,7 +1090,7 @@ function openLead(id){
     extra = `
       <div class="field-group">
         <label class="field-label">Doanh thu thực tế</label>
-        <input class="field-input" type="number" value="${lead.revenueActual||0}" oninput="onFieldChange('${id}','revenueActual', Number(this.value))">
+        <input class="field-input" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueActual)}" placeholder="0" oninput="formatMoneyInput(this); onFieldChange('${id}','revenueActual', moneyInputValue(this))">
       </div>
       <div class="field-group"><label class="field-label">Ngày chốt Won</label><input class="field-input" value="${formatDate(lead.wonAt)}" disabled></div>
     `;
@@ -1040,18 +1119,25 @@ function openLead(id){
       <div class="detail-col">
         <div class="detail-block block-customer">
           <div class="drawer-section-title">📋 Thông tin khách hàng</div>
-          <div class="field-group">
+          <button class="tag-toggle ${(lead.tags||[]).includes('Tiềm năng') ? 'active' : ''}" id="tagToggleBtn" onclick="toggleTag('${id}', 'Tiềm năng')">
+            🔥 Lead tiềm năng
+          </button>
+          <div class="field-group" style="margin-top:12px">
             <label class="field-label">Tên khách hàng</label>
             <input class="field-input" value="${esc(lead.name)}" oninput="onFieldChange('${id}','name', this.value)">
           </div>
+          <div class="field-group">
+            <label class="field-label">Ngày cưới</label>
+            <input class="field-input" type="date" value="${lead.weddingDate||''}" oninput="onFieldChange('${id}','weddingDate', this.value)">
+          </div>
           <div class="field-row">
-            <div class="field-group">
-              <label class="field-label">Ngày cưới</label>
-              <input class="field-input" type="date" value="${lead.weddingDate||''}" oninput="onFieldChange('${id}','weddingDate', this.value)">
-            </div>
             <div class="field-group">
               <label class="field-label">Facebook</label>
               <input class="field-input" value="${esc(lead.facebook)}" oninput="onFieldChange('${id}','facebook', this.value)">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Số điện thoại</label>
+              <input class="field-input" type="tel" value="${esc(lead.phone)}" placeholder="09xx xxx xxx" oninput="onFieldChange('${id}','phone', this.value)">
             </div>
           </div>
           <div class="field-group">
@@ -1092,7 +1178,7 @@ function openLead(id){
           </div>
           <div class="field-group">
             <label class="field-label">Doanh thu dự kiến</label>
-            <input class="field-input" type="number" value="${lead.revenueExpected||0}" oninput="onFieldChange('${id}','revenueExpected', Number(this.value))">
+            <input class="field-input" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" placeholder="0" oninput="formatMoneyInput(this); onFieldChange('${id}','revenueExpected', moneyInputValue(this))">
           </div>
           ${extra}
         </div>
@@ -1162,6 +1248,27 @@ function changeStageFromDrawer(id, newStage){
 function refreshActivityLogBox(lead){
   const box = document.getElementById('activityLogBox');
   if (box) box.innerHTML = renderActivityLog(lead);
+}
+function refreshTagToggleUI(lead){
+  const btn = document.getElementById('tagToggleBtn');
+  if (btn) btn.classList.toggle('active', (lead.tags||[]).includes('Tiềm năng'));
+}
+function toggleTag(id, tag){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  lead.tags = lead.tags || [];
+  const idx = lead.tags.indexOf(tag);
+  if (idx === -1){
+    lead.tags.push(tag);
+    logActivity(lead, `Gắn nhãn: ${tag}`);
+  } else {
+    lead.tags.splice(idx, 1);
+    logActivity(lead, `Bỏ nhãn: ${tag}`);
+  }
+  refreshTagToggleUI(lead);
+  refreshActivityLogBox(lead);
+  renderAll();
+  scheduleSave();
 }
 function toggleTodo(id, i){
   const lead = leads.find(l => l.id === id);
@@ -1250,7 +1357,7 @@ function openWonConfirm(id){
     </div>
     <div class="field-group">
       <label class="field-label">Doanh thu thực tế</label>
-      <input class="field-input" id="wonRevenueInput" type="number" value="${lead.revenueExpected||0}">
+      <input class="field-input" id="wonRevenueInput" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" oninput="formatMoneyInput(this)">
     </div>
   `;
   document.getElementById('wonConfirmOverlay').classList.add('show');
@@ -1258,7 +1365,7 @@ function openWonConfirm(id){
 function submitWonConfirm(){
   const lead = leads.find(l => l.id === pendingDropId);
   const reopenId = pendingDropId;
-  const val = Number(document.getElementById('wonRevenueInput').value) || 0;
+  const val = moneyInputValue(document.getElementById('wonRevenueInput'));
   if (lead){
     lead.stage = 'won';
     lead.revenueActual = val;
@@ -1282,14 +1389,18 @@ function openAddLead(){
       <label class="field-label">Tên khách hàng</label>
       <input class="field-input" id="newName" placeholder="VD: Chị A & Anh B">
     </div>
+    <div class="field-group">
+      <label class="field-label">Ngày cưới</label>
+      <input class="field-input" id="newWeddingDate" type="date">
+    </div>
     <div class="field-row">
-      <div class="field-group">
-        <label class="field-label">Ngày cưới</label>
-        <input class="field-input" id="newWeddingDate" type="date">
-      </div>
       <div class="field-group">
         <label class="field-label">Facebook</label>
         <input class="field-input" id="newFacebook" placeholder="fb.com/...">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Số điện thoại</label>
+        <input class="field-input" id="newPhone" type="tel" placeholder="09xx xxx xxx">
       </div>
     </div>
     <div class="field-row">
@@ -1299,7 +1410,7 @@ function openAddLead(){
       </div>
       <div class="field-group">
         <label class="field-label">Doanh thu dự kiến</label>
-        <input class="field-input" id="newRevenue" type="number" placeholder="0">
+        <input class="field-input" id="newRevenue" type="text" inputmode="numeric" placeholder="0" oninput="formatMoneyInput(this)">
       </div>
     </div>
     <div class="field-group">
@@ -1323,9 +1434,10 @@ function submitAddLead(){
     id: 'L' + Date.now(),
     name,
     facebook: document.getElementById('newFacebook').value.trim(),
+    phone: document.getElementById('newPhone').value.trim(),
     weddingDate: document.getElementById('newWeddingDate').value || null,
     package: document.getElementById('newPackage').value,
-    revenueExpected: Number(document.getElementById('newRevenue').value) || 0,
+    revenueExpected: moneyInputValue(document.getElementById('newRevenue')),
     stage: 'leadin',
     deadline: document.getElementById('newDeadline').value || todayISO(),
     createdAt: todayISO(),
@@ -1385,7 +1497,7 @@ function renderDashboard(){
       <div class="box-label">Doanh thu thực tế tháng</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
-        <input type="number" value="${planRevenue}" oninput="updatePlan('revenue', this.value)" title="Chỉnh KPI kế hoạch">
+        <input type="text" inputmode="numeric" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
       </div>
       <div class="progress-track"><div class="progress-fill ${revenuePct>=100?'over':''}" style="width:${revenuePct}%"></div></div>
       <div class="kpi-percent">${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}</div>
@@ -1437,7 +1549,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-6 list-box">
-      <div class="box-label">Cần xử lý hôm nay</div>
+      <div class="box-label">Lead cần xử lý hôm nay</div>
       ${todayLeads.length ? todayLeads.map(l => `
         <div class="list-item" onclick="jumpToLead('${l.id}')">
           <div>
@@ -1481,67 +1593,84 @@ function jumpToLead(id){
   setTimeout(() => openLead(id), 60);
 }
 
-/* ======================= TODAY'S TODOS (aggregated across leads) ======================= */
-function getTodayTodoRows(){
-  const rows = [];
+/* ======================= REMINDERS (todos grouped by time: today / next 7 days / later) ======================= */
+function getReminderBuckets(){
+  const today = [], week = [], later = [];
   leads.filter(l => l.stage !== 'won' && l.stage !== 'lost').forEach(l => {
     const st = leadStatus(l);
-    if (st.type !== 'red' && st.type !== 'green') return;
+    const diff = l.deadline ? daysDiff(l.deadline) : null;
+    let bucket;
+    if (diff === null) bucket = later;
+    else if (diff <= 0) bucket = today;
+    else if (diff <= 7) bucket = week;
+    else bucket = later;
     (l.todos||[]).forEach((t, idx) => {
-      if (!t.done) rows.push({ leadId:l.id, leadName:l.name, stageName:STAGE_MAP[l.stage].name, idx, text:t.text, statusType:st.type, statusLabel:st.label });
+      if (!t.done) bucket.push({
+        leadId:l.id, leadName:l.name, stageName:STAGE_MAP[l.stage].name, idx, text:t.text,
+        statusType:st.type, statusLabel:st.label, sortDiff: diff === null ? 9999 : diff,
+      });
     });
   });
-  rows.sort((a,b) => (a.statusType === 'red' ? 0 : 1) - (b.statusType === 'red' ? 0 : 1));
-  return rows;
+  today.sort((a,b) => a.sortDiff - b.sortDiff);
+  week.sort((a,b) => a.sortDiff - b.sortDiff);
+  later.sort((a,b) => a.sortDiff - b.sortDiff);
+  return { today, week, later };
 }
-function openTodayTodosModal(){
-  renderTodayTodosModal();
-  document.getElementById('todayTodosOverlay').classList.add('show');
-}
-function renderTodayTodosModal(){
-  const rows = getTodayTodoRows();
-  const body = document.getElementById('todayTodosBody');
-  if (!rows.length){
-    body.innerHTML = `<div class="list-empty">Không có việc cần làm nào cho lead trễ hẹn / hôm nay 🎉</div>`;
-    return;
-  }
-  body.innerHTML = rows.map(r => `
+function reminderRowHtml(r){
+  return `
     <div class="today-todo-row">
-      <div class="todo-check" onclick="toggleTodayTodoItem('${r.leadId}', ${r.idx})">
+      <div class="todo-check" onclick="toggleReminderItem('${r.leadId}', ${r.idx})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
-      <div class="today-todo-main" onclick="todayTodoItemClick('${r.leadId}')">
+      <div class="today-todo-main" onclick="reminderItemClick('${r.leadId}')">
         <div class="today-todo-text">${esc(r.text)}</div>
         <div class="today-todo-sub">${esc(r.leadName)} · ${esc(r.stageName)}</div>
       </div>
       <div class="today-todo-tag ${r.statusType}">${esc(r.statusLabel)}</div>
     </div>
-  `).join('');
+  `;
 }
-function toggleTodayTodoItem(leadId, idx){
+function reminderSectionHtml(title, rows){
+  return `
+    <div class="reminder-section">
+      <div class="reminder-section-title">${title}<span class="reminder-section-count">${rows.length}</span></div>
+      ${rows.length ? rows.map(reminderRowHtml).join('') : '<div class="list-empty">Không có nhắc nhở nào.</div>'}
+    </div>
+  `;
+}
+function openRemindersModal(){
+  renderRemindersModal();
+  document.getElementById('remindersOverlay').classList.add('show');
+}
+function renderRemindersModal(){
+  const { today, week, later } = getReminderBuckets();
+  document.getElementById('remindersBody').innerHTML =
+    reminderSectionHtml('📌 Hôm nay', today) +
+    reminderSectionHtml('📅 7 ngày tiếp theo', week) +
+    reminderSectionHtml('🗂️ Sau đó nữa', later);
+}
+function toggleReminderItem(leadId, idx){
   const lead = leads.find(l => l.id === leadId);
   if (!lead) return;
   lead.todos[idx].done = !lead.todos[idx].done;
   logActivity(lead, `${lead.todos[idx].done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${lead.todos[idx].text}`);
-  renderTodayTodosModal();
+  renderRemindersModal();
   renderAll();
   scheduleSave();
 }
-function todayTodoItemClick(leadId){
-  closeTodayTodosModal();
+function reminderItemClick(leadId){
+  closeRemindersModal();
   jumpToLead(leadId);
 }
-function closeTodayTodosModal(){
-  document.getElementById('todayTodosOverlay').classList.remove('show');
+function closeRemindersModal(){
+  document.getElementById('remindersOverlay').classList.remove('show');
 }
 
 /* ======================= SIDEBAR STATS ======================= */
 function renderSidebarStats(){
-  const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
-  const todayCount = activeLeads.filter(l => leadStatus(l).type === 'green').length;
-  const overdueCount = activeLeads.filter(l => leadStatus(l).type === 'red').length;
-  document.getElementById('sidebarTodayCount').textContent = todayCount;
-  document.getElementById('sidebarOverdueCount').textContent = `${overdueCount} lead trễ hẹn`;
+  const { today, week } = getReminderBuckets();
+  document.getElementById('sidebarTodayCount').textContent = today.length;
+  document.getElementById('sidebarOverdueCount').textContent = `${week.length} việc trong 7 ngày tới`;
 }
 
 /* ======================= MASTER RENDER ======================= */
