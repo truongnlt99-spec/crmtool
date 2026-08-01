@@ -263,9 +263,16 @@
 
   /* ---------- Dashboard ---------- */
   .dash-wrap{flex:1; overflow:auto; padding:22px;}
-  .dash-greeting{margin-bottom:18px;}
+  .dash-header-row{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+  .dash-greeting{margin-bottom:0;}
   .dash-greeting h2{font-size:19px; font-weight:800;}
   .dash-greeting p{font-size:12.5px; color:var(--ink-faint); margin-top:3px; font-weight:500;}
+  .dash-month-field{display:flex; flex-direction:column; gap:5px;}
+  .dash-month-field label{font-size:11.5px; font-weight:700; color:var(--ink-soft);}
+  .dash-month-field input[type="month"]{
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px; font-weight:700;
+    background:#fff; color:var(--ink); cursor:pointer;
+  }
 
   .dash-grid{display:grid; grid-template-columns:repeat(12, 1fr); gap:16px;}
   .card-box{
@@ -437,6 +444,16 @@
   .log-connector{width:1.5px; flex:1; background:#E9D6A8; margin-top:2px;}
   .log-time{font-size:10.5px; color:var(--ink-faint); font-weight:700;}
   .log-text{font-size:12.5px; font-weight:600; margin-top:1px;}
+
+  /* ---------- Note stream (ghi chú nhiều dòng) ---------- */
+  .note-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:8px;}
+  .notes-stream{margin-top:14px; display:flex; flex-direction:column; gap:10px;}
+  .note-item{background:var(--bg); border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:10px 12px;}
+  .note-item.editing{border-color:var(--green-500); background:var(--green-50);}
+  .note-item-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;}
+  .note-item-time{font-size:10.5px; color:var(--ink-faint); font-weight:700;}
+  .note-item-actions{display:flex; gap:2px;}
+  .note-item-text{font-size:12.5px; font-weight:500; white-space:pre-wrap; line-height:1.5;}
 
   /* ---------- Modals ---------- */
   .modal-overlay{
@@ -615,9 +632,15 @@
     <!-- ============ DASHBOARD VIEW ============ -->
     <section class="view" id="viewDashboard">
       <div class="dash-wrap">
-        <div class="dash-greeting">
-          <h2 id="dashGreeting">Chào Huyền Trân 👋</h2>
-          <p id="dashDate"></p>
+        <div class="dash-header-row">
+          <div class="dash-greeting">
+            <h2 id="dashGreeting">Chào Huyền Trân 👋</h2>
+            <p id="dashDate"></p>
+          </div>
+          <div class="dash-month-field">
+            <label for="dashMonthInput">Xem báo cáo tháng</label>
+            <input type="month" id="dashMonthInput" onchange="changeDashMonth(this.value)">
+          </div>
         </div>
         <div class="dash-grid" id="dashGrid">
           <div class="list-empty" style="padding:40px;">Đang tải dữ liệu từ cloud...</div>
@@ -772,6 +795,9 @@ let filterStatus = 'all';
 let currentLeadId = null;
 let pendingDropId = null;
 let pendingDropStage = null;
+let dashMonth = TODAY.getMonth();      // Tháng đang xem trên dashboard (0-based), mặc định = tháng hiện tại
+let dashYear = TODAY.getFullYear();
+let editingNoteId = null;              // id ghi chú đang được sửa trong drawer (null = đang viết ghi chú mới)
 
 /* ======================= HELPERS ======================= */
 function esc(str){
@@ -808,10 +834,21 @@ function moneyInputValue(el){
   const digits = (el.value || '').replace(/\D/g, '');
   return digits ? parseInt(digits, 10) : 0;
 }
-function inSameMonth(dateStr){
+function inMonth(dateStr, month, year){
   if (!dateStr) return false;
   const d = new Date(dateStr + 'T00:00:00');
-  return d.getMonth() === TODAY.getMonth() && d.getFullYear() === TODAY.getFullYear();
+  return d.getMonth() === month && d.getFullYear() === year;
+}
+function inSameMonth(dateStr){
+  return inMonth(dateStr, TODAY.getMonth(), TODAY.getFullYear());
+}
+function monthKeyOf(month, year){
+  return `${year}-${String(month+1).padStart(2,'0')}`;
+}
+function formatMonthYear(ym){
+  if (!ym) return '—';
+  const [y,m] = ym.split('-');
+  return `${m}/${y}`;
 }
 function daysDiff(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
@@ -1042,8 +1079,10 @@ function renderActivityLog(lead){
 
 function openLead(id){
   currentLeadId = id;
+  editingNoteId = null;
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
+  if (!Array.isArray(lead.notesList)) lead.notesList = [];
 
   document.getElementById('drawerTitle').textContent = lead.name;
   document.getElementById('drawerSub').textContent = `${STAGE_MAP[lead.stage].name} · Cưới ngày ${formatDate(lead.weddingDate)}`;
@@ -1137,7 +1176,12 @@ function openLead(id){
 
         <div class="detail-block block-notes">
           <div class="drawer-section-title">📝 Ghi chú</div>
-          <textarea class="field-input" style="min-height:80px" oninput="onFieldChange('${id}','notes', this.value)">${esc(lead.notes)}</textarea>
+          <textarea class="field-input" id="noteInput" style="min-height:64px" placeholder="Viết ghi chú mới..."></textarea>
+          <div class="note-actions">
+            <button class="btn btn-secondary" id="noteCancelBtn" style="display:none" onclick="cancelNoteEdit('${id}')">Hủy</button>
+            <button class="btn btn-primary" id="noteSaveBtn" onclick="saveNote('${id}')">Lưu ghi chú</button>
+          </div>
+          <div id="notesStreamBox">${renderNotesStream(lead)}</div>
         </div>
 
         <div class="detail-block block-log">
@@ -1160,6 +1204,10 @@ function openLead(id){
           <div class="field-group">
             <label class="field-label">Doanh thu dự kiến</label>
             <input class="field-input" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" placeholder="0" oninput="formatMoneyInput(this); onFieldChange('${id}','revenueExpected', moneyInputValue(this))">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Tháng chốt dự kiến</label>
+            <input class="field-input" type="month" value="${lead.expectedCloseMonth||''}" oninput="onFieldChange('${id}','expectedCloseMonth', this.value)">
           </div>
           ${extra}
         </div>
@@ -1229,6 +1277,95 @@ function changeStageFromDrawer(id, newStage){
 function refreshActivityLogBox(lead){
   const box = document.getElementById('activityLogBox');
   if (box) box.innerHTML = renderActivityLog(lead);
+}
+
+/* ======================= NOTE STREAM (ghi chú nhiều dòng, sửa được từng cái) ======================= */
+function renderNotesStream(lead){
+  const items = (lead.notesList||[]).slice().reverse();
+  if (!items.length) return '<div class="list-empty">Chưa có ghi chú nào.</div>';
+  return `<div class="notes-stream">${items.map(n => `
+    <div class="note-item ${editingNoteId===n.id ? 'editing' : ''}">
+      <div class="note-item-head">
+        <span class="note-item-time">${esc(n.updatedAt)}${n.updatedAt !== n.createdAt ? ' (đã sửa)' : ''}</span>
+        <div class="note-item-actions">
+          <button class="icon-btn-mini" onclick="editNote('${lead.id}','${n.id}')" title="Sửa ghi chú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          </button>
+          <button class="icon-btn-mini" onclick="removeNote('${lead.id}','${n.id}')" title="Xóa ghi chú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="note-item-text">${esc(n.text)}</div>
+    </div>
+  `).join('')}</div>`;
+}
+
+function refreshNotesStreamBox(lead){
+  const box = document.getElementById('notesStreamBox');
+  if (box) box.innerHTML = renderNotesStream(lead);
+}
+
+function resetNoteInputUI(){
+  const input = document.getElementById('noteInput');
+  if (input) input.value = '';
+  const saveBtn = document.getElementById('noteSaveBtn');
+  if (saveBtn) saveBtn.textContent = 'Lưu ghi chú';
+  const cancelBtn = document.getElementById('noteCancelBtn');
+  if (cancelBtn) cancelBtn.style.display = 'none';
+}
+
+function saveNote(id){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  const input = document.getElementById('noteInput');
+  const text = input.value.trim();
+  if (!text) return;
+  lead.notesList = lead.notesList || [];
+  if (editingNoteId){
+    const note = lead.notesList.find(n => n.id === editingNoteId);
+    if (note){ note.text = text; note.updatedAt = nowLabel(); }
+    editingNoteId = null;
+  } else {
+    lead.notesList.push({ id:'n'+Date.now(), text, createdAt: nowLabel(), updatedAt: nowLabel() });
+  }
+  resetNoteInputUI();
+  refreshNotesStreamBox(lead);
+  scheduleSave();
+}
+
+function editNote(id, noteId){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  const note = (lead.notesList||[]).find(n => n.id === noteId);
+  if (!note) return;
+  editingNoteId = noteId;
+  const input = document.getElementById('noteInput');
+  input.value = note.text;
+  input.focus();
+  document.getElementById('noteSaveBtn').textContent = 'Cập nhật ghi chú';
+  document.getElementById('noteCancelBtn').style.display = 'inline-flex';
+  refreshNotesStreamBox(lead);
+}
+
+function cancelNoteEdit(id){
+  editingNoteId = null;
+  resetNoteInputUI();
+  const lead = leads.find(l => l.id === id);
+  if (lead) refreshNotesStreamBox(lead);
+}
+
+function removeNote(id, noteId){
+  const lead = leads.find(l => l.id === id);
+  if (!lead) return;
+  if (!confirm('Xóa ghi chú này?')) return;
+  lead.notesList = (lead.notesList||[]).filter(n => n.id !== noteId);
+  if (editingNoteId === noteId){
+    editingNoteId = null;
+    resetNoteInputUI();
+  }
+  refreshNotesStreamBox(lead);
+  scheduleSave();
 }
 function refreshTagToggleUI(lead){
   const btn = document.getElementById('tagToggleBtn');
@@ -1394,9 +1531,15 @@ function openAddLead(){
         <input class="field-input" id="newRevenue" type="text" inputmode="numeric" placeholder="0" oninput="formatMoneyInput(this)">
       </div>
     </div>
-    <div class="field-group">
-      <label class="field-label">Deadline hành động tiếp theo</label>
-      <input class="field-input" id="newDeadline" type="date" value="${todayISO()}">
+    <div class="field-row">
+      <div class="field-group">
+        <label class="field-label">Deadline hành động tiếp theo</label>
+        <input class="field-input" id="newDeadline" type="date" value="${todayISO()}">
+      </div>
+      <div class="field-group">
+        <label class="field-label">Tháng chốt dự kiến</label>
+        <input class="field-input" id="newExpectedCloseMonth" type="month">
+      </div>
     </div>
     <div class="field-group">
       <label class="field-label">Ghi chú</label>
@@ -1421,9 +1564,13 @@ function submitAddLead(){
     revenueExpected: moneyInputValue(document.getElementById('newRevenue')),
     stage: 'leadin',
     deadline: document.getElementById('newDeadline').value || todayISO(),
+    expectedCloseMonth: document.getElementById('newExpectedCloseMonth').value || null,
     createdAt: todayISO(),
     schedule:'', persona:'', objection:'',
-    notes: document.getElementById('newNotes').value.trim(),
+    notesList: (() => {
+      const text = document.getElementById('newNotes').value.trim();
+      return text ? [{ id:'n'+Date.now(), text, createdAt: nowLabel(), updatedAt: nowLabel() }] : [];
+    })(),
     tags:[], todos:[], activityLog:[{ time: nowLabel(), text:'Lead được tạo', isNow:true }],
   };
   leads.unshift(lead);
@@ -1442,21 +1589,61 @@ function updatePlan(key, value){
   const num = Number(value) || 0;
   if (key === 'revenue') planRevenue = num;
   if (key === 'leads') planLeads = num;
-  renderDashboard();
+  // Chỉ cập nhật lại % tiến độ + thanh progress, KHÔNG render lại toàn bộ dashboard.
+  // (Render lại toàn bộ sẽ tạo lại chính ô input này -> con trỏ/focus bị rớt ra ngoài mỗi khi gõ số.)
+  refreshDashboardKPIOnly();
   scheduleSave();
 }
 
-function renderDashboard(){
-  document.getElementById('dashDate').textContent = `Hôm nay là ${formatDate(todayISO())} · Tháng ${TODAY.getMonth()+1}/${TODAY.getFullYear()}`;
+function refreshDashboardKPIOnly(){
+  const wonThisMonth = leads.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+  const monthLeads = leads.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
+  const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
+  const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
 
+  const revFill = document.getElementById('revenueProgressFill');
+  if (revFill){ revFill.style.width = revenuePct + '%'; revFill.classList.toggle('over', revenuePct >= 100); }
+  const revPctText = document.getElementById('revenuePercentText');
+  if (revPctText) revPctText.textContent = `${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}`;
+
+  const leadsFill = document.getElementById('leadsProgressFill');
+  if (leadsFill){ leadsFill.style.width = leadsPct + '%'; leadsFill.classList.toggle('over', leadsPct >= 100); }
+  const leadsPctText = document.getElementById('leadsPercentText');
+  if (leadsPctText) leadsPctText.textContent = `${leadsPct}% so với kế hoạch ${planLeads} lead`;
+}
+
+function changeDashMonth(value){
+  if (!value) return;
+  const [y, m] = value.split('-').map(Number);
+  dashYear = y;
+  dashMonth = m - 1;
+  renderDashboard();
+}
+
+function renderDashboard(){
+  // Đồng bộ ô chọn tháng với dashMonth/dashYear đang xem (mặc định = tháng hiện tại)
+  const monthInput = document.getElementById('dashMonthInput');
+  if (monthInput) monthInput.value = monthKeyOf(dashMonth, dashYear);
+  document.getElementById('dashDate').textContent = `Hôm nay là ${formatDate(todayISO())}`;
+
+  const monthKey = monthKeyOf(dashMonth, dashYear);
   const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
-  const monthLeads = leads.filter(l => inSameMonth(l.createdAt));
-  const wonThisMonth = leads.filter(l => l.stage === 'won' && inSameMonth(l.wonAt));
-  const lostThisMonth = leads.filter(l => l.stage === 'lost' && inSameMonth(l.lostAt));
+  const monthLeads = leads.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const wonThisMonth = leads.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+  const lostThisMonth = leads.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
   const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
   const pipelineValue = activeLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
   const overdueLeads = activeLeads.filter(l => leadStatus(l).type === 'red').sort((a,b) => daysDiff(a.deadline) - daysDiff(b.deadline));
   const todayLeads = activeLeads.filter(l => leadStatus(l).type === 'green');
+
+  // Doanh thu được gắn nhãn "Tiềm năng" (trong số các lead đang chăm, chưa Won/Lost)
+  const potentialLeads = activeLeads.filter(l => (l.tags||[]).includes('Tiềm năng'));
+  const potentialRevenue = potentialLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
+
+  // Doanh thu dự kiến chốt trong tháng đang xem, dựa trên field "Tháng chốt dự kiến" của từng lead
+  const expectedCloseLeads = activeLeads.filter(l => l.expectedCloseMonth === monthKey);
+  const expectedCloseRevenue = expectedCloseLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
 
   const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
   const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
@@ -1475,27 +1662,39 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Doanh thu thực tế tháng</div>
+      <div class="box-label">Doanh thu thực tế tháng ${dashMonth+1}/${dashYear}</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
-        <input type="text" inputmode="numeric" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
+        <input type="text" inputmode="numeric" id="planRevenueInput" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
       </div>
-      <div class="progress-track"><div class="progress-fill ${revenuePct>=100?'over':''}" style="width:${revenuePct}%"></div></div>
-      <div class="kpi-percent">${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}</div>
+      <div class="progress-track"><div class="progress-fill ${revenuePct>=100?'over':''}" id="revenueProgressFill" style="width:${revenuePct}%"></div></div>
+      <div class="kpi-percent" id="revenuePercentText">${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}</div>
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Số lead nhận trong tháng</div>
+      <div class="box-label">Số lead nhận tháng ${dashMonth+1}/${dashYear}</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${monthLeads.length}</div>
-        <input type="number" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
+        <input type="number" id="planLeadsInput" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
       </div>
-      <div class="progress-track"><div class="progress-fill ${leadsPct>=100?'over':''}" style="width:${leadsPct}%"></div></div>
-      <div class="kpi-percent">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
+      <div class="progress-track"><div class="progress-fill ${leadsPct>=100?'over':''}" id="leadsProgressFill" style="width:${leadsPct}%"></div></div>
+      <div class="kpi-percent" id="leadsPercentText">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
+    </div>
+
+    <div class="card-box span-6">
+      <div class="box-label">Doanh thu gắn nhãn Tiềm năng 🔥</div>
+      <div class="box-value">${formatMoney(potentialRevenue)}</div>
+      <div class="box-sub">${potentialLeads.length} lead đang gắn nhãn tiềm năng</div>
+    </div>
+
+    <div class="card-box span-6">
+      <div class="box-label">Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-value">${formatMoney(expectedCloseRevenue)}</div>
+      <div class="box-sub">${expectedCloseLeads.length} lead hẹn chốt tháng này (theo "Tháng chốt dự kiến")</div>
     </div>
 
     <div class="card-box span-12">
-      <div class="box-label">Tổng quan lead trong tháng</div>
+      <div class="box-label">Tổng quan lead tháng ${dashMonth+1}/${dashYear}</div>
       <div class="trio">
         <div class="trio-item"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
         <div class="trio-item"><div class="trio-num" style="color:var(--green-600)">${wonThisMonth.length}</div><div class="trio-label">Won</div></div>
@@ -1715,13 +1914,26 @@ async function saveToCloud(){
   }
 }
 
+// Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
+// để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
+function migrateLead(l){
+  if (typeof l.notes === 'string'){
+    const text = l.notes.trim();
+    l.notesList = text ? [{ id:'n'+Date.now()+Math.random().toString(36).slice(2,7), text, createdAt: nowLabel(), updatedAt: nowLabel() }] : [];
+    delete l.notes;
+  } else if (!Array.isArray(l.notesList)){
+    l.notesList = [];
+  }
+  return l;
+}
+
 async function initCloudSync(){
   try {
     const { dataRef, get } = window.__firebase;
     const snap = await get(dataRef);
     if (snap.exists()){
       const data = snap.val() || {};
-      if (data.leads) leads = Object.values(data.leads);
+      if (data.leads) leads = Object.values(data.leads).map(migrateLead);
       if (data.dailyTodos) dailyTodos = Object.values(data.dailyTodos);
       if (typeof data.planRevenue === 'number') planRevenue = data.planRevenue;
       if (typeof data.planLeads === 'number') planLeads = data.planLeads;
