@@ -579,12 +579,30 @@
 
   /* ---------- Lock screen ---------- */
   .lock-screen{
-    position:fixed; inset:0; z-index:1000; background:var(--bg);
+    position:fixed; inset:0; z-index:1000; background:var(--bg); overflow:hidden;
     display:flex; align-items:center; justify-content:center; padding:20px;
     transition:opacity .25s ease; opacity:1;
   }
   .lock-screen.unlocked{opacity:0; pointer-events:none;}
+  .lock-bg-deco{
+    position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(circle at 8% 6%, #FBEAEE 0%, transparent 40%),
+      radial-gradient(circle at 92% 96%, #EAF7F0 0%, transparent 42%);
+  }
+  .lock-corner{position:absolute;}
+  .lock-corner.tl{top:0; left:0; width:190px; height:190px;}
+  .lock-corner.br{bottom:0; right:0; width:190px; height:190px;}
+  .lock-corner.tr{top:0; right:0; width:120px; height:120px; opacity:.6;}
+  .lock-corner.bl{bottom:0; left:0; width:120px; height:120px; opacity:.6;}
+  .lock-corner svg{width:100%; height:100%; display:block; overflow:visible;}
+  .lock-dot{position:absolute; width:6px; height:6px; border-radius:50%; opacity:.45;}
+  @media (max-width:480px){
+    .lock-corner.tl, .lock-corner.br{width:130px; height:130px;}
+    .lock-corner.tr, .lock-corner.bl{width:85px; height:85px;}
+  }
   .lock-card{
+    position:relative; z-index:1;
     background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); box-shadow:var(--shadow-pop);
     padding:36px 32px; width:320px; max-width:100%; text-align:center;
   }
@@ -598,7 +616,7 @@
   .lock-greeting{font-size:19px; font-weight:800; color:var(--ink); line-height:1.35; margin-bottom:9px;}
   .lock-quote{font-size:13px; font-weight:500; color:var(--blush); font-style:italic; line-height:1.55; margin-bottom:22px; padding:0 2px;}
   .lock-divider{height:1px; background:var(--border-soft); margin:0 0 20px;}
-  .lock-brand-row{display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:3px;}
+  .lock-brand-row{display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:16px;}
   .lock-icon-mini{width:15px; height:15px; color:var(--green-600); flex-shrink:0;}
   .lock-brand-title{font-weight:800; font-size:13px; color:var(--ink-soft);}
   .lock-input{
@@ -614,6 +632,81 @@
 
 <!-- ============ LOCK SCREEN ============ -->
 <div class="lock-screen" id="lockScreen">
+  <div class="lock-bg-deco" aria-hidden="true">
+    <!-- Kho hình dùng chung (lá, cánh hoa) - không hiển thị trực tiếp -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#2BBE80"/>
+          <stop offset="100%" stop-color="#0F6E45"/>
+        </linearGradient>
+        <g id="deco-leaf">
+          <path d="M0 0 C 16 -30 46 -34 62 -6 C 50 20 20 28 0 0 Z" fill="url(#leafGrad)"/>
+          <path d="M4 -2 C 22 -12 42 -14 56 -6" stroke="rgba(255,255,255,.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        </g>
+        <g id="deco-petal"><path d="M0 0 C -9 -14 -7 -30 0 -34 C 7 -30 9 -14 0 0 Z"/></g>
+        <g id="deco-bloom">
+          <use href="#deco-petal" xlink:href="#deco-petal" transform="rotate(0)"/>
+          <use href="#deco-petal" xlink:href="#deco-petal" transform="rotate(72)"/>
+          <use href="#deco-petal" xlink:href="#deco-petal" transform="rotate(144)"/>
+          <use href="#deco-petal" xlink:href="#deco-petal" transform="rotate(216)"/>
+          <use href="#deco-petal" xlink:href="#deco-petal" transform="rotate(288)"/>
+          <circle r="6.5" fill="#F3C969"/>
+        </g>
+      </defs>
+    </svg>
+
+    <!-- Góc trên-trái: chùm lá + hoa -->
+    <div class="lock-corner tl">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <path d="M0 20 C 70 -10 100 60 55 95 C 10 130 45 190 110 175" fill="none" stroke="#BFE6D2" stroke-width="5" stroke-linecap="round"/>
+        <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(6,34) rotate(-30) scale(0.85)"/>
+        <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(38,72) rotate(25) scale(0.7)"/>
+        <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(64,116) rotate(-55) scale(0.9)"/>
+        <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(52,40) scale(1.1)" fill="#EF9AAE"/>
+        <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(96,150) rotate(25) scale(0.85)" fill="#F3B9C6"/>
+      </svg>
+    </div>
+
+    <!-- Góc dưới-phải: chùm lá + hoa (đối xứng) -->
+    <div class="lock-corner br">
+      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <g transform="translate(200,200) rotate(180)">
+          <path d="M0 20 C 70 -10 100 60 55 95 C 10 130 45 190 110 175" fill="none" stroke="#BFE6D2" stroke-width="5" stroke-linecap="round"/>
+          <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(6,34) rotate(-30) scale(0.85)"/>
+          <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(38,72) rotate(25) scale(0.7)"/>
+          <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(64,116) rotate(-55) scale(0.9)"/>
+          <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(52,40) scale(1.1)" fill="#EF9AAE"/>
+          <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(96,150) rotate(25) scale(0.85)" fill="#F3B9C6"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Góc trên-phải: điểm nhấn nhỏ -->
+    <div class="lock-corner tr">
+      <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(90,10) rotate(150) scale(0.7)"/>
+        <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(115,55) scale(0.8)" fill="#F3B9C6"/>
+      </svg>
+    </div>
+
+    <!-- Góc dưới-trái: điểm nhấn nhỏ -->
+    <div class="lock-corner bl">
+      <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+        <g transform="translate(140,140) rotate(180)">
+          <use href="#deco-leaf" xlink:href="#deco-leaf" transform="translate(90,10) rotate(150) scale(0.7)"/>
+          <use href="#deco-bloom" xlink:href="#deco-bloom" transform="translate(115,55) scale(0.8)" fill="#F3B9C6"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Vài chấm sáng lấp lánh cho không khí mùa hè -->
+    <span class="lock-dot" style="top:9%; left:72%; background:#F3C969;"></span>
+    <span class="lock-dot" style="top:24%; right:10%; background:#EF9AAE;"></span>
+    <span class="lock-dot" style="top:78%; left:10%; background:#BFE6D2;"></span>
+    <span class="lock-dot" style="bottom:14%; right:22%; background:#F3C969;"></span>
+    <span class="lock-dot" style="top:50%; left:5%; background:#EF9AAE;"></span>
+  </div>
   <div class="lock-card">
     <div class="lock-emoji" id="lockEmoji">☀️</div>
     <div class="lock-date" id="lockDate"></div>
@@ -624,7 +717,6 @@
       <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span class="lock-brand-title">CRM của Huyền Trân</span>
     </div>
-    <div class="lock-sub">Nhập mật khẩu để mở</div>
     <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
     <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
     <div class="lock-error" id="lockError"></div>
