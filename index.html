@@ -398,6 +398,7 @@
   .step-circle{
     width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
     font-size:11px; font-weight:800; border:2px solid var(--border); background:#fff; color:var(--ink-faint); z-index:1;
+    transition:transform .12s ease, box-shadow .12s ease;
   }
   .step-circle svg{width:13px; height:13px;}
   .step.completed .step-circle{background:var(--green-500); border-color:var(--green-500); color:#fff;}
@@ -407,6 +408,10 @@
   .step-line{position:absolute; top:13px; left:50%; width:100%; height:2px; background:var(--border); z-index:0;}
   .step.completed .step-line{background:var(--green-500);}
   .step:last-child .step-line{display:none;}
+  .step.clickable{cursor:pointer;}
+  .step.clickable:hover .step-circle{transform:scale(1.14); box-shadow:0 0 0 5px var(--green-50);}
+  .step.clickable:hover .step-label{color:var(--green-700);}
+  .step.clickable:active .step-circle{transform:scale(.97);}
 
   .closed-banner{
     max-width:1040px; margin:0 auto 22px auto; padding:13px 18px; border-radius:var(--radius-md); display:flex; align-items:center; gap:10px;
@@ -1041,7 +1046,8 @@ function renderStageStepper(lead){
             ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
             : (i+1);
           return `
-            <div class="step ${isCompleted?'completed':''} ${isCurrent?'current':''}">
+            <div class="step ${isCompleted?'completed':''} ${isCurrent?'current':''} ${isCurrent?'':'clickable'}"
+                 ${isCurrent?'':`onclick="changeStageFromDrawer('${lead.id}','${sid}')" title="Chuyển sang giai đoạn: ${esc(st.name)}"`}>
               <div class="step-line"></div>
               <div class="step-circle">${circleContent}</div>
               <div class="step-label">${esc(st.name)}</div>
