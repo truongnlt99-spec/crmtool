@@ -124,6 +124,9 @@
   .nav-item.active svg{color:#fff;}
 
   .sidebar-divider{height:1px; background:var(--border-soft); margin:16px 4px;}
+  .sidebar-deco{height:56px; position:relative; opacity:.5; pointer-events:none;}
+  .sidebar-deco svg{position:absolute; bottom:-4px; left:50%; transform:translateX(-50%); width:64px; height:64px; overflow:visible;}
+  body.sidebar-collapsed .sidebar-deco{display:none;}
 
   .sidebar-stat{
     padding:12px; background:var(--green-50); border-radius:var(--radius-md); margin:0 2px 0 2px; margin-top:auto; cursor:pointer;
@@ -136,11 +139,14 @@
   .sidebar-stat-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
 
   /* ---------- Main column ---------- */
-  .main{flex:1; display:flex; flex-direction:column; min-width:0;}
+  .main{flex:1; display:flex; flex-direction:column; min-width:0; position:relative;}
+  .main-deco{position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+  .main-deco svg{position:absolute; bottom:-10px; right:-10px; width:170px; height:170px; overflow:visible;}
+  @media (max-width:700px){ .main-deco{display:none;} }
 
   .topbar{
     height:64px; flex:none; border-bottom:1px solid var(--border); background:var(--card);
-    display:flex; align-items:center; gap:14px; padding:0 22px;
+    display:flex; align-items:center; gap:14px; padding:0 22px; position:relative; z-index:1;
   }
   .page-title{font-weight:800; font-size:16.5px; margin-right:6px; white-space:nowrap;}
   .page-title-sub{font-size:12px; color:var(--ink-faint); font-weight:500; margin-top:1px;}
@@ -186,7 +192,7 @@
   .user-chip{display:flex; align-items:center; gap:8px; padding-left:8px;}
 
   /* ---------- Views ---------- */
-  .view{display:none; flex:1; min-height:0; overflow:auto;}
+  .view{display:none; flex:1; min-height:0; overflow:auto; position:relative; z-index:1;}
   .view.active{display:flex; flex-direction:column;}
 
   /* ---------- Pipeline board ---------- */
@@ -216,8 +222,9 @@
   .column-body.drag-over{background:var(--green-100);}
   .column-empty{
     font-size:12px; color:var(--ink-faint); text-align:center; padding:18px 8px; border:1.5px dashed var(--border);
-    border-radius:var(--radius-md); font-weight:500;
+    border-radius:var(--radius-md); font-weight:500; display:flex; flex-direction:column; align-items:center; gap:6px;
   }
+  .column-empty svg{width:24px; height:24px; opacity:.6; overflow:visible;}
 
   .card{
     background:var(--card); border-radius:var(--radius-md); padding:11px 12px; cursor:grab;
@@ -377,7 +384,12 @@
   .tag-toggle.active{background:var(--blush-soft); border-color:var(--blush); color:var(--blush);}
   .drawer-header-title{font-weight:800; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   .drawer-header-sub{font-size:11.5px; color:var(--ink-faint); margin-top:2px; font-weight:600;}
-  .drawer-body{flex:1; overflow:auto; padding:26px 28px 60px 28px;}
+  .drawer-content-wrap{position:relative; flex:1; min-height:0; display:flex;}
+  .drawer-deco{position:absolute; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+  .drawer-deco svg{position:absolute; top:-10px; left:-10px; width:150px; height:150px; overflow:visible; opacity:.55;}
+  .drawer-deco svg.drawer-deco-br{top:auto; left:auto; bottom:-10px; right:-10px; transform:rotate(180deg);}
+  @media (max-width:900px){ .drawer-deco{display:none;} }
+  .drawer-body{flex:1; overflow:auto; padding:26px 28px 60px 28px; position:relative; z-index:1;}
   .drawer-section{margin-bottom:16px;}
   .drawer-section-title{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; opacity:.65;}
   .field-row{display:flex; gap:10px;}
@@ -630,10 +642,35 @@
 </head>
 <body>
 
+<!-- Kho hình lá/hoa dùng chung cho toàn app (menu bên, pipeline, chi tiết lead...) -->
+<!-- Đặt ngoài màn khoá vì màn khoá sẽ bị xoá khỏi trang sau khi mở khoá -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="uiLeafGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2BBE80"/>
+      <stop offset="100%" stop-color="#0F6E45"/>
+    </linearGradient>
+    <g id="ui-deco-leaf">
+      <path d="M0 0 C 16 -30 46 -34 62 -6 C 50 20 20 28 0 0 Z" fill="url(#uiLeafGrad)"/>
+      <path d="M4 -2 C 22 -12 42 -14 56 -6" stroke="rgba(255,255,255,.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </g>
+    <g id="ui-deco-petal"><path d="M0 0 C -9 -14 -7 -30 0 -34 C 7 -30 9 -14 0 0 Z"/></g>
+    <g id="ui-deco-bloom">
+      <use href="#ui-deco-petal" xlink:href="#ui-deco-petal" transform="rotate(0)"/>
+      <use href="#ui-deco-petal" xlink:href="#ui-deco-petal" transform="rotate(72)"/>
+      <use href="#ui-deco-petal" xlink:href="#ui-deco-petal" transform="rotate(144)"/>
+      <use href="#ui-deco-petal" xlink:href="#ui-deco-petal" transform="rotate(216)"/>
+      <use href="#ui-deco-petal" xlink:href="#ui-deco-petal" transform="rotate(288)"/>
+      <circle r="6.5" fill="#F3C969"/>
+    </g>
+  </defs>
+</svg>
+
 <!-- ============ LOCK SCREEN ============ -->
 <div class="lock-screen" id="lockScreen">
   <div class="lock-bg-deco" aria-hidden="true">
     <!-- Kho hình dùng chung (lá, cánh hoa) - không hiển thị trực tiếp -->
+
     <svg width="0" height="0" style="position:absolute" aria-hidden="true">
       <defs>
         <linearGradient id="leafGrad" x1="0" y1="0" x2="1" y2="1">
@@ -750,6 +787,15 @@
 
     <div class="sidebar-divider"></div>
 
+    <div class="sidebar-deco" aria-hidden="true">
+      <svg viewBox="0 0 90 90">
+        <path d="M45 90 C 40 60 50 40 45 10" fill="none" stroke="#CFEEDD" stroke-width="4" stroke-linecap="round"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(20,58) rotate(-35) scale(0.6)"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(52,32) rotate(35) scale(0.55)"/>
+        <use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(45,14) scale(0.85)" fill="#EF9AAE"/>
+      </svg>
+    </div>
+
     <div class="sidebar-stat" onclick="openRemindersModal()" title="Xem danh sách nhắc nhở">
       <div class="sidebar-stat-label">
         Nhắc nhở
@@ -763,6 +809,15 @@
 
   <!-- ============ MAIN ============ -->
   <div class="main">
+    <div class="main-deco" aria-hidden="true">
+      <svg viewBox="0 0 170 170">
+        <path d="M170 60 C 120 40 100 80 130 110 C 100 100 80 130 100 170" fill="none" stroke="#CFEEDD" stroke-width="5" stroke-linecap="round"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(96,44) rotate(150) scale(0.8)"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(126,96) rotate(-150) scale(0.65)"/>
+        <use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(140,80) scale(1)" fill="#F3B9C6"/>
+        <use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(108,140) rotate(20) scale(0.8)" fill="#EF9AAE"/>
+      </svg>
+    </div>
     <header class="topbar">
       <div>
         <div class="page-title" id="pageTitle">Pipeline</div>
@@ -846,7 +901,21 @@
     </div>
     <div class="drawer-header-actions" id="drawerHeaderActions"></div>
   </div>
-  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-content-wrap">
+    <div class="drawer-deco" aria-hidden="true">
+      <svg viewBox="0 0 200 200">
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(6,20) rotate(-25) scale(0.8)"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(30,52) rotate(30) scale(0.6)"/>
+        <use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(26,10) scale(0.9)" fill="#F3B9C6"/>
+      </svg>
+      <svg viewBox="0 0 200 200" class="drawer-deco-br">
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(6,20) rotate(-25) scale(0.8)"/>
+        <use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(30,52) rotate(30) scale(0.6)"/>
+        <use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(26,10) scale(0.9)" fill="#EF9AAE"/>
+      </svg>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </div>
 </aside>
 
 <!-- ============ MODAL: Add lead ============ -->
@@ -1202,7 +1271,9 @@ function renderPipeline(){
         <div class="column-sum">${formatMoney(sum)}</div>
       </div>
       <div class="column-body" data-stage="${stage.id}" ondragover="allowDrop(event)" ondrop="handleDrop(event,'${stage.id}')" ondragleave="dragLeave(event)">
-        ${visibleLeads.length ? visibleLeads.map(cardHtml).join('') : `<div class="column-empty">${stageLeads.length ? 'Không khớp bộ lọc' : 'Chưa có lead nào'}</div>`}
+        ${visibleLeads.length ? visibleLeads.map(cardHtml).join('') : (stageLeads.length
+          ? `<div class="column-empty">Không khớp bộ lọc</div>`
+          : `<div class="column-empty"><svg viewBox="0 0 90 90" aria-hidden="true"><use href="#ui-deco-leaf" xlink:href="#ui-deco-leaf" transform="translate(20,58) rotate(-35) scale(0.55)"/><use href="#ui-deco-bloom" xlink:href="#ui-deco-bloom" transform="translate(45,30) scale(0.7)" fill="#EF9AAE"/></svg><span>Chưa có lead nào</span></div>`)}
       </div>
     `;
     board.appendChild(col);
