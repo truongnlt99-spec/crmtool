@@ -382,6 +382,7 @@
   }
   .field-input:focus{border-color:var(--green-500);}
   textarea.field-input{min-height:56px; font-family:inherit;}
+  textarea.field-input.auto-grow{resize:none; overflow:hidden;}
   .drawer-footer{padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; gap:10px; background:var(--card); flex:none;}
   .add-todo-row{display:flex; gap:8px; margin-top:8px;}
   .add-todo-row input{flex:1; background:#fff;}
@@ -1168,15 +1169,15 @@ function openLead(id){
           </div>
           <div class="field-group">
             <label class="field-label">Lịch trình</label>
-            <textarea class="field-input" oninput="onFieldChange('${id}','schedule', this.value)">${esc(lead.schedule)}</textarea>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','schedule', this.value); autoGrowTextarea(this)">${esc(lead.schedule)}</textarea>
           </div>
           <div class="field-group">
             <label class="field-label">Chân dung khách hàng</label>
-            <textarea class="field-input" oninput="onFieldChange('${id}','persona', this.value)">${esc(lead.persona)}</textarea>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','persona', this.value); autoGrowTextarea(this)">${esc(lead.persona)}</textarea>
           </div>
           <div class="field-group">
             <label class="field-label">Objection khách đang gặp</label>
-            <textarea class="field-input" oninput="onFieldChange('${id}','objection', this.value)">${esc(lead.objection)}</textarea>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','objection', this.value); autoGrowTextarea(this)">${esc(lead.objection)}</textarea>
           </div>
         </div>
 
@@ -1231,6 +1232,7 @@ function openLead(id){
   `;
 
   renderDrawerTodos(lead);
+  initAutoGrowTextareas();
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
 }
@@ -1255,6 +1257,14 @@ function renderDrawerTodos(lead){
   `).join('');
 }
 
+function autoGrowTextarea(el){
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+function initAutoGrowTextareas(){
+  document.querySelectorAll('#drawerBody textarea.auto-grow').forEach(autoGrowTextarea);
+}
 function onFieldChange(id, field, value){
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
