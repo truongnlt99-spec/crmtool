@@ -591,6 +591,16 @@
   .lock-icon{width:34px; height:34px; color:var(--green-600); margin-bottom:14px;}
   .lock-title{font-weight:800; font-size:16px;}
   .lock-sub{font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-top:4px; margin-bottom:18px;}
+
+  /* ---------- Lock screen: lời chào yêu thương buổi sáng ---------- */
+  .lock-emoji{font-size:34px; line-height:1; margin-bottom:10px;}
+  .lock-date{font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:9px;}
+  .lock-greeting{font-size:19px; font-weight:800; color:var(--ink); line-height:1.35; margin-bottom:9px;}
+  .lock-quote{font-size:13px; font-weight:500; color:var(--blush); font-style:italic; line-height:1.55; margin-bottom:22px; padding:0 2px;}
+  .lock-divider{height:1px; background:var(--border-soft); margin:0 0 20px;}
+  .lock-brand-row{display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:3px;}
+  .lock-icon-mini{width:15px; height:15px; color:var(--green-600); flex-shrink:0;}
+  .lock-brand-title{font-weight:800; font-size:13px; color:var(--ink-soft);}
   .lock-input{
     width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; font-size:15px;
     outline:none; text-align:center; letter-spacing:.2em; font-weight:700; margin-bottom:12px;
@@ -605,8 +615,15 @@
 <!-- ============ LOCK SCREEN ============ -->
 <div class="lock-screen" id="lockScreen">
   <div class="lock-card">
-    <svg class="lock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-    <div class="lock-title">CRM của Huyền Trân</div>
+    <div class="lock-emoji" id="lockEmoji">☀️</div>
+    <div class="lock-date" id="lockDate"></div>
+    <div class="lock-greeting" id="lockGreeting">Chào buổi sáng, vợ yêu của anh</div>
+    <div class="lock-quote" id="lockQuote"></div>
+    <div class="lock-divider"></div>
+    <div class="lock-brand-row">
+      <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span class="lock-brand-title">CRM của Huyền Trân</span>
+    </div>
     <div class="lock-sub">Nhập mật khẩu để mở</div>
     <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
     <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
@@ -980,6 +997,65 @@ function matchesFilters(lead){
 
 /* ======================= LOCK SCREEN ======================= */
 const APP_PASSWORD = '8386';
+
+// Những câu động viên yêu thương - mỗi ngày một câu, tự đổi mỗi khi qua ngày mới
+const LOCK_LOVE_MESSAGES = [
+  "Ngủ dậy chưa em ơi, hôm nay lại có thêm nhiều đám cưới đẹp đang chờ em đó 💍",
+  "Mỗi lead em chăm sóc kỹ là một cặp đôi hạnh phúc sau này, cố lên em nhé 💕",
+  "Không cần vội vàng đâu, cứ từng bước một, em luôn làm tốt mà 🥰",
+  "Có gì khó cứ nhắn anh, nhưng anh tin em xử lý ngon lành hết á 💪",
+  "Hôm nay trời đẹp mà em còn đẹp hơn, chúc em một ngày làm việc nhẹ nhàng 🌸",
+  "Follow up khách hôm nay chắc chắn suôn sẻ, vì em luôn tận tâm mà 💌",
+  "Cảm ơn em vì đã luôn cố gắng cho HayDay Wedding của chúng mình 🌷",
+  "Ngày mới, năng lượng mới, em làm gì cũng có anh ủng hộ phía sau 💚",
+  "Nhớ ăn sáng, uống nước đầy đủ trước khi bắt đầu ngày làm việc nha em 🍵",
+  "Deadline nào rồi cũng xong hết, em giỏi lắm mà 💪",
+  "Anh tự hào về em lắm, vừa đảm đang vừa giỏi giang 💗",
+  "Mỗi ngày trôi qua là một bước gần hơn đến những đám cưới thật đẹp em mang lại 💐",
+  "Chúc em một ngày chốt được thật nhiều lead nha, cố lên em 🎯",
+  "Có anh ở đây rồi, việc gì từ từ giải quyết, đừng lo lắng nhiều em nhé 🥹",
+  "Em là nữ hoàng của CRM này đó nha, tự tin lên nào 👑",
+  "Cảm ơn em vì mỗi ngày đều cố gắng vì gia đình mình 💕",
+  "Hôm nay cũng sẽ là một ngày tuyệt vời, anh tin ở em 🌤️",
+  "Yêu em nhất trên đời, chúc em ngày làm việc hiệu quả 💗",
+  "Việc nhiều không sao, nhớ nghỉ ngơi giữa giờ một chút nha em 🍃",
+  "Khách nào khó tính rồi cũng sẽ mềm lòng trước sự chu đáo của em thôi 🥰",
+  "Chúc em một ngày mới nhẹ nhàng, ít deadline, nhiều nụ cười 😊",
+  "Em cứ làm việc thoải mái, có anh lo phần còn lại rồi 💚",
+  "Mỗi lần em follow up khách kỹ lưỡng, anh lại thấy vợ mình giỏi ghê 🥰",
+  "Ngày hôm nay chắc chắn sẽ nhiều tin vui, cố lên em yêu 💐"
+];
+
+function initLockGreeting(){
+  const now = new Date();
+  const hour = now.getHours();
+
+  // Lời chào + icon theo khung giờ trong ngày
+  let timeGreeting, emoji;
+  if (hour < 11)      { timeGreeting = 'Chào buổi sáng'; emoji = '☀️'; }
+  else if (hour < 14)  { timeGreeting = 'Chào buổi trưa'; emoji = '🌼'; }
+  else if (hour < 18)  { timeGreeting = 'Chào buổi chiều'; emoji = '🌤️'; }
+  else                 { timeGreeting = 'Chào buổi tối'; emoji = '🌙'; }
+
+  const dayNames = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+  const dateStr = `${dayNames[now.getDay()]}, ${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`;
+
+  // Câu động viên đổi theo ngày trong năm, để mỗi sáng mở lên là một câu mới
+  const start = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - start) / 86400000);
+  const quote = LOCK_LOVE_MESSAGES[dayOfYear % LOCK_LOVE_MESSAGES.length];
+
+  const emojiEl = document.getElementById('lockEmoji');
+  const dateEl = document.getElementById('lockDate');
+  const greetEl = document.getElementById('lockGreeting');
+  const quoteEl = document.getElementById('lockQuote');
+  if (emojiEl) emojiEl.textContent = emoji;
+  if (dateEl) dateEl.textContent = dateStr;
+  if (greetEl) greetEl.textContent = `${timeGreeting}, vợ yêu của anh`;
+  if (quoteEl) quoteEl.textContent = quote;
+}
+initLockGreeting();
+
 function checkLockPassword(){
   const input = document.getElementById('lockPasswordInput');
   if (input.value === APP_PASSWORD){
