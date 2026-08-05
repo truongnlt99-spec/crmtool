@@ -328,7 +328,13 @@
   .list-item-tag{font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; white-space:nowrap;}
   .list-item-tag.red{color:var(--red); background:var(--red-soft);}
   .list-item-tag.green{color:var(--green-600); background:var(--green-50);}
+  .list-item-tag.money{color:var(--green-700); background:var(--green-50);}
   .list-empty{font-size:12px; color:var(--ink-faint); font-weight:500; padding:10px 4px;}
+  .card-box.clickable-box{cursor:pointer; transition:box-shadow .12s ease, transform .12s ease;}
+  .card-box.clickable-box:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px);}
+  .card-box.clickable-box:hover .box-value{color:var(--green-700);}
+  .box-hint{font-size:10.5px; color:var(--green-600); font-weight:700; margin-top:6px; display:flex; align-items:center; gap:3px;}
+  .box-hint svg{width:11px; height:11px;}
 
   .todo-row{display:flex; align-items:center; gap:10px; padding:8px 4px; border-top:1px solid var(--border-soft);}
   .todo-row:first-child{border-top:none;}
@@ -972,6 +978,20 @@
     <div class="modal-body" id="remindersBody"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeRemindersModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Danh sách lead theo doanh thu (Tiềm năng / Dự kiến chốt tháng) ============ -->
+<div class="modal-overlay" id="revenueListOverlay">
+  <div class="modal wide">
+    <div class="modal-header">
+      <h3 id="revenueListTitle">Danh sách lead</h3>
+      <p id="revenueListSub">Bấm vào 1 lead để mở chi tiết ở Pipeline</p>
+    </div>
+    <div class="modal-body" id="revenueListBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeRevenueListModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -2036,16 +2056,18 @@ function renderDashboard(){
       <div class="kpi-percent" id="leadsPercentText">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
     </div>
 
-    <div class="card-box span-6">
+    <div class="card-box span-6 clickable-box" onclick="openRevenueListModal('potential')">
       <div class="box-label">Doanh thu gắn nhãn Tiềm năng 🔥</div>
       <div class="box-value">${formatMoney(potentialRevenue)}</div>
       <div class="box-sub">${potentialLeads.length} lead đang gắn nhãn tiềm năng</div>
+      <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
-    <div class="card-box span-6">
+    <div class="card-box span-6 clickable-box" onclick="openRevenueListModal('expectedClose')">
       <div class="box-label">Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}</div>
       <div class="box-value">${formatMoney(expectedCloseRevenue)}</div>
       <div class="box-sub">${expectedCloseLeads.length} lead hẹn chốt tháng này (theo "Tháng chốt dự kiến")</div>
+      <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box span-12">
@@ -2199,6 +2221,49 @@ function reminderItemClick(leadId){
 }
 function closeRemindersModal(){
   document.getElementById('remindersOverlay').classList.remove('show');
+}
+
+/* ======================= MODAL: Danh sách lead theo doanh thu (Tiềm năng / Dự kiến chốt tháng) ======================= */
+// type: 'potential' (gắn nhãn Tiềm năng) | 'expectedClose' (dự kiến chốt trong tháng đang xem)
+function getRevenueListData(type){
+  const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  if (type === 'potential'){
+    const items = activeLeads.filter(l => (l.tags||[]).includes('Tiềm năng'));
+    return {
+      title: 'Doanh thu gắn nhãn Tiềm năng 🔥',
+      items, revenueField: 'revenueExpected',
+    };
+  }
+  const monthKey = monthKeyOf(dashMonth, dashYear);
+  const items = activeLeads.filter(l => l.expectedCloseMonth === monthKey);
+  return {
+    title: `Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}`,
+    items, revenueField: 'revenueExpected',
+  };
+}
+function openRevenueListModal(type){
+  const { title, items, revenueField } = getRevenueListData(type);
+  const total = items.reduce((s,l) => s + (l[revenueField]||0), 0);
+  document.getElementById('revenueListTitle').textContent = title;
+  document.getElementById('revenueListSub').textContent =
+    `${items.length} lead · Tổng ${formatMoney(total)} — bấm vào 1 lead để mở chi tiết ở Pipeline`;
+  document.getElementById('revenueListBody').innerHTML = items.length ? items.map(l => `
+    <div class="list-item" onclick="revenueListItemClick('${l.id}')">
+      <div>
+        <div class="list-item-name">${esc(l.name)}</div>
+        <div class="list-item-sub">${STAGE_MAP[l.stage].name} · ${esc(l.package)}</div>
+      </div>
+      <div class="list-item-tag money">${formatMoney(l[revenueField]||0)}</div>
+    </div>
+  `).join('') : '<div class="list-empty">Chưa có lead nào ở danh sách này.</div>';
+  document.getElementById('revenueListOverlay').classList.add('show');
+}
+function revenueListItemClick(leadId){
+  closeRevenueListModal();
+  jumpToLead(leadId);
+}
+function closeRevenueListModal(){
+  document.getElementById('revenueListOverlay').classList.remove('show');
 }
 
 /* ======================= SIDEBAR STATS ======================= */
