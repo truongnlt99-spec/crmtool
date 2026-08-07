@@ -645,24 +645,31 @@
   .lock-btn{width:100%; justify-content:center;}
   .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
 
-  /* ---------- Quà bất ngờ cho em (chỉ hiện ở màn khoá) ---------- */
-  .gift-fab{
-    position:fixed; z-index:5; bottom:26px; right:26px;
-    width:56px; height:56px; border-radius:50%; border:1px solid var(--border-soft);
+  /* ---------- Quà bất ngờ cho em: nút ở màn khoá, ngay dưới nút Mở khoá ---------- */
+  .lock-gift-btn{
+    margin-top:14px; width:100%; display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    padding:10px 16px; border-radius:999px; border:1px solid var(--border-soft);
+    background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft));
+    color:var(--ink); font-weight:700; font-size:13.5px; cursor:pointer;
+    animation:giftPulse 2.6s ease-in-out infinite;
+  }
+  .lock-gift-btn:hover{transform:translateY(-1px);}
+  @keyframes giftPulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(232,137,155,.35);}
+    50%{box-shadow:0 0 0 8px rgba(232,137,155,0);}
+  }
+
+  /* ---------- Quà bất ngờ cho em: nút gắn bên cạnh sidebar (sau khi mở khoá) ---------- */
+  .sidebar-gift-fab{
+    position:absolute; z-index:6; bottom:20px; right:-15px;
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--border-soft);
     background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft));
     box-shadow:var(--shadow-pop);
     display:flex; align-items:center; justify-content:center;
-    font-size:26px; line-height:1; cursor:pointer; padding:0;
+    font-size:19px; line-height:1; cursor:pointer; padding:0;
     animation:giftPulse 2.6s ease-in-out infinite;
   }
-  .gift-fab:hover{transform:scale(1.08);}
-  @keyframes giftPulse{
-    0%,100%{box-shadow:0 0 0 0 rgba(232,137,155,.35), var(--shadow-pop);}
-    50%{box-shadow:0 0 0 9px rgba(232,137,155,0), var(--shadow-pop);}
-  }
-  @media (max-width:480px){
-    .gift-fab{bottom:18px; right:18px; width:50px; height:50px; font-size:23px;}
-  }
+  .sidebar-gift-fab:hover{transform:scale(1.08);}
 
   .gift-modal-overlay{
     position:fixed; inset:0; z-index:1010; display:none;
@@ -705,7 +712,7 @@
   .gift-modal-btn{position:relative; z-index:1; width:100%; justify-content:center;}
 
   @media (prefers-reduced-motion: reduce){
-    .gift-fab, .gift-box-icon, .gift-modal-card{animation:none;}
+    .lock-gift-btn, .sidebar-gift-fab, .gift-box-icon, .gift-modal-card{animation:none;}
     .gift-heart{display:none;}
   }
 </style>
@@ -827,20 +834,21 @@
     <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
     <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
     <div class="lock-error" id="lockError"></div>
+
+    <!-- ============ QUÀ BẤT NGỜ CHO EM ============ -->
+    <button class="lock-gift-btn" id="lockGiftBtn" onclick="openGiftModal()">🎁 Có quà cho em nè</button>
   </div>
+</div>
 
-  <!-- ============ QUÀ BẤT NGỜ CHO EM ============ -->
-  <button class="gift-fab" id="giftFab" onclick="openGiftModal()" aria-label="Có quà cho em nè" title="Có quà cho em nè">🎁</button>
-
-  <div class="gift-modal-overlay" id="giftModalOverlay" onclick="if(event.target===this) closeGiftModal()">
-    <div class="gift-modal-card">
-      <button class="gift-modal-close" onclick="closeGiftModal()" aria-label="Đóng">✕</button>
-      <div class="gift-hearts" id="giftHearts" aria-hidden="true"></div>
-      <div class="gift-box-icon">🎁</div>
-      <div class="gift-modal-title">Có quà cho em nè...</div>
-      <div class="gift-modal-msg">Cục bông gòn có mặt tại nhà chung lúc 19h00 và đi lựa nhẫn nhó 💍</div>
-      <button class="btn btn-primary gift-modal-btn" onclick="closeGiftModal()">Dạ, có mặt liền 💛</button>
-    </div>
+<!-- ============ POPUP QUÀ (dùng chung cho cả màn khoá lẫn trong app) ============ -->
+<div class="gift-modal-overlay" id="giftModalOverlay" onclick="if(event.target===this) closeGiftModal()">
+  <div class="gift-modal-card">
+    <button class="gift-modal-close" onclick="closeGiftModal()" aria-label="Đóng">✕</button>
+    <div class="gift-hearts" id="giftHearts" aria-hidden="true"></div>
+    <div class="gift-box-icon">🎁</div>
+    <div class="gift-modal-title">Có quà cho em nè...</div>
+    <div class="gift-modal-msg">Cục bông gòn có mặt tại nhà chung lúc 19h00 và đi lựa nhẫn nhó 💍</div>
+    <button class="btn btn-primary gift-modal-btn" onclick="closeGiftModal()">Dạ, có mặt liền 💛</button>
   </div>
 </div>
 
@@ -889,6 +897,7 @@
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
 
+    <button class="sidebar-gift-fab" id="sidebarGiftFab" onclick="openGiftModal()" aria-label="Có quà cho em nè" title="Có quà cho em nè">🎁</button>
   </aside>
 
   <!-- ============ MAIN ============ -->
