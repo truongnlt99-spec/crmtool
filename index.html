@@ -659,17 +659,16 @@
     50%{box-shadow:0 0 0 8px rgba(232,137,155,0);}
   }
 
-  /* ---------- Quà bất ngờ cho em: nút gắn bên cạnh sidebar (sau khi mở khoá) ---------- */
-  .sidebar-gift-fab{
-    position:absolute; z-index:6; bottom:20px; right:-15px;
-    width:42px; height:42px; border-radius:50%; border:1px solid var(--border-soft);
+  /* ---------- Quà bất ngờ cho em: mục trong nav, dưới nút Dashboard ---------- */
+  .nav-item.gift-nav-item{
     background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft));
-    box-shadow:var(--shadow-pop);
-    display:flex; align-items:center; justify-content:center;
-    font-size:19px; line-height:1; cursor:pointer; padding:0;
+    margin-top:4px;
     animation:giftPulse 2.6s ease-in-out infinite;
   }
-  .sidebar-gift-fab:hover{transform:scale(1.08);}
+  .nav-item.gift-nav-item:hover{background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft)); filter:brightness(.96);}
+  .gift-nav-icon{font-size:16px; line-height:1; flex:none;}
+  /* Emoji quà luôn hiện dù sidebar thu gọn hay mở rộng */
+  body.sidebar-collapsed .nav-item.gift-nav-item .gift-nav-icon{display:inline-block;}
 
   .gift-modal-overlay{
     position:fixed; inset:0; z-index:1010; display:none;
@@ -712,7 +711,7 @@
   .gift-modal-btn{position:relative; z-index:1; width:100%; justify-content:center;}
 
   @media (prefers-reduced-motion: reduce){
-    .lock-gift-btn, .sidebar-gift-fab, .gift-box-icon, .gift-modal-card{animation:none;}
+    .lock-gift-btn, .nav-item.gift-nav-item, .gift-box-icon, .gift-modal-card{animation:none;}
     .gift-heart{display:none;}
   }
 </style>
@@ -875,6 +874,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
         <span>Dashboard</span>
       </button>
+      <button class="nav-item gift-nav-item" id="sidebarGiftFab" onclick="openGiftModal()" title="Có quà cho em nè">
+        <span class="gift-nav-icon" aria-hidden="true">🎁</span>
+        <span>Có quà cho em</span>
+      </button>
     </nav>
 
     <div class="sidebar-divider"></div>
@@ -896,8 +899,6 @@
       <div class="sidebar-stat-value" id="sidebarTodayCount">0</div>
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
-
-    <button class="sidebar-gift-fab" id="sidebarGiftFab" onclick="openGiftModal()" aria-label="Có quà cho em nè" title="Có quà cho em nè">🎁</button>
   </aside>
 
   <!-- ============ MAIN ============ -->
