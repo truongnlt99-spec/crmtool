@@ -644,76 +644,6 @@
   .lock-input:focus{border-color:var(--green-500);}
   .lock-btn{width:100%; justify-content:center;}
   .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
-
-  /* ---------- Quà bất ngờ cho em: nút ở màn khoá, ngay dưới nút Mở khoá ---------- */
-  .lock-gift-btn{
-    margin-top:14px; width:100%; display:inline-flex; align-items:center; justify-content:center; gap:7px;
-    padding:10px 16px; border-radius:999px; border:1px solid var(--border-soft);
-    background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft));
-    color:var(--ink); font-weight:700; font-size:13.5px; cursor:pointer;
-    animation:giftPulse 2.6s ease-in-out infinite;
-  }
-  .lock-gift-btn:hover{transform:translateY(-1px);}
-  @keyframes giftPulse{
-    0%,100%{box-shadow:0 0 0 0 rgba(232,137,155,.35);}
-    50%{box-shadow:0 0 0 8px rgba(232,137,155,0);}
-  }
-
-  /* ---------- Quà bất ngờ cho em: mục trong nav, dưới nút Dashboard ---------- */
-  .nav-item.gift-nav-item{
-    background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft));
-    margin-top:4px;
-    animation:giftPulse 2.6s ease-in-out infinite;
-  }
-  .nav-item.gift-nav-item:hover{background:linear-gradient(135deg, var(--blush-soft), var(--amber-soft)); filter:brightness(.96);}
-  .gift-nav-icon{font-size:16px; line-height:1; flex:none;}
-  /* Emoji quà luôn hiện dù sidebar thu gọn hay mở rộng */
-  body.sidebar-collapsed .nav-item.gift-nav-item .gift-nav-icon{display:inline-block;}
-
-  .gift-modal-overlay{
-    position:fixed; inset:0; z-index:1010; display:none;
-    align-items:center; justify-content:center; padding:20px;
-    background:rgba(28,38,34,.5);
-  }
-  .gift-modal-overlay.open{display:flex;}
-  .gift-modal-card{
-    position:relative; z-index:1; overflow:hidden;
-    background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg);
-    box-shadow:var(--shadow-pop); padding:38px 28px 28px; width:340px; max-width:100%; text-align:center;
-    animation:giftCardPop .38s cubic-bezier(.34,1.56,.64,1);
-  }
-  @keyframes giftCardPop{
-    0%{transform:scale(.86); opacity:0;}
-    100%{transform:scale(1); opacity:1;}
-  }
-  .gift-modal-close{
-    position:absolute; top:10px; right:12px; z-index:2;
-    width:26px; height:26px; border-radius:50%; border:none; background:var(--bg);
-    color:var(--ink-faint); font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;
-  }
-  .gift-hearts{position:absolute; inset:0; overflow:hidden; pointer-events:none; z-index:0;}
-  .gift-heart{position:absolute; top:-24px; will-change:transform; animation-name:heartFall; animation-timing-function:linear; animation-fill-mode:forwards;}
-  @keyframes heartFall{
-    0%{transform:translateY(0) rotate(0deg); opacity:.95;}
-    100%{transform:translateY(360px) rotate(30deg); opacity:0;}
-  }
-  .gift-box-icon{position:relative; z-index:1; font-size:48px; display:inline-block; margin-bottom:8px; animation:giftShake 1.7s ease-in-out infinite;}
-  @keyframes giftShake{
-    0%,48%,100%{transform:rotate(0deg);}
-    8%{transform:rotate(-9deg);} 16%{transform:rotate(8deg);}
-    24%{transform:rotate(-6deg);} 32%{transform:rotate(6deg);} 40%{transform:rotate(-3deg);}
-  }
-  .gift-modal-title{position:relative; z-index:1; font-weight:800; font-size:17px; color:var(--ink); margin-bottom:14px;}
-  .gift-modal-msg{
-    position:relative; z-index:1; font-size:15px; font-weight:700; color:var(--ink); line-height:1.65;
-    background:var(--blush-soft); border-radius:14px; padding:16px 15px; margin-bottom:20px;
-  }
-  .gift-modal-btn{position:relative; z-index:1; width:100%; justify-content:center;}
-
-  @media (prefers-reduced-motion: reduce){
-    .lock-gift-btn, .nav-item.gift-nav-item, .gift-box-icon, .gift-modal-card{animation:none;}
-    .gift-heart{display:none;}
-  }
 </style>
 </head>
 <body>
@@ -833,21 +763,6 @@
     <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
     <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
     <div class="lock-error" id="lockError"></div>
-
-    <!-- ============ QUÀ BẤT NGỜ CHO EM ============ -->
-    <button class="lock-gift-btn" id="lockGiftBtn" onclick="openGiftModal()">🎁 Có quà cho em nè</button>
-  </div>
-</div>
-
-<!-- ============ POPUP QUÀ (dùng chung cho cả màn khoá lẫn trong app) ============ -->
-<div class="gift-modal-overlay" id="giftModalOverlay" onclick="if(event.target===this) closeGiftModal()">
-  <div class="gift-modal-card">
-    <button class="gift-modal-close" onclick="closeGiftModal()" aria-label="Đóng">✕</button>
-    <div class="gift-hearts" id="giftHearts" aria-hidden="true"></div>
-    <div class="gift-box-icon">🎁</div>
-    <div class="gift-modal-title">Có quà cho em nè...</div>
-    <div class="gift-modal-msg">Cục bông gòn có mặt tại nhà chung lúc 19h00 và đi lựa nhẫn nhó 💍</div>
-    <button class="btn btn-primary gift-modal-btn" onclick="closeGiftModal()">Dạ, có mặt liền 💛</button>
   </div>
 </div>
 
@@ -874,10 +789,6 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
         <span>Dashboard</span>
       </button>
-      <button class="nav-item gift-nav-item" id="sidebarGiftFab" onclick="openGiftModal()" title="Có quà cho em nè">
-        <span class="gift-nav-icon" aria-hidden="true">🎁</span>
-        <span>Có quà cho em</span>
-      </button>
     </nav>
 
     <div class="sidebar-divider"></div>
@@ -899,6 +810,7 @@
       <div class="sidebar-stat-value" id="sidebarTodayCount">0</div>
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
+
   </aside>
 
   <!-- ============ MAIN ============ -->
@@ -1335,34 +1247,6 @@ function checkLockPassword(){
     document.getElementById('lockError').textContent = 'Sai mật khẩu, thử lại nhé.';
     input.value = '';
     input.focus();
-  }
-}
-
-/* ---------- Quà bất ngờ cho em ---------- */
-function openGiftModal(){
-  const overlay = document.getElementById('giftModalOverlay');
-  if (!overlay) return;
-  overlay.classList.add('open');
-  spawnGiftHearts();
-}
-function closeGiftModal(){
-  const overlay = document.getElementById('giftModalOverlay');
-  if (overlay) overlay.classList.remove('open');
-}
-function spawnGiftHearts(){
-  const wrap = document.getElementById('giftHearts');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  const icons = ['💛','💍','✨','🩷','💚'];
-  for (let i = 0; i < 16; i++){
-    const span = document.createElement('span');
-    span.className = 'gift-heart';
-    span.textContent = icons[i % icons.length];
-    span.style.left = (Math.random() * 92 + 2) + '%';
-    span.style.fontSize = (12 + Math.random() * 12) + 'px';
-    span.style.animationDuration = (1.8 + Math.random() * 1.6) + 's';
-    span.style.animationDelay = (Math.random() * 0.9) + 's';
-    wrap.appendChild(span);
   }
 }
 
