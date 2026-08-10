@@ -2528,6 +2528,20 @@ function migrateLead(l){
   } else if (!Array.isArray(l.notesList)){
     l.notesList = [];
   }
+
+  // Vá "ngày hoàn thành" cho các việc đã tick xong TRƯỚC khi có tính năng thống kê
+  // "Todo hoàn thành theo chu kỳ" — dò lại trong activityLog (đã có sẵn từ trước) để lấy đúng
+  // ngày thật đã hoàn thành, thay vì bỏ sót các việc này khỏi thống kê/danh sách.
+  if (Array.isArray(l.todos)){
+    l.todos.forEach(t => {
+      if (t.done && !t.completedAt){
+        const matches = (l.activityLog || []).filter(a => a.text === `Hoàn thành việc: ${t.text}`);
+        const last = matches[matches.length - 1];
+        const m = last && last.time ? /^(\d{2})\/(\d{2})\/(\d{4})/.exec(last.time) : null;
+        t.completedAt = m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+      }
+    });
+  }
   return l;
 }
 
