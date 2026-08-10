@@ -330,6 +330,21 @@
   .list-item-tag.green{color:var(--green-600); background:var(--green-50);}
   .list-item-tag.money{color:var(--green-700); background:var(--green-50);}
   .list-empty{font-size:12px; color:var(--ink-faint); font-weight:500; padding:10px 4px;}
+  .list-item-tag.date{color:var(--slate); background:var(--slate-soft);}
+
+  .time-filter-row{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .time-filter-chip{
+    padding:7px 14px; border-radius:999px; border:1px solid var(--border); background:#fff;
+    font-size:12.5px; font-weight:700; color:var(--ink-soft); cursor:pointer; transition:all .12s ease;
+  }
+  .time-filter-chip:hover{border-color:var(--green-500); color:var(--green-700);}
+  .time-filter-chip.active{background:var(--green-50); border-color:var(--green-500); color:var(--green-700);}
+  .time-filter-custom-row{display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .time-filter-custom-row .dash-month-field{flex:1; min-width:140px;}
+  .time-filter-custom-row input[type="date"]{
+    border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px; font-weight:600;
+    background:#fff; color:var(--ink); width:100%; box-sizing:border-box;
+  }
   .card-box.clickable-box{cursor:pointer; transition:box-shadow .12s ease, transform .12s ease;}
   .card-box.clickable-box:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px);}
   .card-box.clickable-box:hover .box-value{color:var(--green-700);}
@@ -992,6 +1007,38 @@
     <div class="modal-body" id="revenueListBody"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeRevenueListModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Todo đã hoàn thành (lọc theo tuần/tháng/khoảng ngày) ============ -->
+<div class="modal-overlay" id="todoCompletedOverlay">
+  <div class="modal wide">
+    <div class="modal-header">
+      <h3 id="todoCompletedTitle">Todo đã hoàn thành</h3>
+      <p id="todoCompletedSub">Bấm vào 1 việc để mở lead tương ứng</p>
+    </div>
+    <div class="modal-body">
+      <div class="time-filter-row" id="todoFilterRow">
+        <button class="time-filter-chip" data-filter="month" onclick="setTodoCompletedFilter('month')">Tháng báo cáo</button>
+        <button class="time-filter-chip" data-filter="thisWeek" onclick="setTodoCompletedFilter('thisWeek')">Tuần này</button>
+        <button class="time-filter-chip" data-filter="lastWeek" onclick="setTodoCompletedFilter('lastWeek')">Tuần trước</button>
+        <button class="time-filter-chip" data-filter="custom" onclick="setTodoCompletedFilter('custom')">Khoảng thời gian</button>
+      </div>
+      <div class="time-filter-custom-row" id="todoCustomRangeRow" style="display:none;">
+        <div class="dash-month-field">
+          <label>Từ ngày</label>
+          <input type="date" id="todoCustomFromInput" onchange="applyTodoCustomRange()">
+        </div>
+        <div class="dash-month-field">
+          <label>Đến ngày</label>
+          <input type="date" id="todoCustomToInput" onchange="applyTodoCustomRange()">
+        </div>
+      </div>
+      <div id="todoCompletedBody"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTodoCompletedModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -1767,6 +1814,7 @@ function toggleTodo(id, i){
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   lead.todos[i].done = !lead.todos[i].done;
+  lead.todos[i].completedAt = lead.todos[i].done ? todayISO() : null;
   logActivity(lead, `${lead.todos[i].done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${lead.todos[i].text}`);
   renderDrawerTodos(lead);
   refreshActivityLogBox(lead);
@@ -2020,6 +2068,9 @@ function renderDashboard(){
   const expectedCloseLeads = activeLeads.filter(l => l.expectedCloseMonth === monthKey);
   const expectedCloseRevenue = expectedCloseLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
 
+  // Số todo đã hoàn thành trong tháng báo cáo đang xem (mọi lead, kể cả Won/Lost)
+  const completedTodosStat = countCompletedTodosInMonth(dashMonth, dashYear);
+
   const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
   const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
 
@@ -2056,18 +2107,25 @@ function renderDashboard(){
       <div class="kpi-percent" id="leadsPercentText">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
     </div>
 
-    <div class="card-box span-6 clickable-box" onclick="openRevenueListModal('potential')">
+    <div class="card-box clickable-box" onclick="openRevenueListModal('potential')">
       <div class="box-label">Doanh thu gắn nhãn Tiềm năng 🔥</div>
       <div class="box-value">${formatMoney(potentialRevenue)}</div>
       <div class="box-sub">${potentialLeads.length} lead đang gắn nhãn tiềm năng</div>
       <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
-    <div class="card-box span-6 clickable-box" onclick="openRevenueListModal('expectedClose')">
+    <div class="card-box clickable-box" onclick="openRevenueListModal('expectedClose')">
       <div class="box-label">Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}</div>
       <div class="box-value">${formatMoney(expectedCloseRevenue)}</div>
       <div class="box-sub">${expectedCloseLeads.length} lead hẹn chốt tháng này (theo "Tháng chốt dự kiến")</div>
       <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+    </div>
+
+    <div class="card-box clickable-box" onclick="openTodoCompletedModal()">
+      <div class="box-label">Todo hoàn thành tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-value">${completedTodosStat.count}</div>
+      <div class="box-sub">${completedTodosStat.leadCount} lead có việc đã hoàn thành</div>
+      <div class="box-hint">Xem danh sách <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box span-12">
@@ -2264,6 +2322,132 @@ function revenueListItemClick(leadId){
 }
 function closeRevenueListModal(){
   document.getElementById('revenueListOverlay').classList.remove('show');
+}
+
+/* ======================= MODAL: Todo đã hoàn thành (lọc theo tuần/tháng/khoảng ngày) ======================= */
+let todoFilterType = 'month';   // 'month' | 'thisWeek' | 'lastWeek' | 'custom'
+let todoCustomFrom = null;
+let todoCustomTo = null;
+
+function getMonthRange(month, year){
+  const from = new Date(year, month, 1, 0, 0, 0, 0);
+  const to = new Date(year, month + 1, 0, 23, 59, 59, 999); // ngày cuối tháng
+  return { from, to };
+}
+function getWeekRange(refDate){
+  // Tuần tính theo Thứ 2 -> Chủ nhật
+  const d = new Date(refDate);
+  const day = d.getDay();
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  return { from: monday, to: sunday };
+}
+function getTodoDateRange(){
+  if (todoFilterType === 'thisWeek') return getWeekRange(TODAY);
+  if (todoFilterType === 'lastWeek'){
+    const ref = new Date(TODAY); ref.setDate(TODAY.getDate() - 7);
+    return getWeekRange(ref);
+  }
+  if (todoFilterType === 'custom'){
+    const from = todoCustomFrom ? new Date(todoCustomFrom + 'T00:00:00') : new Date(2000, 0, 1);
+    const to = todoCustomTo ? new Date(todoCustomTo + 'T23:59:59') : new Date();
+    return { from, to };
+  }
+  return getMonthRange(dashMonth, dashYear); // mặc định: tháng báo cáo hiện tại
+}
+function countCompletedTodosInMonth(month, year){
+  const { from, to } = getMonthRange(month, year);
+  let count = 0;
+  const leadSet = new Set();
+  leads.forEach(l => {
+    (l.todos || []).forEach(t => {
+      if (t.done && t.completedAt){
+        const d = new Date(t.completedAt + 'T12:00:00');
+        if (d >= from && d <= to){ count++; leadSet.add(l.id); }
+      }
+    });
+  });
+  return { count, leadCount: leadSet.size };
+}
+function getCompletedTodosData(){
+  const { from, to } = getTodoDateRange();
+  const items = [];
+  leads.forEach(l => {
+    (l.todos || []).forEach(t => {
+      if (t.done && t.completedAt){
+        const d = new Date(t.completedAt + 'T12:00:00');
+        if (d >= from && d <= to){
+          items.push({ leadId: l.id, leadName: l.name, leadStage: l.stage, text: t.text, completedAt: t.completedAt });
+        }
+      }
+    });
+  });
+  items.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+  return items;
+}
+function todoFilterLabel(){
+  if (todoFilterType === 'thisWeek') return 'Tuần này';
+  if (todoFilterType === 'lastWeek') return 'Tuần trước';
+  if (todoFilterType === 'custom'){
+    if (todoCustomFrom && todoCustomTo) return `${formatDate(todoCustomFrom)} — ${formatDate(todoCustomTo)}`;
+    return 'Khoảng thời gian tuỳ chọn';
+  }
+  return `Tháng báo cáo ${dashMonth+1}/${dashYear}`;
+}
+function openTodoCompletedModal(){
+  todoFilterType = 'month';
+  document.getElementById('todoCustomRangeRow').style.display = 'none';
+  renderTodoCompletedModal();
+  document.getElementById('todoCompletedOverlay').classList.add('show');
+}
+function setTodoCompletedFilter(type){
+  todoFilterType = type;
+  document.getElementById('todoCustomRangeRow').style.display = (type === 'custom') ? 'flex' : 'none';
+  if (type === 'custom' && !todoCustomFrom && !todoCustomTo){
+    // Mặc định 7 ngày gần nhất khi lần đầu mở bộ lọc khoảng thời gian
+    const fromD = new Date(TODAY); fromD.setDate(TODAY.getDate() - 6);
+    todoCustomFrom = `${fromD.getFullYear()}-${String(fromD.getMonth()+1).padStart(2,'0')}-${String(fromD.getDate()).padStart(2,'0')}`;
+    todoCustomTo = todayISO();
+    document.getElementById('todoCustomFromInput').value = todoCustomFrom;
+    document.getElementById('todoCustomToInput').value = todoCustomTo;
+  }
+  renderTodoCompletedModal();
+}
+function applyTodoCustomRange(){
+  todoCustomFrom = document.getElementById('todoCustomFromInput').value || todoCustomFrom;
+  todoCustomTo = document.getElementById('todoCustomToInput').value || todoCustomTo;
+  todoFilterType = 'custom';
+  renderTodoCompletedModal();
+}
+function renderTodoCompletedModal(){
+  document.querySelectorAll('#todoFilterRow .time-filter-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === todoFilterType);
+  });
+  const items = getCompletedTodosData();
+  document.getElementById('todoCompletedTitle').textContent = `Todo đã hoàn thành — ${todoFilterLabel()}`;
+  document.getElementById('todoCompletedSub').textContent =
+    `${items.length} việc đã hoàn thành — bấm vào 1 việc để mở lead tương ứng`;
+  document.getElementById('todoCompletedBody').innerHTML = items.length ? items.map(it => `
+    <div class="list-item" onclick="todoCompletedItemClick('${it.leadId}')">
+      <div>
+        <div class="list-item-name">${esc(it.text)}</div>
+        <div class="list-item-sub">${esc(it.leadName)} · ${STAGE_MAP[it.leadStage].name}</div>
+      </div>
+      <div class="list-item-tag date">${formatDate(it.completedAt)}</div>
+    </div>
+  `).join('') : '<div class="list-empty">Chưa có việc nào hoàn thành trong khoảng này.</div>';
+}
+function todoCompletedItemClick(leadId){
+  closeTodoCompletedModal();
+  jumpToLead(leadId);
+}
+function closeTodoCompletedModal(){
+  document.getElementById('todoCompletedOverlay').classList.remove('show');
 }
 
 /* ======================= SIDEBAR STATS ======================= */
