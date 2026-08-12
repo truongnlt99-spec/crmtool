@@ -281,12 +281,14 @@
   .dash-greeting{margin-bottom:0;}
   .dash-greeting h2{font-size:19px; font-weight:800;}
   .dash-greeting p{font-size:12.5px; color:var(--ink-faint); margin-top:3px; font-weight:500;}
+  .dash-header-controls{display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;}
   .dash-month-field{display:flex; flex-direction:column; gap:5px;}
   .dash-month-field label{font-size:11.5px; font-weight:700; color:var(--ink-soft);}
-  .dash-month-field input[type="month"]{
+  .dash-month-field input[type="month"], .dash-month-field select{
     border:1px solid var(--border); border-radius:var(--radius-sm); padding:7px 10px; font-size:13px; font-weight:700;
     background:#fff; color:var(--ink); cursor:pointer;
   }
+  .dash-month-field select{min-width:140px;}
 
   .dash-grid{display:grid; grid-template-columns:repeat(12, 1fr); gap:16px;}
   .card-box{
@@ -315,6 +317,18 @@
   .trio-item{flex:1; text-align:left;}
   .trio-num{font-size:22px; font-weight:800;}
   .trio-label{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:2px;}
+  .trio-clickable{cursor:pointer; border-radius:var(--radius-sm); padding:8px 10px; margin:-8px -10px; transition:background .12s ease, transform .12s ease;}
+  .trio-clickable:hover{background:var(--green-50); transform:translateY(-1px);}
+
+  /* Phễu CR (tỉ lệ chuyển đổi qua các stage) */
+  .cr-caption{font-size:12px; font-weight:700; color:var(--ink-soft);}
+  .funnel{display:flex; flex-direction:column; gap:7px; margin-top:12px;}
+  .funnel-row{display:grid; grid-template-columns:118px 1fr 34px 46px; align-items:center; gap:9px;}
+  .funnel-name{font-size:11.5px; font-weight:700; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .funnel-bar-track{height:14px; background:var(--border-soft); border-radius:999px; overflow:hidden;}
+  .funnel-bar-fill{height:100%; border-radius:999px; background:var(--green-500); transition:width .25s ease; min-width:2px;}
+  .funnel-count{font-size:12.5px; font-weight:800; text-align:right; color:var(--ink);}
+  .funnel-cr{font-size:10.5px; font-weight:800; color:var(--green-700); background:var(--green-50); border-radius:999px; padding:2px 6px; text-align:center;}
 
   .list-box .box-label{margin-bottom:10px;}
   .list-item{
@@ -893,9 +907,19 @@
             <h2 id="dashGreeting">Chào Huyền Trân 👋</h2>
             <p id="dashDate"></p>
           </div>
-          <div class="dash-month-field">
-            <label for="dashMonthInput">Xem báo cáo tháng</label>
-            <input type="month" id="dashMonthInput" onchange="changeDashMonth(this.value)">
+          <div class="dash-header-controls">
+            <div class="dash-month-field">
+              <label for="dashLeadTypeInput">Loại lead</label>
+              <select id="dashLeadTypeInput" onchange="onFilterDashLeadType(this.value)">
+                <option value="all">Tất cả</option>
+                <option value="Lead công ty">Lead công ty</option>
+                <option value="Lead salehunt">Lead salehunt</option>
+              </select>
+            </div>
+            <div class="dash-month-field">
+              <label for="dashMonthInput">Xem báo cáo tháng</label>
+              <input type="month" id="dashMonthInput" onchange="changeDashMonth(this.value)">
+            </div>
           </div>
         </div>
         <div class="dash-grid" id="dashGrid">
@@ -1086,6 +1110,14 @@ const PACKAGE_STYLE = {
   'Gói lẻ':         { bg:'var(--gray-tag-soft)', fg:'var(--gray-tag)' },
 };
 
+const LEAD_TYPES = ['Lead công ty', 'Lead salehunt'];
+const LEAD_TYPE_STYLE = {
+  'Lead công ty':  { bg:'var(--slate-soft)',  fg:'var(--slate)'  },
+  'Lead salehunt': { bg:'var(--amber-soft)',  fg:'var(--amber)'  },
+};
+function leadTypeOf(l){ return (l && l.leadType) ? l.leadType : 'Lead công ty'; }
+function scopeByLeadType(arr){ return dashLeadType === 'all' ? arr : arr.filter(l => leadTypeOf(l) === dashLeadType); }
+
 const LOST_REASONS = [
   'Chi phí thấp',
   'Khách không phải tệp tiềm năng của HayDay',
@@ -1125,6 +1157,7 @@ let filterStatus = 'all';
 let currentLeadId = null;
 let pendingDropId = null;
 let pendingDropStage = null;
+let dashLeadType = 'all';               // Bộ lọc loại lead trên dashboard: 'all' | 'Lead công ty' | 'Lead salehunt'
 let dashMonth = TODAY.getMonth();      // Tháng đang xem trên dashboard (0-based), mặc định = tháng hiện tại
 let dashYear = TODAY.getFullYear();
 let editingNoteId = null;              // id ghi chú đang được sửa trong drawer (null = đang viết ghi chú mới)
@@ -1183,6 +1216,28 @@ function formatMonthYear(ym){
 function daysDiff(dateStr){
   const d = new Date(dateStr + 'T00:00:00');
   return Math.round((d - TODAY) / 86400000);
+}
+function daysBetween(fromStr, toStr){
+  if (!fromStr || !toStr) return null;
+  const a = new Date((''+fromStr).slice(0,10) + 'T00:00:00');
+  const b = new Date((''+toStr).slice(0,10) + 'T00:00:00');
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
+  return Math.round((b - a) / 86400000);
+}
+// Xác định giai đoạn XA NHẤT mà 1 lead từng đạt tới (để tính phễu chuyển đổi CR)
+function reachedStageIndex(l){
+  const nameToIdx = {};
+  STAGES.forEach((s,i) => { nameToIdx[s.name] = i; });
+  let maxIdx = 0;
+  const curIdx = STAGES.findIndex(s => s.id === l.stage);
+  if (l.stage !== 'lost' && curIdx >= 0) maxIdx = curIdx;
+  (l.activityLog || []).forEach(a => {
+    const t = a.text || '';
+    if (t.indexOf('Chốt deal thành công') !== -1) maxIdx = Math.max(maxIdx, STAGES.findIndex(s => s.id === 'won'));
+    const m = /sang "(.+?)"/.exec(t) || /Chuyển vào giai đoạn "(.+?)"/.exec(t);
+    if (m && nameToIdx[m[1]] !== undefined) maxIdx = Math.max(maxIdx, nameToIdx[m[1]]);
+  });
+  return maxIdx;
 }
 function nowLabel(){
   const clock = new Date().toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
@@ -1318,7 +1373,8 @@ function renderPipeline(){
   const board = document.getElementById('board');
   board.innerHTML = '';
 
-  STAGES.forEach(stage => {
+  // Ẩn cột "Lost" khỏi pipeline — lead lost vẫn đánh dấu được từ chi tiết lead & vẫn lên báo cáo ở Dashboard
+  STAGES.filter(stage => stage.id !== 'lost').forEach(stage => {
     const stageLeads = leads.filter(l => l.stage === stage.id);
     const visibleLeads = stageLeads.filter(matchesFilters);
     const sum = stageLeads.reduce((s,l) => s + (stage.id === 'won' ? (l.revenueActual||0) : (l.revenueExpected||0)), 0);
@@ -1350,6 +1406,7 @@ function renderPipeline(){
 function cardHtml(lead){
   const status = leadStatus(lead);
   const pkg = PACKAGE_STYLE[lead.package] || PACKAGE_STYLE['Standard'];
+  const lt = LEAD_TYPE_STYLE[leadTypeOf(lead)] || LEAD_TYPE_STYLE['Lead công ty'];
   const todoCount = lead.todos && lead.todos.length ? `<span class="card-todo">✓ ${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '<span></span>';
   const tag = (lead.tags && lead.tags[0]) ? `<span class="card-tag">🔥 ${esc(lead.tags[0])}</span>` : '';
   return `
@@ -1369,6 +1426,7 @@ function cardHtml(lead){
       </div>
       <div class="card-badges">
         <span class="badge-pkg" style="background:${pkg.bg}; color:${pkg.fg}">${esc(lead.package)}</span>
+        <span class="badge-pkg badge-leadtype" style="background:${lt.bg}; color:${lt.fg}">${esc(leadTypeOf(lead))}</span>
       </div>
       <div class="card-revenue">${formatMoney(lead.stage==='won' ? lead.revenueActual : lead.revenueExpected)}</div>
       <div class="card-footer">
@@ -1525,6 +1583,7 @@ function openLead(id){
 
   const stageOptions = STAGES.map(s => `<option value="${s.id}" ${s.id===lead.stage?'selected':''}>${esc(s.name)}</option>`).join('');
   const pkgOptions = PACKAGES.map(p => `<option value="${p}" ${p===lead.package?'selected':''}>${esc(p)}</option>`).join('');
+  const leadTypeOptions = LEAD_TYPES.map(t => `<option value="${t}" ${t===leadTypeOf(lead)?'selected':''}>${esc(t)}</option>`).join('');
 
   let extra = '';
   if (lead.stage === 'won'){
@@ -1617,6 +1676,10 @@ function openLead(id){
           <div class="field-group">
             <label class="field-label">Giai đoạn hiện tại</label>
             <select class="field-input" onchange="changeStageFromDrawer('${id}', this.value)">${stageOptions}</select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Loại lead</label>
+            <select class="field-input" onchange="onFieldChange('${id}','leadType', this.value)">${leadTypeOptions}</select>
           </div>
           <div class="field-group">
             <label class="field-label">Gói dịch vụ</label>
@@ -1946,9 +2009,15 @@ function openAddLead(){
     </div>
     <div class="field-row">
       <div class="field-group">
+        <label class="field-label">Loại lead</label>
+        <select class="field-input" id="newLeadType">${LEAD_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('')}</select>
+      </div>
+      <div class="field-group">
         <label class="field-label">Gói dịch vụ</label>
         <select class="field-input" id="newPackage">${PACKAGES.map(p=>`<option value="${p}">${p}</option>`).join('')}</select>
       </div>
+    </div>
+    <div class="field-row">
       <div class="field-group">
         <label class="field-label">Doanh thu dự kiến</label>
         <input class="field-input" id="newRevenue" type="text" inputmode="numeric" placeholder="0" oninput="formatMoneyInput(this)">
@@ -1984,6 +2053,7 @@ function submitAddLead(){
     phone: document.getElementById('newPhone').value.trim(),
     weddingDate: document.getElementById('newWeddingDate').value || null,
     package: document.getElementById('newPackage').value,
+    leadType: document.getElementById('newLeadType').value,
     revenueExpected: moneyInputValue(document.getElementById('newRevenue')),
     stage: 'leadin',
     deadline: document.getElementById('newDeadline').value || todayISO(),
@@ -2019,8 +2089,9 @@ function updatePlan(key, value){
 }
 
 function refreshDashboardKPIOnly(){
-  const wonThisMonth = leads.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
-  const monthLeads = leads.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const scoped = scopeByLeadType(leads);
+  const wonThisMonth = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+  const monthLeads = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
   const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
   const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
   const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
@@ -2044,17 +2115,26 @@ function changeDashMonth(value){
   renderDashboard();
 }
 
+function onFilterDashLeadType(value){
+  dashLeadType = value || 'all';
+  renderDashboard();
+}
+
 function renderDashboard(){
   // Đồng bộ ô chọn tháng với dashMonth/dashYear đang xem (mặc định = tháng hiện tại)
   const monthInput = document.getElementById('dashMonthInput');
   if (monthInput) monthInput.value = monthKeyOf(dashMonth, dashYear);
+  const leadTypeInput = document.getElementById('dashLeadTypeInput');
+  if (leadTypeInput) leadTypeInput.value = dashLeadType;
   document.getElementById('dashDate').textContent = `Hôm nay là ${formatDate(todayISO())}`;
 
   const monthKey = monthKeyOf(dashMonth, dashYear);
-  const activeLeads = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
-  const monthLeads = leads.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
-  const wonThisMonth = leads.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
-  const lostThisMonth = leads.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
+  // Dữ liệu dashboard lọc theo "Loại lead" đang chọn (Tất cả / Lead công ty / Lead salehunt)
+  const scoped = scopeByLeadType(leads);
+  const activeLeads = scoped.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const monthLeads = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const wonThisMonth = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+  const lostThisMonth = scoped.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
   const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
   const pipelineValue = activeLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
   const overdueLeads = activeLeads.filter(l => leadStatus(l).type === 'red').sort((a,b) => daysDiff(a.deadline) - daysDiff(b.deadline));
@@ -2078,6 +2158,30 @@ function renderDashboard(){
   LOST_REASONS.forEach(r => reasonCounts[r] = 0);
   lostThisMonth.forEach(l => { if (l.lostReason) reasonCounts[l.lostReason] = (reasonCounts[l.lostReason]||0) + 1; });
   const maxReasonCount = Math.max(1, ...Object.values(reasonCounts));
+
+  // ===== CR (tỉ lệ chuyển đổi) & Deal cycle =====
+  // Tập lead để tính: các lead được TẠO trong tháng đang xem (theo loại lead đang lọc)
+  const funnelLeads = monthLeads;
+  // Số lead từng đạt tới (>=) mỗi giai đoạn trong pipeline (bỏ Lost khỏi phễu)
+  const funnelStages = STAGES.filter(s => s.id !== 'lost');
+  const reachedCount = funnelStages.map(s => {
+    const idx = STAGES.findIndex(x => x.id === s.id);
+    return funnelLeads.filter(l => reachedStageIndex(l) >= idx).length;
+  });
+  const wonIdx = STAGES.findIndex(s => s.id === 'won');
+  const wonReached = funnelLeads.filter(l => reachedStageIndex(l) >= wonIdx).length;
+  const crToWon = funnelLeads.length ? Math.round((wonReached / funnelLeads.length) * 100) : 0;
+  // CR giữa các bước liên tiếp trong phễu
+  const stepCR = funnelStages.map((s, i) => {
+    if (i === 0) return null;
+    const prev = reachedCount[i-1];
+    return prev ? Math.round((reachedCount[i] / prev) * 100) : 0;
+  });
+
+  // Deal cycle: số ngày trung bình từ lúc tạo lead đến khi Won (chỉ tính lead Won có đủ mốc thời gian)
+  const cycleDeals = wonThisMonth.filter(l => l.createdAt && l.wonAt);
+  const cycleDays = cycleDeals.map(l => daysBetween(l.createdAt, l.wonAt)).filter(n => n !== null && n >= 0);
+  const avgCycle = cycleDays.length ? Math.round(cycleDays.reduce((a,b)=>a+b,0) / cycleDays.length) : null;
 
   const grid = document.getElementById('dashGrid');
   grid.innerHTML = `
@@ -2128,14 +2232,43 @@ function renderDashboard(){
       <div class="box-hint">Xem danh sách <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
+    <div class="card-box span-8">
+      <div class="box-label">Tỉ lệ chuyển đổi (CR) — tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="kpi-row">
+        <div class="box-value">${crToWon}%</div>
+        <div class="cr-caption">${wonReached}/${funnelLeads.length} lead-in chuyển thành Won</div>
+      </div>
+      <div class="funnel">
+        ${funnelStages.map((s,i) => {
+          const base = reachedCount[0] || 1;
+          const w = Math.round((reachedCount[i] / base) * 100);
+          const crBadge = i === 0 ? '' : `<span class="funnel-cr" title="Tỉ lệ chuyển từ bước trước sang bước này">${stepCR[i]}%</span>`;
+          return `<div class="funnel-row">
+            <div class="funnel-name">${esc(s.name)}</div>
+            <div class="funnel-bar-track"><div class="funnel-bar-fill" style="width:${w}%"></div></div>
+            <div class="funnel-count">${reachedCount[i]}</div>
+            ${crBadge}
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="box-sub">CR mỗi bước = số lead sang bước sau ÷ số lead bước trước · tính trên lead tạo trong tháng</div>
+    </div>
+
+    <div class="card-box">
+      <div class="box-label">Deal cycle trung bình ⏱️</div>
+      <div class="box-value">${avgCycle === null ? '—' : avgCycle + ' ngày'}</div>
+      <div class="box-sub">${cycleDays.length ? `Từ lead-in đến Won · ${cycleDays.length} deal Won tháng ${dashMonth+1}/${dashYear}` : 'Chưa có deal Won trong tháng để tính'}</div>
+    </div>
+
     <div class="card-box span-12">
       <div class="box-label">Tổng quan lead tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-sub" style="margin-top:2px">Bấm vào từng ô để xem danh sách lead tương ứng</div>
       <div class="trio">
-        <div class="trio-item"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
-        <div class="trio-item"><div class="trio-num" style="color:var(--green-600)">${wonThisMonth.length}</div><div class="trio-label">Won</div></div>
-        <div class="trio-item"><div class="trio-num" style="color:var(--red)">${lostThisMonth.length}</div><div class="trio-label">Lost</div></div>
-        <div class="trio-item"><div class="trio-num" style="color:var(--blush)">${overdueLeads.length}</div><div class="trio-label">Đang trễ hẹn</div></div>
-        <div class="trio-item"><div class="trio-num">${todayLeads.length}</div><div class="trio-label">Cần xử lý hôm nay</div></div>
+        <div class="trio-item trio-clickable" onclick="openLeadListModal('leadin')"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
+        <div class="trio-item trio-clickable" onclick="openLeadListModal('won')"><div class="trio-num" style="color:var(--green-600)">${wonThisMonth.length}</div><div class="trio-label">Won</div></div>
+        <div class="trio-item trio-clickable" onclick="openLeadListModal('lost')"><div class="trio-num" style="color:var(--red)">${lostThisMonth.length}</div><div class="trio-label">Lost</div></div>
+        <div class="trio-item trio-clickable" onclick="openLeadListModal('overdue')"><div class="trio-num" style="color:var(--blush)">${overdueLeads.length}</div><div class="trio-label">Đang trễ hẹn</div></div>
+        <div class="trio-item trio-clickable" onclick="openLeadListModal('today')"><div class="trio-num">${todayLeads.length}</div><div class="trio-label">Cần xử lý hôm nay</div></div>
       </div>
     </div>
 
@@ -2322,6 +2455,51 @@ function revenueListItemClick(leadId){
 }
 function closeRevenueListModal(){
   document.getElementById('revenueListOverlay').classList.remove('show');
+}
+
+/* ======================= MODAL: Danh sách lead từ ô "Tổng quan lead" (bấm ô -> danh sách -> bấm lead để mở) ======================= */
+// kind: 'leadin' | 'won' | 'lost' | 'overdue' | 'today' — đều tôn trọng bộ lọc Loại lead & tháng đang xem
+function getLeadListData(kind){
+  const scoped = scopeByLeadType(leads);
+  const activeLeads = scoped.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const mLabel = `${dashMonth+1}/${dashYear}`;
+  if (kind === 'won'){
+    const items = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+    return { title:`Lead Won tháng ${mLabel}`, items, tag:l => ({ cls:'money', text:formatMoney(l.revenueActual||0) }) };
+  }
+  if (kind === 'lost'){
+    const items = scoped.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
+    return { title:`Lead Lost tháng ${mLabel}`, items, tag:l => ({ cls:'red', text:esc(l.lostReason||'Chưa rõ lý do') }) };
+  }
+  if (kind === 'overdue'){
+    const items = activeLeads.filter(l => leadStatus(l).type === 'red').sort((a,b) => daysDiff(a.deadline) - daysDiff(b.deadline));
+    return { title:'Lead đang trễ hẹn', items, tag:l => ({ cls:'red', text:`Trễ ${Math.abs(daysDiff(l.deadline))} ngày` }) };
+  }
+  if (kind === 'today'){
+    const items = activeLeads.filter(l => leadStatus(l).type === 'green');
+    return { title:'Lead cần xử lý hôm nay', items, tag:() => ({ cls:'green', text:'Hôm nay' }) };
+  }
+  // leadin (mặc định): các lead được tạo trong tháng đang xem
+  const items = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  return { title:`Lead in tháng ${mLabel}`, items, tag:l => ({ cls:'money', text:formatMoney(l.revenueExpected||0) }) };
+}
+function openLeadListModal(kind){
+  const { title, items, tag } = getLeadListData(kind);
+  document.getElementById('revenueListTitle').textContent = title;
+  document.getElementById('revenueListSub').textContent =
+    `${items.length} lead — bấm vào 1 lead để mở chi tiết ở Pipeline`;
+  document.getElementById('revenueListBody').innerHTML = items.length ? items.map(l => {
+    const t = tag(l);
+    return `
+    <div class="list-item" onclick="revenueListItemClick('${l.id}')">
+      <div>
+        <div class="list-item-name">${esc(l.name)}</div>
+        <div class="list-item-sub">${STAGE_MAP[l.stage].name} · ${esc(l.package)} · ${esc(leadTypeOf(l))}</div>
+      </div>
+      <div class="list-item-tag ${t.cls}">${t.text}</div>
+    </div>`;
+  }).join('') : '<div class="list-empty">Chưa có lead nào ở danh sách này.</div>';
+  document.getElementById('revenueListOverlay').classList.add('show');
 }
 
 /* ======================= MODAL: Todo đã hoàn thành (lọc theo tuần/tháng/khoảng ngày) ======================= */
@@ -2521,6 +2699,9 @@ async function saveToCloud(){
 // Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
 // để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
 function migrateLead(l){
+  // Lead cũ chưa có "Loại lead" -> mặc định là "Lead công ty" (có thể sửa lại trong chi tiết lead)
+  if (!l.leadType) l.leadType = 'Lead công ty';
+
   if (typeof l.notes === 'string'){
     const text = l.notes.trim();
     l.notesList = text ? [{ id:'n'+Date.now()+Math.random().toString(36).slice(2,7), text, createdAt: nowLabel(), updatedAt: nowLabel() }] : [];
