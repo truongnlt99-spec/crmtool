@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/mcp/:secret",
+      "destination": "/api/mcp?key=:secret"
+    }
+  ]
+}

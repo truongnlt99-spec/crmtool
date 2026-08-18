@@ -2679,16 +2679,22 @@ function scheduleSave(){
 }
 
 async function saveToCloud(){
+  // Đánh dấu đã hết thay đổi cục bộ đang chờ — nếu không, cờ saveTimer sẽ kẹt ở giá trị cũ
+  // và chặn vĩnh viễn luồng đồng bộ realtime ở initCloudSync().
+  saveTimer = null;
   if (!window.__firebase){ setSyncStatus('offline'); return; }
   setSyncStatus('saving');
   try {
-    await window.__firebase.set(window.__firebase.dataRef, {
+    const payload = {
       leads: leadsToObject(),
       dailyTodos: dailyTodosToObject(),
       planRevenue,
       planLeads,
       updatedAt: new Date().toISOString(),
-    });
+    };
+    await window.__firebase.set(window.__firebase.dataRef, payload);
+    // Ghi nhớ bản vừa đẩy lên để onValue nhận lại không vẽ lại màn hình một cách vô ích
+    lastSyncedRaw = JSON.stringify(payload);
     setSyncStatus('saved');
   } catch(e){
     console.error('Firebase save error:', e);
@@ -2726,16 +2732,45 @@ function migrateLead(l){
   return l;
 }
 
+// Nạp dữ liệu từ snapshot Firebase vào state của app
+function applyRemoteData(data){
+  if (data.leads) leads = Object.values(data.leads).map(migrateLead);
+  if (data.dailyTodos) dailyTodos = Object.values(data.dailyTodos);
+  if (typeof data.planRevenue === 'number') planRevenue = data.planRevenue;
+  if (typeof data.planLeads === 'number') planLeads = data.planLeads;
+}
+
+// Đang mở drawer/modal hoặc đang gõ trong ô nhập -> hoãn việc vẽ lại,
+// tránh giật màn hình / rớt con trỏ khi có cập nhật từ xa đổ về.
+function uiIsBusy(){
+  const ae = document.activeElement;
+  if (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)) return true;
+  if (document.querySelector('.overlay.show, [id$="Overlay"].show')) return true;
+  const drawer = document.getElementById('drawer');
+  if (drawer && drawer.classList.contains('open')) return true;
+  return false;
+}
+
+let lastSyncedRaw = null;   // ảnh chụp dữ liệu lần đồng bộ gần nhất (để bỏ qua chính mình vừa ghi)
+let pendingRemote = null;   // cập nhật từ xa đang chờ áp dụng vì UI đang bận
+
+function flushPendingRemote(){
+  if (!pendingRemote || uiIsBusy()) return;
+  applyRemoteData(pendingRemote);
+  pendingRemote = null;
+  renderAll();
+}
+// Khi người dùng đóng modal / rời ô nhập thì áp dụng nốt cập nhật đang chờ
+setInterval(flushPendingRemote, 1500);
+
 async function initCloudSync(){
   try {
-    const { dataRef, get } = window.__firebase;
+    const { dataRef, get, onValue } = window.__firebase;
     const snap = await get(dataRef);
     if (snap.exists()){
       const data = snap.val() || {};
-      if (data.leads) leads = Object.values(data.leads).map(migrateLead);
-      if (data.dailyTodos) dailyTodos = Object.values(data.dailyTodos);
-      if (typeof data.planRevenue === 'number') planRevenue = data.planRevenue;
-      if (typeof data.planLeads === 'number') planLeads = data.planLeads;
+      lastSyncedRaw = JSON.stringify(data);
+      applyRemoteData(data);
       setSyncStatus('loaded');
     } else {
       // Database rỗng (lần đầu kết nối) -> đẩy dữ liệu mẫu hiện có lên làm dữ liệu khởi tạo
@@ -2743,6 +2778,21 @@ async function initCloudSync(){
       await saveToCloud();
       setSyncStatus('seeded');
     }
+
+    // Lắng nghe realtime: cần thiết để nhận thay đổi do MCP (Claude) ghi vào.
+    // Trước đây app chỉ get() 1 lần lúc mở, nên mọi thay đổi từ bên ngoài sẽ bị
+    // lần lưu kế tiếp của app ghi đè mất.
+    onValue(dataRef, (s) => {
+      if (!s.exists()) return;
+      const data = s.val() || {};
+      const raw = JSON.stringify(data);
+      if (raw === lastSyncedRaw) return;   // không có gì mới (thường là chính app vừa ghi)
+      lastSyncedRaw = raw;
+      if (saveTimer) return;               // đang có thay đổi cục bộ chờ lưu -> ưu tiên bản cục bộ
+      if (uiIsBusy()){ pendingRemote = data; return; }
+      applyRemoteData(data);
+      renderAll();
+    });
   } catch(e){
     console.error('Firebase init error:', e);
     setSyncStatus('error');
