@@ -1,29 +1,366 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { patchPath, DATA_ROOT } from '../lib/firebase.ts';
-import {
-  loadCrm,
-  summarizeLead,
-  leadStatus,
-  reachedStageIndex,
-  leadTypeOf,
-  daysDiff,
-  daysBetween,
-  inMonth,
-  monthKeyOf,
-  currentMonthYear,
-  todayISO,
-  nowLabel,
-  formatMoney,
-  STAGE_IDS,
-  STAGE_NAME,
-  STAGES,
-  PACKAGES,
-  LEAD_TYPES,
-  LOST_REASONS,
-  type Lead,
-  type CrmData,
-} from '../lib/crm.ts';
+import { createSign } from 'node:crypto';
+
+/*
+ * LƯU Ý: toàn bộ code hỗ trợ được gộp thẳng vào file này, cố ý không tách
+ * sang lib/. Vercel biên dịch từng file trong api/ một cách riêng lẻ và
+ * KHÔNG đóng gói file nằm ngoài thư mục api/ — đã kiểm chứng bằng thực nghiệm:
+ * import '../lib/crm.ts' và '../lib/crm.js' đều làm function chết với
+ * FUNCTION_INVOCATION_FAILED, trong khi import 'zod' từ node_modules chạy tốt.
+ */
+
+/* ===================== Firebase Realtime Database (REST) ===================== */
+
+const DB_URL = (
+  process.env.FIREBASE_DB_URL ||
+  'https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app'
+).replace(/\/$/, '');
+
+/**
+ * Nhánh gốc chứa dữ liệu CRM. Mặc định 'crmData' — trùng với app web.
+ * Đổi sang nhánh khác (vd 'crmDataTest') để chạy thử tool ghi mà không
+ * đụng dữ liệu thật.
+ */
+const DATA_ROOT = process.env.FIREBASE_DATA_ROOT || 'crmData';
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/firebase.database',
+  'https://www.googleapis.com/auth/userinfo.email',
+].join(' ');
+
+let cachedToken: { token: string; expiresAt: number } | null = null;
+
+function base64url(input: Buffer | string): string {
+  return Buffer.from(input)
+    .toString('base64')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/** Trả về access token nếu có cấu hình service account, ngược lại null (DB đang mở). */
+async function getAccessToken(): Promise<string | null> {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (!raw) return null;
+
+  if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.token;
+
+  let sa: { client_email: string; private_key: string };
+  try {
+    sa = JSON.parse(raw);
+  } catch {
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT không phải JSON hợp lệ. Dán nguyên nội dung file JSON service account tải từ Firebase Console.'
+    );
+  }
+  if (!sa.client_email || !sa.private_key) {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT thiếu client_email hoặc private_key.');
+  }
+
+  const privateKey = sa.private_key.replace(/\\n/g, '\n');
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = base64url(
+    JSON.stringify({
+      iss: sa.client_email,
+      scope: SCOPES,
+      aud: 'https://oauth2.googleapis.com/token',
+      exp: now + 3600,
+      iat: now,
+    })
+  );
+
+  const signer = createSign('RSA-SHA256');
+  signer.update(`${header}.${claim}`);
+  const jwt = `${header}.${claim}.${base64url(signer.sign(privateKey))}`;
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  if (!res.ok) {
+    throw new Error(`Không lấy được access token Firebase (${res.status}): ${await res.text()}`);
+  }
+
+  const data = (await res.json()) as { access_token: string; expires_in: number };
+  cachedToken = { token: data.access_token, expiresAt: Date.now() + data.expires_in * 1000 };
+  return cachedToken.token;
+}
+
+async function fbRequest(path: string, init: RequestInit = {}): Promise<unknown> {
+  const token = await getAccessToken();
+  const res = await fetch(`${DB_URL}/${path.replace(/^\//, '')}.json`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(
+        `Firebase từ chối truy cập (${res.status}). Nhiều khả năng Security Rules đã siết nhưng chưa đặt FIREBASE_SERVICE_ACCOUNT trên Vercel. Chi tiết: ${body}`
+      );
+    }
+    throw new Error(`Firebase lỗi ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+function readPath<T = unknown>(path: string): Promise<T> {
+  return fbRequest(path) as Promise<T>;
+}
+
+/** Cập nhật một phần (merge) — luôn dùng PATCH để không ghi đè dữ liệu app web ghi song song. */
+function patchPath(path: string, data: unknown): Promise<unknown> {
+  return fbRequest(path, { method: 'PATCH', body: JSON.stringify(data) });
+}
+
+/* ===================== Logic nghiệp vụ CRM ===================== */
+
+/**
+ * Vercel Functions chạy giờ UTC, người dùng ở Việt Nam (UTC+7).
+ * Mọi mốc "hôm nay"/"bây giờ" phải quy về Asia/Ho_Chi_Minh, nếu không
+ * lead tạo lúc sáng sớm sẽ bị ghi nhầm sang ngày hôm trước.
+ */
+const TZ = 'Asia/Ho_Chi_Minh';
+
+function todayISO(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+/** Nhãn thời gian "DD/MM/YYYY, HH:mm" — đúng định dạng nowLabel() của app web. */
+function nowLabel(): string {
+  const now = new Date();
+  const date = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(now);
+  const time = new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(now);
+  return `${date}, ${time}`;
+}
+
+const STAGES = [
+  { id: 'leadin', name: 'Lead in' },
+  { id: 'baogia', name: 'Báo giá' },
+  { id: 'follow1', name: 'Follow up lần 1' },
+  { id: 'follow2', name: 'Follow up lần 2' },
+  { id: 'follow3', name: 'Follow up lần 3' },
+  { id: 'nuoidaihan', name: 'Nuôi dài hạn' },
+  { id: 'won', name: 'Won' },
+  { id: 'lost', name: 'Lost' },
+] as const;
+
+type StageId = (typeof STAGES)[number]['id'];
+
+const STAGE_IDS = STAGES.map((s) => s.id) as StageId[];
+const STAGE_NAME: Record<string, string> = Object.fromEntries(STAGES.map((s) => [s.id, s.name]));
+
+const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'] as const;
+const LEAD_TYPES = ['Lead công ty', 'Lead salehunt'] as const;
+const LOST_REASONS = [
+  'Chi phí thấp',
+  'Khách không phải tệp tiềm năng của HayDay',
+  'Đã chọn đơn vị khác',
+  'Khách không phản hồi nhiều lần',
+] as const;
+
+interface Todo {
+  id?: string;
+  text: string;
+  done?: boolean;
+  dueDate?: string | null;
+  completedAt?: string | null;
+}
+
+interface Note {
+  id: string;
+  text: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Activity {
+  time: string;
+  text: string;
+  isNow?: boolean;
+}
+
+interface Lead {
+  id: string;
+  name: string;
+  facebook?: string;
+  phone?: string;
+  weddingDate?: string | null;
+  package?: string;
+  leadType?: string;
+  revenueExpected?: number;
+  revenueActual?: number;
+  stage: StageId;
+  deadline?: string | null;
+  expectedCloseMonth?: string | null;
+  createdAt?: string;
+  wonAt?: string;
+  lostAt?: string;
+  lostReason?: string;
+  schedule?: string;
+  persona?: string;
+  objection?: string;
+  notesList?: Note[];
+  tags?: string[];
+  todos?: Todo[];
+  activityLog?: Activity[];
+}
+
+interface CrmData {
+  leads: Lead[];
+  dailyTodos: Todo[];
+  planRevenue: number;
+  planLeads: number;
+}
+
+/** Bù field có thể thiếu ở lead cũ — tương ứng migrateLead() trong app. */
+function normalizeLead(l: Lead): Lead {
+  if (!l.leadType) l.leadType = 'Lead công ty';
+  if (!Array.isArray(l.notesList)) l.notesList = [];
+  if (!Array.isArray(l.tags)) l.tags = [];
+  if (!Array.isArray(l.todos)) l.todos = [];
+  if (!Array.isArray(l.activityLog)) l.activityLog = [];
+  return l;
+}
+
+async function loadCrm(): Promise<CrmData> {
+  const raw = await readPath<{
+    leads?: Record<string, Lead>;
+    dailyTodos?: Record<string, Todo>;
+    planRevenue?: number;
+    planLeads?: number;
+  } | null>(DATA_ROOT);
+
+  const data = raw || {};
+  return {
+    leads: Object.values(data.leads || {}).map(normalizeLead),
+    dailyTodos: Object.values(data.dailyTodos || {}),
+    planRevenue: typeof data.planRevenue === 'number' ? data.planRevenue : 0,
+    planLeads: typeof data.planLeads === 'number' ? data.planLeads : 0,
+  };
+}
+
+function daysDiff(dateStr?: string | null): number | null {
+  if (!dateStr) return null;
+  const target = Date.parse(String(dateStr).slice(0, 10) + 'T00:00:00Z');
+  const today = Date.parse(todayISO() + 'T00:00:00Z');
+  if (isNaN(target)) return null;
+  return Math.round((target - today) / 86400000);
+}
+
+function daysBetween(fromStr?: string | null, toStr?: string | null): number | null {
+  if (!fromStr || !toStr) return null;
+  const a = Date.parse(String(fromStr).slice(0, 10) + 'T00:00:00Z');
+  const b = Date.parse(String(toStr).slice(0, 10) + 'T00:00:00Z');
+  if (isNaN(a) || isNaN(b)) return null;
+  return Math.round((b - a) / 86400000);
+}
+
+function inMonth(dateStr: string | null | undefined, month: number, year: number): boolean {
+  if (!dateStr) return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr).slice(0, 10));
+  if (!m) return false;
+  return Number(m[1]) === year && Number(m[2]) === month + 1;
+}
+
+function monthKeyOf(month: number, year: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
+/** Tháng/năm hiện tại theo giờ VN (month 0-based, giống app). */
+function currentMonthYear(): { month: number; year: number } {
+  const [y, m] = todayISO().split('-').map(Number);
+  return { month: m - 1, year: y };
+}
+
+function leadStatus(lead: Lead): { type: string; label: string } {
+  if (lead.stage === 'won') return { type: 'won', label: 'Đã chốt ✓' };
+  if (lead.stage === 'lost') return { type: 'lost', label: 'Đã đóng' };
+  if (!lead.deadline) return { type: 'gray', label: 'Chưa hẹn' };
+  const diff = daysDiff(lead.deadline);
+  if (diff === null) return { type: 'gray', label: 'Chưa hẹn' };
+  if (diff < 0) return { type: 'red', label: `Trễ ${Math.abs(diff)} ngày` };
+  if (diff === 0) return { type: 'green', label: 'Hôm nay' };
+  return { type: 'gray', label: `Còn ${diff} ngày` };
+}
+
+/** Giai đoạn xa nhất lead từng đạt tới — dùng tính CR. Mirror reachedStageIndex() của app. */
+function reachedStageIndex(l: Lead): number {
+  const nameToIdx: Record<string, number> = {};
+  STAGES.forEach((s, i) => {
+    nameToIdx[s.name] = i;
+  });
+  let maxIdx = 0;
+  const curIdx = STAGE_IDS.indexOf(l.stage);
+  if (l.stage !== 'lost' && curIdx >= 0) maxIdx = curIdx;
+  (l.activityLog || []).forEach((a) => {
+    const t = a.text || '';
+    if (t.indexOf('Chốt deal thành công') !== -1) {
+      maxIdx = Math.max(maxIdx, STAGE_IDS.indexOf('won'));
+    }
+    const m = /sang "(.+?)"/.exec(t) || /Chuyển vào giai đoạn "(.+?)"/.exec(t);
+    if (m && nameToIdx[m[1]] !== undefined) maxIdx = Math.max(maxIdx, nameToIdx[m[1]]);
+  });
+  return maxIdx;
+}
+
+function leadTypeOf(l: Lead): string {
+  return l.leadType || 'Lead công ty';
+}
+
+function formatMoney(n?: number | null): string {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Number(n).toLocaleString('vi-VN') + ' đ';
+}
+
+/** Rút gọn lead cho danh sách — tránh trả activityLog dài làm tốn context. */
+function summarizeLead(l: Lead) {
+  const status = leadStatus(l);
+  return {
+    id: l.id,
+    name: l.name,
+    stage: l.stage,
+    stageName: STAGE_NAME[l.stage] || l.stage,
+    leadType: leadTypeOf(l),
+    package: l.package || null,
+    phone: l.phone || null,
+    revenueExpected: l.revenueExpected || 0,
+    revenueExpectedText: formatMoney(l.revenueExpected),
+    deadline: l.deadline || null,
+    status: status.label,
+    isOverdue: status.type === 'red',
+    isPotential: (l.tags || []).includes('Tiềm năng'),
+    expectedCloseMonth: l.expectedCloseMonth || null,
+    weddingDate: l.weddingDate || null,
+    openTodos: (l.todos || []).filter((t) => !t.done).length,
+  };
+}
 
 /* ===================== Tiện ích chung ===================== */
 
