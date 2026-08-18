@@ -22,6 +22,20 @@ Việc này đã tồn tại từ trước, không phải do MCP tạo ra. Nhưn
 
 ---
 
+## Test tại máy (không cần deploy)
+
+Đã cài sẵn Node.js. Chạy bộ test bất cứ lúc nào:
+
+```bash
+npm test
+```
+
+Bộ test tạo một nhánh sandbox riêng tên `crmDataTest` trên Firebase, chạy đủ 6 tool ghi trên đó, kiểm tra kết quả rồi **xóa sandbox**. Dữ liệu thật ở nhánh `crmData` không bị đụng tới.
+
+Cơ chế: biến môi trường `FIREBASE_DATA_ROOT` quyết định nhánh nào được dùng (mặc định `crmData`). Không đặt biến này trên Vercel — để nó chạy mặc định vào dữ liệu thật.
+
+---
+
 ## Giai đoạn 1 — Dựng MCP server (dùng được ngay)
 
 ### Bước 1.1 — Tạo chuỗi bí mật cho MCP

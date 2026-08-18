@@ -3,7 +3,7 @@
  * để số liệu MCP trả về khớp với số liệu hiển thị trên app.
  */
 
-import { readPath } from './firebase.js';
+import { readPath, DATA_ROOT } from './firebase.ts';
 
 /**
  * Vercel Functions chạy theo giờ UTC, còn người dùng ở Việt Nam (UTC+7).
@@ -128,7 +128,7 @@ export async function loadCrm(): Promise<CrmData> {
     dailyTodos?: Record<string, Todo>;
     planRevenue?: number;
     planLeads?: number;
-  } | null>('crmData');
+  } | null>(DATA_ROOT);
 
   const data = raw || {};
   return {

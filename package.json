@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=20"
   },
+  "scripts": {
+    "test": "node test/write-tools.test.ts"
+  },
   "dependencies": {
     "@modelcontextprotocol/server": "^2",
     "mcp-handler": "^2",

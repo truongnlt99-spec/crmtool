@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { patchPath } from '../lib/firebase.js';
+import { patchPath, DATA_ROOT } from '../lib/firebase.ts';
 import {
   loadCrm,
   summarizeLead,
@@ -23,7 +23,7 @@ import {
   LOST_REASONS,
   type Lead,
   type CrmData,
-} from '../lib/crm.js';
+} from '../lib/crm.ts';
 
 /* ===================== Tiện ích chung ===================== */
 
@@ -56,14 +56,14 @@ function findLead(crm: CrmData, ref: string): Lead {
 /** Ghi thêm 1 dòng vào activityLog của lead (append theo index, không ghi đè cả mảng). */
 async function logActivity(lead: Lead, text: string): Promise<void> {
   const log = lead.activityLog || [];
-  await patchPath(`crmData/leads/${lead.id}/activityLog`, {
+  await patchPath(`${DATA_ROOT}/leads/${lead.id}/activityLog`, {
     [log.length]: { time: nowLabel(), text, isNow: true },
   });
 }
 
 /** Đánh dấu thời điểm cập nhật ở gốc, giữ parity với app web. */
 async function touch(): Promise<void> {
-  await patchPath('crmData', { updatedAt: new Date().toISOString() });
+  await patchPath(DATA_ROOT, { updatedAt: new Date().toISOString() });
 }
 
 /* ===================== Định nghĩa các tool ===================== */
@@ -407,7 +407,7 @@ const mcpHandler = createMcpHandler(
         };
 
         // PATCH vào nhánh leads -> chỉ thêm key mới, không đụng các lead khác
-        await patchPath('crmData/leads', { [id]: lead });
+        await patchPath(`${DATA_ROOT}/leads`, { [id]: lead });
         await touch();
 
         return say(`Đã tạo lead "${args.name}" (id: ${id}), giai đoạn Lead in, hạn liên hệ ${lead.deadline}.`);
@@ -475,7 +475,7 @@ const mcpHandler = createMcpHandler(
 
         if (!changed.length) return say('Không có thông tin nào được truyền vào để cập nhật.');
 
-        await patchPath(`crmData/leads/${l.id}`, patch);
+        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
         await logActivity(l, `Cập nhật thông tin: ${changed.join(', ')}`);
         await touch();
 
@@ -529,7 +529,7 @@ const mcpHandler = createMcpHandler(
           logText = `Chuyển từ "${STAGE_NAME[l.stage]}" sang "${STAGE_NAME[args.stage]}"`;
         }
 
-        await patchPath(`crmData/leads/${l.id}`, patch);
+        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
         await logActivity(l, logText);
         await touch();
 
@@ -553,7 +553,7 @@ const mcpHandler = createMcpHandler(
         const notes = l.notesList || [];
         const stamp = nowLabel();
 
-        await patchPath(`crmData/leads/${l.id}/notesList`, {
+        await patchPath(`${DATA_ROOT}/leads/${l.id}/notesList`, {
           [notes.length]: {
             id: 'n' + Date.now(),
             text: args.text,
@@ -582,7 +582,7 @@ const mcpHandler = createMcpHandler(
         const l = findLead(crm, args.lead);
         const todos = l.todos || [];
 
-        await patchPath(`crmData/leads/${l.id}/todos`, {
+        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos`, {
           [todos.length]: { text: args.text, done: false },
         });
         await logActivity(l, `Thêm việc cần làm: ${args.text}`);
@@ -633,7 +633,7 @@ const mcpHandler = createMcpHandler(
         if (!todo) throw new Error(`Lead "${l.name}" không có việc ở vị trí ${idx}.`);
         if (todo.done) return say(`Việc "${todo.text}" đã được đánh dấu hoàn thành từ trước.`);
 
-        await patchPath(`crmData/leads/${l.id}/todos/${idx}`, {
+        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, {
           done: true,
           completedAt: todayISO(),
         });

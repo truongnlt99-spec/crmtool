@@ -18,6 +18,13 @@ const DB_URL = (
   'https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app'
 ).replace(/\/$/, '');
 
+/**
+ * Nhánh gốc chứa dữ liệu CRM. Mặc định là 'crmData' — trùng với app web.
+ * Đổi sang nhánh khác (vd 'crmDataTest') để chạy thử các tool ghi mà không
+ * đụng vào dữ liệu thật.
+ */
+export const DATA_ROOT = process.env.FIREBASE_DATA_ROOT || 'crmData';
+
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
   'https://www.googleapis.com/auth/userinfo.email',
