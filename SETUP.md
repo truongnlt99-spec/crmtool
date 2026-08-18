@@ -81,6 +81,23 @@ curl -i "https://<tên-site>.vercel.app/api/mcp/<MCP_SECRET>" -X POST -H "Conten
 - Trả về `401 Unauthorized` → sai `MCP_SECRET`
 - Trả về `404` → rewrite trong `vercel.json` chưa ăn, thử dạng query: `.../api/mcp?key=<MCP_SECRET>`
 
+### Bước 1.4b — Tắt Deployment Protection (bắt buộc)
+
+Vercel mặc định bật **Vercel Authentication**, chặn mọi truy cập từ ngoài ở tầng hạ tầng — request chưa chạm tới code đã bị trả `401`. **claude.ai cũng sẽ bị chặn y hệt**, nên bước này bắt buộc phải làm thì connector mới hoạt động.
+
+Settings → **Deployment Protection** → **Vercel Authentication** → chuyển **Disabled** → Save.
+
+Chỉ làm sau khi `MCP_SECRET` đã được đặt và redeploy xong. Khi đó endpoint đã có khóa riêng bảo vệ.
+
+Kiểm chứng — cả 4 trường hợp phải đúng như sau:
+
+| Request | Mong đợi |
+|---|---|
+| `POST /api/mcp` (không khóa) | `401` |
+| `POST /api/mcp/khoa-sai` | `401` |
+| `POST /api/mcp/<MCP_SECRET>` | `200` |
+| `POST /api/mcp?key=<MCP_SECRET>` | `200` |
+
 ### Bước 1.5 — Vợ bạn thêm connector vào Claude
 
 Yêu cầu: tài khoản **Claude Pro trở lên**.
@@ -153,6 +170,24 @@ curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/crm
 Phải trả về lỗi `Permission denied`. Nếu vẫn ra dữ liệu là rules chưa ăn.
 
 Sau đó kiểm tra lại: app của vợ vẫn vào được (sau khi đăng nhập), và Claude vẫn gọi tool được.
+
+---
+
+## Ghi chú kỹ thuật
+
+**Vì sao toàn bộ code nằm trong một file `api/mcp.ts`?**
+
+Vercel biên dịch từng file trong `api/` một cách riêng lẻ và **không đóng gói file nằm ngoài thư mục đó**. Đã kiểm chứng bằng thực nghiệm trên preview:
+
+| Kiểu import | Kết quả |
+|---|---|
+| `import { z } from 'zod'` (node_modules) | HTTP 200 ✅ |
+| `import ... from '../lib/crm.ts'` | HTTP 500 ❌ |
+| `import ... from '../lib/crm.js'` | HTTP 500 ❌ |
+
+Đổi đuôi kiểu gì cũng vô ích. Nên đừng tách code sang thư mục ngoài `api/` — function sẽ chết với `FUNCTION_INVOCATION_FAILED`.
+
+**Về chỉ số CR trên dashboard.** CR tính trên *lead được tạo trong tháng*, nên deal chốt trong tháng này nhưng lead tạo từ tháng trước sẽ không được tính. Ví dụ tháng 8/2026: có 3 deal Won nhưng cả 3 đều tạo ngày 31/07, nên CR hiển thị 0%. Đây là định nghĩa sẵn có của app, MCP tái hiện nguyên vẹn — không phải lỗi.
 
 ---
 
