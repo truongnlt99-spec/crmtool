@@ -1,0 +1,18 @@
+{
+  "name": "crmtool-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "MCP server cho CRM của Huyền Trân - cho phép Claude đọc/ghi dữ liệu lead qua Firebase",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/write-tools.test.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2",
+    "mcp-handler": "^2",
+    "zod": "^4"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "_ghi_chu": [
+    "Bộ rules này CHỈ dán được sau khi app web đã có đăng nhập Firebase thật.",
+    "Hiện tại index.html không dùng Firebase Auth (mật khẩu 8386 chỉ là màn khóa giả lập phía trình duyệt),",
+    "nên nếu dán rules này vào ngay bây giờ thì app của vợ sẽ KHÔNG đọc được dữ liệu nữa.",
+    "MCP server không bị ảnh hưởng vì nó dùng service account (quyền admin, bỏ qua rules).",
+    "Xem SETUP.md phần 'Giai đoạn 2' để biết thứ tự triển khai đúng."
+  ],
+
+  "rules": {
+    ".read": false,
+    ".write": false,
+
+    "crmData": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+
+      "leads": {
+        "$leadId": {
+          ".validate": "newData.hasChildren(['id', 'name', 'stage'])",
+          "stage": {
+            ".validate": "newData.val().matches(/^(leadin|baogia|follow1|follow2|follow3|nuoidaihan|won|lost)$/)"
+          },
+          "revenueExpected": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "revenueActual": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+        }
+      },
+
+      "planRevenue": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+      "planLeads": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+    }
+  }
+}
