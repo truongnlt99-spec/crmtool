@@ -762,11 +762,21 @@ const mcpHandler = createMcpHandler(
             .enum(['overdue', 'today', 'week', 'all'])
             .optional()
             .describe('overdue = trễ hạn, today = hạn hôm nay trở về trước, week = trong 7 ngày tới, all = tất cả'),
+          includeClosedLeads: z
+            .boolean()
+            .optional()
+            .describe('Lấy cả việc của lead đã Won/Lost (mặc định false, giống màn Nhắc việc trên app)'),
         }),
       },
       async (args) => {
         const crm = await loadCrm();
-        const source = args.lead ? [findLead(crm, args.lead)] : crm.leads;
+        // Lead đã Won/Lost thường còn sót việc chưa tick — app lọc bỏ khỏi màn Nhắc việc,
+        // MCP phải lọc giống để không báo nhầm là đang trễ hạn.
+        const source = args.lead
+          ? [findLead(crm, args.lead)]
+          : args.includeClosedLeads
+            ? crm.leads
+            : crm.leads.filter((l) => l.stage !== 'won' && l.stage !== 'lost');
 
         let rows = source.flatMap((l) =>
           (l.todos || [])
