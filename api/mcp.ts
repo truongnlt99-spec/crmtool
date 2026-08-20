@@ -246,7 +246,38 @@ function normalizeLead(l: Lead): Lead {
   if (!Array.isArray(l.tags)) l.tags = [];
   if (!Array.isArray(l.todos)) l.todos = [];
   if (!Array.isArray(l.activityLog)) l.activityLog = [];
+
+  // Bù id + hạn cho việc cũ — phải dùng ĐÚNG công thức như migrateLead() trong
+  // index.html, nếu không app và MCP sẽ gán id khác nhau cho cùng một việc.
+  l.todos.forEach((t, i) => {
+    if (!t.id) t.id = 't' + i;
+    if (t.dueDate === undefined) t.dueDate = l.deadline || null;
+  });
   return l;
+}
+
+/** Trạng thái của một việc theo hạn riêng của nó. Mirror todoStatus() của app. */
+function todoStatus(t: Todo): { type: string; label: string } {
+  if (t.done) return { type: 'gray', label: 'Đã xong' };
+  if (!t.dueDate) return { type: 'gray', label: 'Chưa hẹn' };
+  const diff = daysDiff(t.dueDate);
+  if (diff === null) return { type: 'gray', label: 'Chưa hẹn' };
+  if (diff < 0) return { type: 'red', label: `Trễ ${Math.abs(diff)} ngày` };
+  if (diff === 0) return { type: 'green', label: 'Hôm nay' };
+  return { type: 'gray', label: `Còn ${diff} ngày` };
+}
+
+/**
+ * Hạn lead phải bao trùm hạn các việc chưa xong. Trả về hạn mới nếu cần dời,
+ * hoặc null nếu giữ nguyên. Chỉ dời ra xa, không kéo gần lại.
+ */
+function nextLeadDeadline(lead: Lead, extraDue?: string | null): string | null {
+  const dues = (lead.todos || []).filter((t) => !t.done && t.dueDate).map((t) => t.dueDate as string);
+  if (extraDue) dues.push(extraDue);
+  if (!dues.length) return null;
+  const latest = dues.sort().pop() as string;
+  if (!lead.deadline || latest > lead.deadline) return latest;
+  return null;
 }
 
 async function loadCrm(): Promise<CrmData> {
@@ -390,6 +421,49 @@ function findLead(crm: CrmData, ref: string): Lead {
   throw new Error(`Không tìm thấy lead nào khớp "${ref}".`);
 }
 
+/**
+ * Xác định việc cần thao tác. Ưu tiên id vì nó ổn định; chỉ số mảng chỉ dùng khi
+ * không có id, và có rủi ro: xóa một việc là mọi chỉ số phía sau dịch đi.
+ */
+function resolveTodo(
+  l: Lead,
+  ref: { todoId?: string; todoIndex?: number; todoText?: string },
+  chuaXongThoi = false
+): { idx: number; todo: Todo } {
+  const todos = l.todos || [];
+
+  if (ref.todoId) {
+    const idx = todos.findIndex((t) => t.id === ref.todoId);
+    if (idx < 0) throw new Error(`Lead "${l.name}" không có việc nào mang id ${ref.todoId}.`);
+    return { idx, todo: todos[idx] };
+  }
+
+  if (ref.todoIndex !== undefined) {
+    const todo = todos[ref.todoIndex];
+    if (!todo) throw new Error(`Lead "${l.name}" không có việc ở vị trí ${ref.todoIndex}.`);
+    return { idx: ref.todoIndex, todo };
+  }
+
+  if (!ref.todoText) {
+    throw new Error('Cần truyền todoId, todoIndex hoặc todoText để xác định việc.');
+  }
+
+  const q = ref.todoText.toLowerCase().trim();
+  const found = todos
+    .map((t, i) => ({ t, i }))
+    .filter((x) => (x.t.text || '').toLowerCase().includes(q) && (chuaXongThoi ? !x.t.done : true));
+
+  if (!found.length) throw new Error(`Không tìm thấy việc nào khớp "${ref.todoText}".`);
+  if (found.length > 1) {
+    throw new Error(
+      `Có ${found.length} việc khớp: ${found
+        .map((x) => `[${x.i}] ${x.t.text}`)
+        .join(' | ')}. Hãy dùng todoId cho chắc.`
+    );
+  }
+  return { idx: found[0].i, todo: found[0].t };
+}
+
 /** Ghi thêm 1 dòng vào activityLog của lead (append theo index, không ghi đè cả mảng). */
 async function logActivity(lead: Lead, text: string): Promise<void> {
   const log = lead.activityLog || [];
@@ -490,7 +564,12 @@ const mcpHandler = createMcpHandler(
           status: leadStatus(l).label,
           revenueExpectedText: formatMoney(l.revenueExpected),
           daysUntilDeadline: daysDiff(l.deadline),
-          todos: (l.todos || []).map((t, i) => ({ index: i, ...t })),
+          todos: (l.todos || []).map((t, i) => ({
+            index: i,
+            ...t,
+            status: todoStatus(t).label,
+            daysUntilDue: daysDiff(t.dueDate),
+          })),
         });
       }
     );
@@ -675,21 +754,52 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Việc cần làm',
         description:
-          'Liệt kê các việc cần làm gắn với lead. Mặc định chỉ lấy việc chưa hoàn thành.',
+          'Liệt kê các việc cần làm gắn với lead, kèm hạn riêng của từng việc. Mặc định chỉ lấy việc chưa hoàn thành, sắp xếp việc gấp lên trước.',
         inputSchema: z.object({
           includeDone: z.boolean().optional().describe('Bao gồm cả việc đã xong (mặc định false)'),
           lead: z.string().optional().describe('Chỉ lấy việc của một lead cụ thể (id hoặc tên)'),
+          scope: z
+            .enum(['overdue', 'today', 'week', 'all'])
+            .optional()
+            .describe('overdue = trễ hạn, today = hạn hôm nay trở về trước, week = trong 7 ngày tới, all = tất cả'),
         }),
       },
       async (args) => {
         const crm = await loadCrm();
         const source = args.lead ? [findLead(crm, args.lead)] : crm.leads;
 
-        const rows = source.flatMap((l) =>
+        let rows = source.flatMap((l) =>
           (l.todos || [])
-            .map((t, i) => ({ ...t, index: i, leadId: l.id, leadName: l.name, stage: l.stage }))
+            .map((t, i) => {
+              const st = todoStatus(t);
+              return {
+                ...t,
+                index: i,
+                leadId: l.id,
+                leadName: l.name,
+                stage: l.stage,
+                stageName: STAGE_NAME[l.stage] || l.stage,
+                status: st.label,
+                isOverdue: st.type === 'red',
+                daysUntilDue: daysDiff(t.dueDate),
+              };
+            })
             .filter((t) => (args.includeDone ? true : !t.done))
         );
+
+        const scope = args.scope ?? 'all';
+        if (scope !== 'all') {
+          rows = rows.filter((t) => {
+            const d = t.daysUntilDue;
+            if (d === null) return false;
+            if (scope === 'overdue') return d < 0;
+            if (scope === 'today') return d <= 0;
+            return d >= 0 && d <= 7; // week
+          });
+        }
+
+        // Việc gấp lên trước; việc chưa hẹn xuống cuối
+        rows.sort((a, b) => (a.daysUntilDue ?? 9999) - (b.daysUntilDue ?? 9999));
 
         return ok({ total: rows.length, todos: rows });
       }
@@ -908,24 +1018,45 @@ const mcpHandler = createMcpHandler(
       'add_todo',
       {
         title: 'Thêm việc cần làm',
-        description: 'Thêm một việc cần làm vào lead.',
+        description:
+          'Thêm một việc cần làm vào lead, có hạn riêng của việc đó. Bỏ trống hạn thì lấy theo hạn hiện tại của lead. Nếu hạn việc xa hơn hạn lead, hạn lead tự dời theo.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
           text: z.string().min(1).describe('Nội dung việc cần làm'),
+          dueDate: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải theo dạng YYYY-MM-DD')
+            .optional()
+            .describe('Hạn riêng của việc này, dạng YYYY-MM-DD'),
         }),
       },
       async (args) => {
         const crm = await loadCrm();
         const l = findLead(crm, args.lead);
         const todos = l.todos || [];
+        const dueDate = args.dueDate || l.deadline || null;
 
         await patchPath(`${DATA_ROOT}/leads/${l.id}/todos`, {
-          [todos.length]: { text: args.text, done: false },
+          [todos.length]: {
+            id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
+            text: args.text,
+            done: false,
+            dueDate,
+            completedAt: null,
+          },
         });
-        await logActivity(l, `Thêm việc cần làm: ${args.text}`);
+
+        // Hạn lead phải bao trùm hạn việc
+        const moved = nextLeadDeadline(l, dueDate);
+        if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+
+        await logActivity(l, `Thêm việc cần làm: ${args.text}${dueDate ? ` (hạn ${dueDate})` : ''}`);
         await touch();
 
-        return say(`Đã thêm việc "${args.text}" cho lead "${l.name}".`);
+        return say(
+          `Đã thêm việc "${args.text}" cho lead "${l.name}"${dueDate ? `, hạn ${dueDate}` : ''}.` +
+            (moved ? ` Hạn của lead cũng dời sang ${moved} cho khớp.` : '')
+        );
       }
     );
 
@@ -934,9 +1065,10 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Đánh dấu việc hoàn thành',
         description:
-          'Tick hoàn thành một việc cần làm của lead. Xác định việc bằng số thứ tự (lấy từ get_lead/list_todos) hoặc bằng nội dung việc.',
+          'Tick hoàn thành một việc cần làm của lead. Xác định việc bằng todoId (chắc chắn nhất, lấy từ get_lead/list_todos), hoặc bằng nội dung việc.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
+          todoId: z.string().optional().describe('id của việc — cách xác định chắc chắn nhất'),
           todoIndex: z.number().int().min(0).optional().describe('Số thứ tự việc trong danh sách'),
           todoText: z.string().optional().describe('Hoặc khớp theo nội dung việc'),
         }),
@@ -944,30 +1076,8 @@ const mcpHandler = createMcpHandler(
       async (args) => {
         const crm = await loadCrm();
         const l = findLead(crm, args.lead);
-        const todos = l.todos || [];
+        const { idx, todo } = resolveTodo(l, args, true);
 
-        let idx = args.todoIndex;
-        if (idx === undefined) {
-          if (!args.todoText) {
-            throw new Error('Cần truyền todoIndex hoặc todoText để xác định việc cần tick.');
-          }
-          const q = args.todoText.toLowerCase().trim();
-          const found = todos
-            .map((t, i) => ({ t, i }))
-            .filter((x) => (x.t.text || '').toLowerCase().includes(q) && !x.t.done);
-          if (!found.length) throw new Error(`Không tìm thấy việc chưa xong nào khớp "${args.todoText}".`);
-          if (found.length > 1) {
-            throw new Error(
-              `Có ${found.length} việc khớp: ${found
-                .map((x) => `[${x.i}] ${x.t.text}`)
-                .join(' | ')}. Hãy dùng todoIndex.`
-            );
-          }
-          idx = found[0].i;
-        }
-
-        const todo = todos[idx];
-        if (!todo) throw new Error(`Lead "${l.name}" không có việc ở vị trí ${idx}.`);
         if (todo.done) return say(`Việc "${todo.text}" đã được đánh dấu hoàn thành từ trước.`);
 
         await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, {
@@ -978,6 +1088,63 @@ const mcpHandler = createMcpHandler(
         await touch();
 
         return say(`Đã tick hoàn thành việc "${todo.text}" của lead "${l.name}".`);
+      }
+    );
+
+    server.registerTool(
+      'update_todo',
+      {
+        title: 'Sửa việc cần làm',
+        description:
+          'Đổi hạn hoặc nội dung của một việc đã có. Nếu hạn mới xa hơn hạn lead thì hạn lead tự dời theo.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          todoId: z.string().optional().describe('id của việc — cách xác định chắc chắn nhất'),
+          todoIndex: z.number().int().min(0).optional().describe('Số thứ tự việc trong danh sách'),
+          todoText: z.string().optional().describe('Hoặc khớp theo nội dung việc hiện tại'),
+          dueDate: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày phải theo dạng YYYY-MM-DD')
+            .nullable()
+            .optional()
+            .describe('Hạn mới, dạng YYYY-MM-DD. Truyền null để bỏ hạn.'),
+          newText: z.string().min(1).optional().describe('Nội dung mới cho việc'),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const l = findLead(crm, args.lead);
+        const { idx, todo } = resolveTodo(l, args);
+
+        const patch: Record<string, unknown> = {};
+        const changed: string[] = [];
+        if (args.dueDate !== undefined) {
+          patch.dueDate = args.dueDate;
+          changed.push(args.dueDate ? `hạn ${args.dueDate}` : 'bỏ hạn');
+        }
+        if (args.newText !== undefined) {
+          patch.text = args.newText;
+          changed.push(`nội dung "${args.newText}"`);
+        }
+        if (!changed.length) return say('Không có gì để sửa — truyền dueDate hoặc newText.');
+
+        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, patch);
+
+        let moved: string | null = null;
+        if (args.dueDate) {
+          // Tính lại trên bản đã cập nhật để hạn lead bao trùm đúng
+          todo.dueDate = args.dueDate;
+          moved = nextLeadDeadline(l);
+          if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+        }
+
+        await logActivity(l, `Sửa việc "${todo.text}": ${changed.join(', ')}`);
+        await touch();
+
+        return say(
+          `Đã sửa việc "${todo.text}" của lead "${l.name}" (${changed.join(', ')}).` +
+            (moved ? ` Hạn của lead dời sang ${moved} cho khớp.` : '')
+        );
       }
     );
   },

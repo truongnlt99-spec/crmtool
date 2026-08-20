@@ -167,11 +167,62 @@ try {
   check('revenueActual duoc ghi', wonLead?.revenueActual === 42000000, String(wonLead?.revenueActual));
   check('co wonAt', !!wonLead?.wonAt, String(wonLead?.wonAt));
 
-  /* ---------- 7. dashboard doc lai sandbox ---------- */
-  console.log('\n>> 7. dashboard_summary doc lai sandbox');
-  const r7 = await callTool('dashboard_summary', { month: 8, year: 2026 });
-  const dash = JSON.parse(r7.text || '{}');
-  check('dashboard chay duoc', !r7.isError, String(r7.text).slice(0, 200));
+  /* ---------- 7. Hạn riêng của việc ---------- */
+  console.log('\n>> 7. add_todo CO han rieng, xa hon han lead');
+  const r7 = await callTool('add_todo', {
+    lead: 'LTEST1',
+    text: 'Gui hop dong',
+    dueDate: '2026-12-31',
+  });
+  check('tool khong bao loi', !r7.isError && !r7.error, JSON.stringify(r7).slice(0, 200));
+  const l1f = await readSandbox('/leads/LTEST1');
+  const viecMoi = (l1f?.todos || []).find((t: any) => t.text === 'Gui hop dong');
+  check('viec moi co dueDate dung', viecMoi?.dueDate === '2026-12-31', String(viecMoi?.dueDate));
+  check('viec moi co id', !!viecMoi?.id, String(viecMoi?.id));
+  check('HAN LEAD tu doi ra xa theo viec', l1f?.deadline === '2026-12-31', String(l1f?.deadline));
+
+  console.log('\n>> 7b. add_todo KHONG co han -> ke thua han lead');
+  await callTool('add_todo', { lead: 'LTEST1', text: 'Viec khong hen' });
+  const l1g = await readSandbox('/leads/LTEST1');
+  const viecKhongHen = (l1g?.todos || []).find((t: any) => t.text === 'Viec khong hen');
+  check('ke thua han cua lead', viecKhongHen?.dueDate === '2026-12-31', String(viecKhongHen?.dueDate));
+
+  console.log('\n>> 7c. update_todo doi han GAN lai -> han lead KHONG bi keo gan');
+  const r7c = await callTool('update_todo', {
+    lead: 'LTEST1',
+    todoId: viecMoi?.id,
+    dueDate: '2026-09-15',
+  });
+  check('tool khong bao loi', !r7c.isError && !r7c.error, JSON.stringify(r7c).slice(0, 200));
+  const l1h = await readSandbox('/leads/LTEST1');
+  const viecSua = (l1h?.todos || []).find((t: any) => t.id === viecMoi?.id);
+  check('han viec da doi', viecSua?.dueDate === '2026-09-15', String(viecSua?.dueDate));
+  check('han lead GIU NGUYEN (chi doi ra xa)', l1h?.deadline === '2026-12-31', String(l1h?.deadline));
+
+  console.log('\n>> 7d. complete_todo bang todoId');
+  const r7d = await callTool('complete_todo', { lead: 'LTEST1', todoId: viecMoi?.id });
+  check('tool khong bao loi', !r7d.isError && !r7d.error, JSON.stringify(r7d).slice(0, 200));
+  const l1i = await readSandbox('/leads/LTEST1');
+  const viecXong = (l1i?.todos || []).find((t: any) => t.id === viecMoi?.id);
+  check('done = true', viecXong?.done === true);
+  check('co completedAt', !!viecXong?.completedAt, String(viecXong?.completedAt));
+
+  console.log('\n>> 7e. list_todos loc theo scope');
+  const r7e = await callTool('list_todos', { lead: 'LTEST1', scope: 'all' });
+  const dsTodo = JSON.parse(r7e.text || '{}');
+  check('tra ve dueDate cho tung viec', (dsTodo.todos || []).every((t: any) => 'dueDate' in t));
+  check('co truong trang thai', (dsTodo.todos || []).every((t: any) => 'status' in t));
+
+  console.log('\n>> 7f. viec cu KHONG co id -> van thao tac duoc (bu id theo vi tri)');
+  // LTEST1 ban dau co 1 viec seed khong id, khong dueDate
+  const r7f = await callTool('complete_todo', { lead: 'LTEST1', todoText: 'Goi lai cho khach' });
+  check('tick duoc viec cu khong id', !r7f.isError && !r7f.error, JSON.stringify(r7f).slice(0, 200));
+
+  /* ---------- 8. dashboard doc lai sandbox ---------- */
+  console.log('\n>> 8. dashboard_summary doc lai sandbox');
+  const r8 = await callTool("dashboard_summary", { month: 8, year: 2026 });
+  const dash = JSON.parse(r8.text || "{}");
+  check('dashboard chay duoc', !r8.isError, String(r8.text).slice(0, 200));
   check('dem duoc 1 deal won', dash?.doanhThuThucTe?.soDealWon === 1, JSON.stringify(dash?.doanhThuThucTe));
 } catch (e: any) {
   fail++;

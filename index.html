@@ -549,6 +549,18 @@
   .today-todo-tag{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; flex:none;}
   .today-todo-tag.red{color:var(--red); background:var(--red-soft);}
   .today-todo-tag.green{color:var(--green-600); background:var(--green-50);}
+  .today-todo-tag.gray{color:var(--gray-tag); background:var(--gray-tag-soft);}
+  /* Ô chọn ngày hạn của từng việc trong drawer chi tiết lead */
+  .todo-due{
+    font-size:11px; font-weight:600; color:var(--ink-faint);
+    border:1px solid var(--border); background:var(--card);
+    border-radius:var(--radius-sm); padding:2px 6px; flex:none;
+    font-family:inherit; cursor:pointer; min-width:120px;
+  }
+  .todo-due:hover{border-color:var(--green-500);}
+  .todo-due.red{color:var(--red); border-color:var(--red); background:var(--red-soft);}
+  .todo-due.green{color:var(--green-600); border-color:var(--green-500); background:var(--green-50);}
+  .todo-due.done{opacity:.45;}
   .reminder-section{margin-bottom:18px;}
   .reminder-section:last-child{margin-bottom:0;}
   .reminder-section-title{
@@ -1256,6 +1268,34 @@ function leadStatus(lead){
   if (diff === 0) return { type:'green', label:'Hôm nay' };
   return { type:'gray', label:`Còn ${diff} ngày` };
 }
+// Trạng thái của TỪNG VIỆC, dựa trên ngày hạn riêng của việc đó (t.dueDate).
+// Trước đây màn Nhắc việc mượn trạng thái của cả lead nên mọi việc trong cùng
+// một lead đều bị xếp chung một nhóm, kể cả việc không gấp.
+function todoStatus(t){
+  if (t.done) return { type:'gray', label:'Đã xong' };
+  if (!t.dueDate) return { type:'gray', label:'Chưa hẹn' };
+  const diff = daysDiff(t.dueDate);
+  if (diff < 0)  return { type:'red',   label:`Trễ ${Math.abs(diff)} ngày` };
+  if (diff === 0) return { type:'green', label:'Hôm nay' };
+  return { type:'gray', label:`Còn ${diff} ngày` };
+}
+
+// Sinh id ổn định cho việc cần làm (trước đây việc chỉ được định danh bằng chỉ số
+// mảng, nên xóa một việc là mọi chỉ số phía sau dịch đi -> dễ thao tác nhầm việc).
+function newTodoId(){
+  return 't' + Date.now() + Math.random().toString(36).slice(2, 6);
+}
+
+// Hạn của lead luôn bao trùm hạn của các việc chưa xong: thêm việc hạn xa hơn
+// thì hạn lead tự dời theo. Chỉ dời RA XA, không bao giờ kéo gần lại — kéo gần
+// sẽ vô tình làm mất mốc "bao giờ phải chạm lại khách này".
+function syncLeadDeadline(lead){
+  const open = (lead.todos || []).filter(t => !t.done && t.dueDate);
+  if (!open.length) return;
+  const latest = open.map(t => t.dueDate).sort().pop();
+  if (!lead.deadline || latest > lead.deadline) lead.deadline = latest;
+}
+
 function statusIconPath(type){
   const paths = {
     red:   '<path d="M12 8v5M12 16.5h.01"/><path d="M10.6 3.9 2.4 18a1.8 1.8 0 0 0 1.55 2.7h16.1A1.8 1.8 0 0 0 21.6 18L13.4 3.9a1.8 1.8 0 0 0-2.8 0Z"/>',
@@ -1701,6 +1741,7 @@ function openLead(id){
           <div id="drawerTodos"></div>
           <div class="add-todo-row">
             <input class="field-input" id="newTodoInput" placeholder="Thêm việc cần làm..." onkeydown="if(event.key==='Enter') addTodo('${id}')">
+            <input type="date" class="todo-due" id="newTodoDue" title="Hạn riêng của việc này (bỏ trống = lấy theo hạn lead)">
             <button class="btn btn-secondary" onclick="addTodo('${id}')">Thêm</button>
           </div>
         </div>
@@ -1721,17 +1762,23 @@ function renderDrawerTodos(lead){
     box.innerHTML = `<div class="list-empty">Chưa có việc cần làm.</div>`;
     return;
   }
-  box.innerHTML = lead.todos.map((t, i) => `
+  box.innerHTML = lead.todos.map((t) => {
+    const st = todoStatus(t);
+    return `
     <div class="todo-item-drawer">
-      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${lead.id}', ${i})">
+      <div class="todo-check ${t.done?'done':''}" onclick="toggleTodo('${lead.id}', '${t.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
       <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
-      <button class="icon-btn-mini" onclick="removeTodo('${lead.id}', ${i})">
+      <input type="date" class="todo-due ${t.done?'done':st.type}" value="${t.dueDate||''}"
+             title="Hạn của riêng việc này"
+             onclick="event.stopPropagation()"
+             onchange="setTodoDue('${lead.id}', '${t.id}', this.value)">
+      <button class="icon-btn-mini" onclick="removeTodo('${lead.id}', '${t.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function autoGrowTextarea(el){
@@ -1873,20 +1920,42 @@ function toggleTag(id, tag){
   renderAll();
   scheduleSave();
 }
-function toggleTodo(id, i){
+// Tìm việc theo id. Trả về null nếu không còn (việc có thể đã bị xóa ở thiết bị khác
+// và đồng bộ về giữa lúc màn hình đang mở).
+function findTodo(lead, todoId){
+  return (lead && lead.todos) ? (lead.todos.find(t => t.id === todoId) || null) : null;
+}
+
+function toggleTodo(id, todoId){
   const lead = leads.find(l => l.id === id);
-  if (!lead) return;
-  lead.todos[i].done = !lead.todos[i].done;
-  lead.todos[i].completedAt = lead.todos[i].done ? todayISO() : null;
-  logActivity(lead, `${lead.todos[i].done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${lead.todos[i].text}`);
+  const t = findTodo(lead, todoId);
+  if (!t) return;
+  t.done = !t.done;
+  t.completedAt = t.done ? todayISO() : null;
+  logActivity(lead, `${t.done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${t.text}`);
   renderDrawerTodos(lead);
   refreshActivityLogBox(lead);
   renderAll();
   scheduleSave();
 }
-function removeTodo(id, i){
+
+// Đổi hạn riêng của một việc. Hạn lead tự dời theo nếu việc có hạn xa hơn.
+function setTodoDue(id, todoId, value){
   const lead = leads.find(l => l.id === id);
-  if (!lead) return;
+  const t = findTodo(lead, todoId);
+  if (!t) return;
+  t.dueDate = value || null;
+  syncLeadDeadline(lead);
+  logActivity(lead, value ? `Đặt hạn ${formatDate(value)} cho việc: ${t.text}` : `Bỏ hạn của việc: ${t.text}`);
+  renderDrawerTodos(lead);
+  refreshActivityLogBox(lead);
+  renderAll();
+  scheduleSave();
+}
+function removeTodo(id, todoId){
+  const lead = leads.find(l => l.id === id);
+  const i = (lead && lead.todos) ? lead.todos.findIndex(t => t.id === todoId) : -1;
+  if (i < 0) return;
   const removed = lead.todos[i];
   lead.todos.splice(i,1);
   logActivity(lead, `Xóa việc cần làm: ${removed.text}`);
@@ -1897,13 +1966,19 @@ function removeTodo(id, i){
 }
 function addTodo(id){
   const input = document.getElementById('newTodoInput');
+  const dueInput = document.getElementById('newTodoDue');
   const text = input.value.trim();
   if (!text) return;
   const lead = leads.find(l => l.id === id);
   lead.todos = lead.todos || [];
-  lead.todos.push({ text, done:false });
-  logActivity(lead, `Thêm việc cần làm: ${text}`);
+  // Không đặt hạn thì mặc định lấy hạn hiện tại của lead, để việc mới không
+  // rơi thẳng xuống nhóm "Sau đó nữa" mà lọt khỏi tầm mắt.
+  const dueDate = (dueInput && dueInput.value) || lead.deadline || null;
+  lead.todos.push({ id:newTodoId(), text, done:false, dueDate, completedAt:null });
+  syncLeadDeadline(lead);
+  logActivity(lead, `Thêm việc cần làm: ${text}${dueDate ? ` (hạn ${formatDate(dueDate)})` : ''}`);
   input.value = '';
+  if (dueInput) dueInput.value = '';
   renderDrawerTodos(lead);
   refreshActivityLogBox(lead);
   renderAll();
@@ -2344,17 +2419,21 @@ function jumpToLead(id){
 /* ======================= REMINDERS (todos grouped by time: today / next 7 days / later) ======================= */
 function getReminderBuckets(){
   const today = [], week = [], later = [];
+  // Xếp nhóm theo hạn RIÊNG của từng việc. Trước đây dùng hạn của lead nên mọi
+  // việc trong cùng một lead đều rơi vào một nhóm, việc gấp và việc thư thả lẫn lộn.
   leads.filter(l => l.stage !== 'won' && l.stage !== 'lost').forEach(l => {
-    const st = leadStatus(l);
-    const diff = l.deadline ? daysDiff(l.deadline) : null;
-    let bucket;
-    if (diff === null) bucket = later;
-    else if (diff <= 0) bucket = today;
-    else if (diff <= 7) bucket = week;
-    else bucket = later;
-    (l.todos||[]).forEach((t, idx) => {
-      if (!t.done) bucket.push({
-        leadId:l.id, leadName:l.name, stageName:STAGE_MAP[l.stage].name, idx, text:t.text,
+    (l.todos||[]).forEach(t => {
+      if (t.done) return;
+      const diff = t.dueDate ? daysDiff(t.dueDate) : null;
+      const st = todoStatus(t);
+      let bucket;
+      if (diff === null) bucket = later;
+      else if (diff <= 0) bucket = today;
+      else if (diff <= 7) bucket = week;
+      else bucket = later;
+      bucket.push({
+        leadId:l.id, leadName:l.name, stageName:STAGE_MAP[l.stage].name,
+        todoId:t.id, text:t.text, dueDate:t.dueDate || null,
         statusType:st.type, statusLabel:st.label, sortDiff: diff === null ? 9999 : diff,
       });
     });
@@ -2367,7 +2446,7 @@ function getReminderBuckets(){
 function reminderRowHtml(r){
   return `
     <div class="today-todo-row">
-      <div class="todo-check" onclick="toggleReminderItem('${r.leadId}', ${r.idx})">
+      <div class="todo-check" onclick="toggleReminderItem('${r.leadId}', '${r.todoId}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
       <div class="today-todo-main" onclick="reminderItemClick('${r.leadId}')">
@@ -2397,11 +2476,15 @@ function renderRemindersModal(){
     reminderSectionHtml('📅 7 ngày tiếp theo', week) +
     reminderSectionHtml('🗂️ Sau đó nữa', later);
 }
-function toggleReminderItem(leadId, idx){
+function toggleReminderItem(leadId, todoId){
   const lead = leads.find(l => l.id === leadId);
-  if (!lead) return;
-  lead.todos[idx].done = !lead.todos[idx].done;
-  logActivity(lead, `${lead.todos[idx].done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${lead.todos[idx].text}`);
+  const t = findTodo(lead, todoId);
+  if (!t) return;
+  t.done = !t.done;
+  // Thiếu dòng này là lỗi cũ: tick việc từ màn Nhắc việc thì không ghi ngày hoàn thành,
+  // trong khi tick từ chi tiết lead lại có -> thống kê "Todo hoàn thành trong tháng" hụt dần.
+  t.completedAt = t.done ? todayISO() : null;
+  logActivity(lead, `${t.done ? 'Hoàn thành' : 'Bỏ đánh dấu hoàn thành'} việc: ${t.text}`);
   renderRemindersModal();
   renderAll();
   scheduleSave();
@@ -2720,7 +2803,16 @@ function migrateLead(l){
   // "Todo hoàn thành theo chu kỳ" — dò lại trong activityLog (đã có sẵn từ trước) để lấy đúng
   // ngày thật đã hoàn thành, thay vì bỏ sót các việc này khỏi thống kê/danh sách.
   if (Array.isArray(l.todos)){
-    l.todos.forEach(t => {
+    l.todos.forEach((t, i) => {
+      // Việc cũ chưa có id -> gán id suy ra từ vị trí. Phải là công thức cố định
+      // (không random) để MCP đọc nhiều lần vẫn ra cùng một id cho tới khi app lưu lại.
+      if (!t.id) t.id = 't' + i;
+
+      // Việc cũ chưa có hạn riêng -> kế thừa hạn của lead làm mốc ban đầu.
+      // Nếu để trống, toàn bộ việc đang mở sẽ rơi xuống nhóm "Sau đó nữa"
+      // và mục "Hôm nay" trống trơn, dễ tưởng là mất việc.
+      if (t.dueDate === undefined) t.dueDate = l.deadline || null;
+
       if (t.done && !t.completedAt){
         const matches = (l.activityLog || []).filter(a => a.text === `Hoàn thành việc: ${t.text}`);
         const last = matches[matches.length - 1];
