@@ -441,7 +441,7 @@
   .add-todo-row{display:flex; gap:8px; margin-top:8px;}
   .add-todo-row input{flex:1; background:#fff;}
   .todo-item-drawer{display:flex; align-items:center; gap:9px; padding:6px 0;}
-  .todo-item-drawer .todo-text{flex:1;}
+  .todo-item-drawer .todo-text{flex:1; min-width:0; overflow-wrap:anywhere; word-break:break-word;}
   .icon-btn-mini{background:none; border:none; color:var(--ink-faint); cursor:pointer; padding:4px;}
   .icon-btn-mini:hover{color:var(--red);}
   .icon-btn-mini svg{width:14px; height:14px;}
@@ -503,17 +503,26 @@
   .log-dot{width:8px; height:8px; border-radius:50%; background:var(--amber); flex:none;}
   .log-connector{width:1.5px; flex:1; background:#E9D6A8; margin-top:2px;}
   .log-time{font-size:10.5px; color:var(--ink-faint); font-weight:700;}
-  .log-text{font-size:12.5px; font-weight:600; margin-top:1px;}
+  .log-text{font-size:12.5px; font-weight:600; margin-top:1px; overflow-wrap:anywhere; word-break:break-word; min-width:0;}
 
   /* ---------- Note stream (ghi chú nhiều dòng) ---------- */
   .note-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:8px;}
-  .notes-stream{margin-top:14px; display:flex; flex-direction:column; gap:10px;}
-  .note-item{background:var(--bg); border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:10px 12px;}
+  .notes-stream{margin-top:14px; display:flex; flex-direction:column; gap:10px; min-width:0;}
+  /* min-width:0 — con của flex mặc định là min-width:auto nên không co được nhỏ hơn
+     nội dung; thiếu dòng này thì một link dài sẽ banh cả khung ra ngoài. */
+  .note-item{background:var(--bg); border:1px solid var(--border-soft); border-radius:var(--radius-md); padding:10px 12px; min-width:0;}
   .note-item.editing{border-color:var(--green-500); background:var(--green-50);}
   .note-item-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px;}
   .note-item-time{font-size:10.5px; color:var(--ink-faint); font-weight:700;}
-  .note-item-actions{display:flex; gap:2px;}
-  .note-item-text{font-size:12.5px; font-weight:500; white-space:pre-wrap; line-height:1.5;}
+  .note-item-actions{display:flex; gap:2px; flex:none;}
+  /* overflow-wrap:anywhere — pre-wrap chỉ xuống dòng ở khoảng trắng, mà link dán vào
+     ghi chú thì không có khoảng trắng nào để ngắt. */
+  .note-item-text{
+    font-size:12.5px; font-weight:500; white-space:pre-wrap; line-height:1.5;
+    overflow-wrap:anywhere; word-break:break-word; min-width:0;
+  }
+  .note-item-text a{color:var(--green-700); text-decoration:underline; text-underline-offset:2px;}
+  .note-item-text a:hover{color:var(--green-500);}
 
   /* ---------- Modals ---------- */
   .modal-overlay{
@@ -544,7 +553,7 @@
   .today-todo-row .todo-check{flex:none;}
   .today-todo-main{flex:1; min-width:0; cursor:pointer;}
   .today-todo-main:hover .today-todo-text{color:var(--green-700); text-decoration:underline;}
-  .today-todo-text{font-size:12.5px; font-weight:700;}
+  .today-todo-text{font-size:12.5px; font-weight:700; overflow-wrap:anywhere; word-break:break-word;}
   .today-todo-sub{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:2px;}
   .today-todo-tag{font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:999px; flex:none;}
   .today-todo-tag.red{color:var(--red); background:var(--red-soft);}
@@ -1179,6 +1188,19 @@ function esc(str){
   if (str === null || str === undefined) return '';
   return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+// Biến link trong ghi chú thành bấm được.
+// CHỈ nhận chuỗi ĐÃ qua esc() — lúc đó " và ' đã thành thực thể HTML nên không thể
+// thoát khỏi thuộc tính href. Chỉ bắt http/https, không đụng tới javascript: hay data:.
+function linkify(escaped){
+  return escaped.replace(/https?:\/\/[^\s<]+/g, m => {
+    let url = m, trail = '';
+    const punct = /(?:&(?:amp|quot|#39);|[.,;:!?)\]}])+$/.exec(url);
+    if (punct){ trail = punct[0]; url = url.slice(0, -trail.length); }
+    if (!url) return m;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>${trail}`;
+  });
+}
+
 function todayISO(){
   const y = TODAY.getFullYear(), m = String(TODAY.getMonth()+1).padStart(2,'0'), d = String(TODAY.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
@@ -1828,7 +1850,7 @@ function renderNotesStream(lead){
           </button>
         </div>
       </div>
-      <div class="note-item-text">${esc(n.text)}</div>
+      <div class="note-item-text">${linkify(esc(n.text))}</div>
     </div>
   `).join('')}</div>`;
 }
