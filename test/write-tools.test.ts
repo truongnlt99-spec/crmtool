@@ -288,7 +288,14 @@ try {
 
   /* ---------- 8. dashboard doc lai sandbox ---------- */
   console.log('\n>> 8. dashboard_summary doc lai sandbox');
-  const r8 = await callTool("dashboard_summary", { month: 8, year: 2026 });
+  // move_stage ghi wonAt = HOM NAY, nen phai hoi dashboard dung thang hien tai.
+  // Truoc day viet cung 8/2026: qua thang moi la test fail du code khong sai.
+  // Lay ngay theo gio VN cho khop voi cach MCP tinh (Vercel chay gio UTC).
+  const homNayVN = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  const [namNay, thangNay] = homNayVN.split('-').map(Number);
+  const r8 = await callTool("dashboard_summary", { month: thangNay, year: namNay });
   const dash = JSON.parse(r8.text || "{}");
   check('dashboard chay duoc', !r8.isError, String(r8.text).slice(0, 200));
   check('dem duoc 1 deal won', dash?.doanhThuThucTe?.soDealWon === 1, JSON.stringify(dash?.doanhThuThucTe));
