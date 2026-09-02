@@ -1,23 +1,21 @@
 {
   "_huong_dan": [
-    "QUAN TRONG - doc het truoc khi dan:",
+    "Dan phan 'rules' ben duoi vao Firebase Console > Realtime Database > Rules > Publish.",
+    "UID cua vo da duoc dien san, khong can sua gi.",
     "",
-    "1. Chi dan bo rules nay SAU KHI da tao tai khoan trong Firebase Console",
-    "   (Authentication > Users) va da thay UID that vao cho UID_CUA_VO ben duoi.",
+    "Bo rules nay lam 3 viec:",
+    "1. Chi UID 7ePgCPmzxHdEAEazHo9IkyKf2rw2 moi doc/ghi duoc crmData.",
+    "   Nguoi khac du co tai khoan Firebase hop le van bi tu choi hoan toan.",
+    "2. Ghi nhat ky dang nhap vao authLog: BAT KY tai khoan nao dang nhap qua app",
+    "   deu bi ghi lai (de bat duoc ke la), nhung CHI vo moi doc duoc nhat ky do.",
+    "3. Nhat ky khong the sua hay xoa boi nguoi khac - chi tao moi. Ke dot nhap",
+    "   khong the xoa dau vet cua chinh minh.",
     "",
-    "2. Vi sao phai khoa theo UID chu khong chi 'auth != null':",
-    "   Firebase Email/Password mac dinh cho phep BAT KY AI tu dang ky tai khoan.",
-    "   Cau hinh Firebase nam cong khai trong index.html, nen nguoi la co the tu tao",
-    "   tai khoan roi doc toan bo du lieu khach hang. Khoa theo UID thi chi dung",
-    "   nhung tai khoan duoc liet ke moi vao duoc.",
+    "MCP server khong bi anh huong: no dung service account, quyen admin, bo qua rules.",
     "",
-    "3. MCP server khong bi anh huong: no dung service account (quyen admin,",
-    "   bo qua rules hoan toan).",
-    "",
-    "4. Them nguoi dung moi: them mot dieu kien || auth.uid === 'UID_MOI' vao ca",
-    "   .read lan .write, roi Publish lai.",
-    "",
-    "Chi dan phan 'rules' ben duoi vao Firebase Console > Realtime Database > Rules."
+    "NHO LAM THEM: Console > Authentication > Settings > User actions >",
+    "TAT 'Enable create (sign-up)'. Neu khong, nguoi la van tu tao tai khoan duoc",
+    "(ho khong doc duoc du lieu, nhung chan ngay tu dau van hon)."
   ],
 
   "rules": {
@@ -25,8 +23,8 @@
     ".write": false,
 
     "crmData": {
-      ".read": "auth != null && (auth.uid === 'UID_CUA_VO')",
-      ".write": "auth != null && (auth.uid === 'UID_CUA_VO')",
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
 
       "leads": {
         "$leadId": {
@@ -41,6 +39,15 @@
 
       "planRevenue": { ".validate": "newData.isNumber() && newData.val() >= 0" },
       "planLeads": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+    },
+
+    "authLog": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+
+      "$entry": {
+        ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
+        ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"
+      }
     }
   }
 }

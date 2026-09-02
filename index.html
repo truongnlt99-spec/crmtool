@@ -50,8 +50,27 @@
   }
 
   // Expose a small bridge so the main (classic, non-module) app script can use Firebase
+  // Ghi nhat ky dang nhap. Security Rules cho PHEP moi tai khoan da xac thuc ghi
+  // them mot dong vao authLog (de neu co ke la dang nhap qua app thi cung bi ghi lai),
+  // nhung chi UID cua vo moi doc duoc, va khong ai sua/xoa duoc dong da ghi.
+  async function logLogin(user){
+    try {
+      const id = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+      await set(ref(db, 'authLog/' + id), {
+        at: new Date().toISOString(),
+        uid: user.uid,
+        email: user.email || null,
+        ua: (navigator.userAgent || '').slice(0, 300),
+        tz: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      });
+    } catch (e) {
+      // Ghi nhat ky that bai thi thoi, khong duoc phep chan nguoi dung vao app
+      console.warn('Khong ghi duoc nhat ky dang nhap:', e);
+    }
+  }
+
   window.__firebase = {
-    db, dataRef, get, set, onValue, auth, persistenceOk,
+    db, dataRef, get, set, onValue, auth, persistenceOk, logLogin,
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
     signOut: () => signOut(auth),
   };
@@ -3116,6 +3135,13 @@ window.addEventListener('auth-changed', (e) => {
   authResolved = true;
   if (user){
     hideLockScreen();
+    // Ghi nhật ký một lần cho mỗi phiên mở app, không ghi lại mỗi lần vẽ lại màn hình.
+    try {
+      if (!sessionStorage.getItem('loginLogged')){
+        sessionStorage.setItem('loginLogged', '1');
+        if (window.__firebase.logLogin) window.__firebase.logLogin(user);
+      }
+    } catch(e){ /* sessionStorage bị chặn thì bỏ qua, không cản người dùng vào app */ }
     startWithCloud();
   } else {
     // Có thể là chưa từng đăng nhập, cũng có thể là phiên vừa hết hiệu lực giữa chừng

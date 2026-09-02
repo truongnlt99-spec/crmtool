@@ -256,6 +256,33 @@ function normalizeLead(l: Lead): Lead {
   return l;
 }
 
+/**
+ * UID duy nhất được phép dùng CRM. Phải khớp với UID trong firebase-rules.json —
+ * rules là thứ thực sự chặn truy cập, còn hằng số này chỉ dùng để nhận diện
+ * đâu là người lạ khi đọc nhật ký đăng nhập.
+ */
+const OWNER_UID = process.env.CRM_OWNER_UID || '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
+
+/** Đoán tên thiết bị/trình duyệt từ User-Agent cho dễ đọc. */
+function moTaThietBi(ua: string): string {
+  if (!ua) return 'Không rõ';
+  const heDieuHanh =
+    /iPhone|iPad/i.test(ua) ? 'iPhone/iPad'
+    : /Android/i.test(ua) ? 'Android'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Macintosh|Mac OS/i.test(ua) ? 'Mac'
+    : /Linux/i.test(ua) ? 'Linux'
+    : 'Không rõ hệ điều hành';
+  const trinhDuyet =
+    /Edg\//i.test(ua) ? 'Edge'
+    : /OPR\/|Opera/i.test(ua) ? 'Opera'
+    : /Chrome\//i.test(ua) ? 'Chrome'
+    : /Firefox\//i.test(ua) ? 'Firefox'
+    : /Safari\//i.test(ua) ? 'Safari'
+    : 'trình duyệt lạ';
+  return `${heDieuHanh} · ${trinhDuyet}`;
+}
+
 /** Trạng thái của một việc theo hạn riêng của nó. Mirror todoStatus() của app. */
 function todoStatus(t: Todo): { type: string; label: string } {
   if (t.done) return { type: 'gray', label: 'Đã xong' };
@@ -1098,6 +1125,58 @@ const mcpHandler = createMcpHandler(
         await touch();
 
         return say(`Đã tick hoàn thành việc "${todo.text}" của lead "${l.name}".`);
+      }
+    );
+
+    server.registerTool(
+      'login_history',
+      {
+        title: 'Nhật ký đăng nhập',
+        description:
+          'Xem ai đã đăng nhập vào CRM, lúc nào, từ thiết bị nào. Dùng để phát hiện người lạ dùng tài khoản. Đánh dấu rõ lần đăng nhập nào KHÔNG phải của chủ tài khoản.',
+        inputSchema: z.object({
+          limit: z.number().int().min(1).max(200).optional().describe('Số bản ghi gần nhất, mặc định 30'),
+          onlySuspicious: z
+            .boolean()
+            .optional()
+            .describe('Chỉ hiện lần đăng nhập từ tài khoản lạ (không phải chủ tài khoản)'),
+        }),
+      },
+      async (args) => {
+        const raw = await readPath<Record<string, {
+          at?: string; uid?: string; email?: string | null; ua?: string; tz?: string | null;
+        }> | null>('authLog');
+
+        const rows = Object.entries(raw || {})
+          .map(([id, v]) => {
+            const la = (v.uid || '') !== OWNER_UID;
+            return {
+              id,
+              at: v.at || null,
+              uid: v.uid || null,
+              email: v.email || null,
+              thietBi: moTaThietBi(v.ua || ''),
+              muiGio: v.tz || null,
+              laNguoiLa: la,
+              canhBao: la ? '⚠️ TÀI KHOẢN LẠ — không phải chủ tài khoản' : null,
+            };
+          })
+          .sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+
+        const nguoiLa = rows.filter((r) => r.laNguoiLa);
+        const hien = args.onlySuspicious ? nguoiLa : rows.slice(0, args.limit ?? 30);
+
+        return ok({
+          tongSoLanDangNhap: rows.length,
+          soLanTuTaiKhoanLa: nguoiLa.length,
+          ketLuan:
+            nguoiLa.length > 0
+              ? `⚠️ CÓ ${nguoiLa.length} lần đăng nhập từ tài khoản KHÔNG phải chủ tài khoản. Cần đổi mật khẩu và kiểm tra danh sách Users trong Firebase Console.`
+              : 'Không phát hiện tài khoản lạ nào. Tất cả đều là chủ tài khoản.',
+          luuY:
+            'Chỉ ghi nhận được lần đăng nhập THÔNG QUA APP. Người dùng SDK trực tiếp sẽ không bị ghi lại — nhưng họ cũng không đọc được dữ liệu vì Security Rules khoá theo UID.',
+          danhSach: hien,
+        });
       }
     );
 
