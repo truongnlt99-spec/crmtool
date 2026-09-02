@@ -227,6 +227,12 @@ interface Activity {
 
 interface Lead {
   id: string;
+  /**
+   * UID của người sở hữu lead. Hiện mới một người dùng nên chưa dùng để phân quyền,
+   * nhưng có sẵn trường này thì việc tách dữ liệu theo từng người về sau chỉ là
+   * đổi rules + lọc, không phải di chuyển lại toàn bộ dữ liệu.
+   */
+  ownerUid?: string | null;
   name: string;
   facebook?: string;
   phone?: string;
@@ -261,6 +267,9 @@ interface CrmData {
 /** Bù field có thể thiếu ở lead cũ — tương ứng migrateLead() trong app. */
 function normalizeLead(l: Lead): Lead {
   if (!l.leadType) l.leadType = 'Lead công ty';
+  // Lead cũ chưa có chủ -> coi như thuộc về chủ tài khoản. Chỉ mặc định lúc ĐỌC,
+  // không tự ghi ngược xuống database; app sẽ ghi thật ở lần lưu kế tiếp.
+  if (!l.ownerUid) l.ownerUid = OWNER_UID;
   if (!Array.isArray(l.notesList)) l.notesList = [];
   if (!Array.isArray(l.tags)) l.tags = [];
   if (!Array.isArray(l.todos)) l.todos = [];
@@ -425,6 +434,7 @@ function summarizeLead(l: Lead) {
     stage: l.stage,
     stageName: STAGE_NAME[l.stage] || l.stage,
     leadType: leadTypeOf(l),
+    ownerUid: l.ownerUid || null,
     package: l.package || null,
     phone: l.phone || null,
     revenueExpected: l.revenueExpected || 0,
@@ -548,12 +558,17 @@ const mcpHandler = createMcpHandler(
             .boolean()
             .optional()
             .describe('Bao gồm cả lead đã Won/Lost (mặc định false)'),
+          ownerUid: z
+            .string()
+            .optional()
+            .describe('Lọc theo chủ sở hữu lead (UID). Bỏ trống = tất cả, dùng khi có nhiều người dùng.'),
           limit: z.number().int().min(1).max(200).optional().describe('Số lead tối đa, mặc định 50'),
         }),
       },
       async (args) => {
         const crm = await loadCrm();
         let list = crm.leads;
+        if (args.ownerUid) list = list.filter((l) => (l.ownerUid || OWNER_UID) === args.ownerUid);
 
         if (!args.includeClosed && !args.stage) {
           list = list.filter((l) => l.stage !== 'won' && l.stage !== 'lost');
@@ -887,6 +902,7 @@ const mcpHandler = createMcpHandler(
 
         const lead: Lead = {
           id,
+          ownerUid: OWNER_UID,
           name: args.name,
           facebook: args.facebook || '',
           phone: args.phone || '',

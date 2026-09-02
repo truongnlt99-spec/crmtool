@@ -27,8 +27,14 @@
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
 
       "leads": {
+        "_ghi_chu_index": "indexOn ownerUid de sau nay loc lead theo tung nguoi dung khong bi cham. Chua dung den khi con mot nguoi, nhung khai bao san thi luc scale khong phai sua rules gap.",
+        ".indexOn": ["ownerUid"],
+
         "$leadId": {
           ".validate": "newData.hasChildren(['id', 'name', 'stage'])",
+          "ownerUid": {
+            ".validate": "!newData.exists() || newData.isString()"
+          },
           "stage": {
             ".validate": "newData.val().matches(/^(leadin|baogia|follow1|follow2|follow3|nuoidaihan|won|lost)$/)"
           },

@@ -2459,6 +2459,8 @@ function submitAddLead(){
   if (!name){ alert('Vui lòng nhập tên khách hàng.'); return; }
   const lead = {
     id: 'L' + Date.now(),
+    // Chủ sở hữu = người đang đăng nhập. Lead tạo từ app luôn thuộc về người tạo.
+    ownerUid: (window.__authUser && window.__authUser.uid) || null,
     name,
     facebook: document.getElementById('newFacebook').value.trim(),
     phone: document.getElementById('newPhone').value.trim(),
@@ -3142,6 +3144,16 @@ function migrateLead(l){
   // Lead cũ chưa có "Loại lead" -> mặc định là "Lead công ty" (có thể sửa lại trong chi tiết lead)
   if (!l.leadType) l.leadType = 'Lead công ty';
 
+  // Gắn chủ sở hữu cho lead. Hiện chỉ một người dùng nên chưa dùng để phân quyền,
+  // nhưng có sẵn trường này thì sau muốn tách dữ liệu theo từng người sẽ nhẹ hơn nhiều
+  // (chỉ cần đổi rules + lọc theo ownerUid, không phải di chuyển lại toàn bộ dữ liệu).
+  // Chỉ gắn khi CHƯA có chủ — không bao giờ ghi đè chủ cũ, kẻo người thứ hai đăng nhập
+  // là cướp mất quyền sở hữu lead của người trước.
+  if (!l.ownerUid && window.__authUser){
+    l.ownerUid = window.__authUser.uid;
+    coLeadVuaGanChuSoHuu = true;   // để ghi hẳn xuống database, không chỉ gắn trong bộ nhớ
+  }
+
   if (typeof l.notes === 'string'){
     const text = l.notes.trim();
     l.notesList = text ? [{ id:'n'+Date.now()+Math.random().toString(36).slice(2,7), text, createdAt: nowLabel(), updatedAt: nowLabel() }] : [];
@@ -3197,6 +3209,9 @@ function uiIsBusy(){
 // Đã nạp được dữ liệu từ máy chủ ít nhất một lần chưa. Chừng nào còn false thì
 // tuyệt đối không cho ghi lên máy chủ (xem chốt an toàn trong saveToCloud).
 let cloudLoaded = false;
+// migrateLead() bật cờ này khi vừa gắn chủ sở hữu cho lead cũ. Sau lần nạp đầu tiên,
+// app tự lưu lại một lần để ghi hẳn ownerUid xuống database.
+let coLeadVuaGanChuSoHuu = false;
 let lastSyncedRaw = null;   // ảnh chụp dữ liệu lần đồng bộ gần nhất (để bỏ qua chính mình vừa ghi)
 let pendingRemote = null;   // cập nhật từ xa đang chờ áp dụng vì UI đang bận
 
@@ -3219,6 +3234,14 @@ async function initCloudSync(){
       applyRemoteData(data);
       cloudLoaded = true;          // từ đây mới được phép ghi lên máy chủ
       setSyncStatus('loaded');
+
+      // Vừa gắn chủ sở hữu cho lead cũ -> lưu một lần để ghi hẳn xuống database.
+      // Đặt SAU cloudLoaded = true, nếu không chốt an toàn trong saveToCloud sẽ chặn.
+      if (coLeadVuaGanChuSoHuu){
+        coLeadVuaGanChuSoHuu = false;
+        console.info('Đã gắn chủ sở hữu cho các lead cũ, đang lưu lại...');
+        scheduleSave();
+      }
     } else {
       // Đọc được nhưng database trống. Đánh dấu đã nạp thành công (lệnh đọc CÓ chạy,
       // kết quả đúng là trống), nhưng chỉ khởi tạo khi trong máy thực sự có dữ liệu
