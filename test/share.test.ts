@@ -99,11 +99,13 @@ try {
   check('co so lieu dashboard', !!r3.data.dashboard?.pipeline);
   check('co danh sach giai doan', Array.isArray(r3.data.giaiDoan) && r3.data.giaiDoan.length === 8);
 
-  console.log('\n>> 4. Du lieu nhay cam KHONG duoc gui ra');
+  console.log('\n>> 4. Thong tin lien he KHONG duoc gui ra, boi canh deal THI CO');
   const chuoi = JSON.stringify(r3.data);
+  // Nguoi xem can boi canh de danh gia deal (ghi chu, viec, lich su),
+  // KHONG can thong tin lien he cua khach -> so dien thoai va Facebook bi loai.
   check('khong co so dien thoai', !chuoi.includes('0900000001'));
   check('khong co facebook',     !chuoi.includes('fb.com/test'));
-  check('khong co ghi chu',      !chuoi.includes('GHI CHU BI MAT'));
+  check('CO ghi chu (de doc duoc cau chuyen deal)', chuoi.includes('GHI CHU BI MAT'));
   check('van co ten + doanh thu', chuoi.includes('Khach Sandbox') && chuoi.includes('50000000'));
 
   console.log('\n>> 5. GET bi tu choi (mat khau khong duoc nam tren thanh dia chi)');
@@ -124,7 +126,41 @@ try {
   check('co dong SAI mat khau', rows.some(r => r.ok === false));
   check('co luu thiet bi', rows.every(r => typeof r.ua === 'string' && r.ua.length > 0));
 
-  console.log('\n>> 8. Khoa tam sau 10 lan sai');
+  console.log('\n>> 8. Chi tiet deal — du thong tin de soi mot deal');
+  const l0: any = r3.data.leads[0];
+  check('co ghi chu',        Array.isArray(l0.notesList) && l0.notesList.length === 1);
+  check('co viec can lam',   Array.isArray(l0.todos) && l0.todos.length === 1);
+  check('co lich su hoat dong', Array.isArray(l0.activityLog));
+  check('co boi canh ban hang', 'schedule' in l0 && 'persona' in l0 && 'objection' in l0);
+  check('co reachedIndex de loc pheu', typeof l0.reachedIndex === 'number');
+  check('co co danh dau trong ky', 'taoTrongKy' in l0 && 'wonTrongKy' in l0);
+  check('VAN khong co so dien thoai', !('phone' in l0));
+  check('VAN khong co facebook', !('facebook' in l0));
+
+  console.log('\n>> 9. Dashboard co so lieu de bam vao xem chi tiet');
+  const dash: any = r3.data.dashboard;
+  check('co phan tich pheu', Array.isArray(dash.pheu) && dash.pheu.length === 7);
+  check('co ti le CR', typeof dash.crToWon === 'number');
+  check('co o tiem nang', !!dash.tiemNang);
+
+  console.log('\n>> 10. Phien xem — doi thang khong phai nhap lai mat khau');
+  const sess = r3.data.session;
+  check('lan mo khoa co tra ve phien', typeof sess === 'string' && sess.length > 10);
+  const rP = await goiShare({ token: TOKEN, session: sess, month: 1, year: 2026 });
+  check('dung phien tai duoc du lieu', rP.status === 200, String(rP.status));
+  check('doi dung thang duoc yeu cau', rP.data.thang === 1 && rP.data.nam === 2026,
+        `${rP.data.thang}/${rP.data.nam}`);
+
+  console.log('\n>> 10b. Phien gia mao phai bi tu choi');
+  const rG = await goiShare({ token: TOKEN, session: '9999999999999.abcdef0123456789abcdef0123456789' });
+  check('tu choi phien gia mao', rG.status === 401 || rG.status === 403, String(rG.status));
+
+  console.log('\n>> 11. Loc theo loai lead');
+  const rL = await goiShare({ token: TOKEN, session: sess, leadType: 'Lead salehunt' });
+  check('loc duoc, lead cong ty bi loai', rL.status === 200 && rL.data.leads.length === 0,
+        'so lead: ' + (rL.data.leads || []).length);
+
+  console.log('\n>> 12. Khoa tam sau 10 lan sai');
   for (let i = 0; i < 10; i++) await goiShare({ token: TOKEN, passcode: 'sai' + i });
   const r8 = await goiShare({ token: TOKEN, passcode: MAT_KHAU });
   check('bi khoa tam du mat khau dung', r8.status === 429, String(r8.status) + ' ' + JSON.stringify(r8.data).slice(0,90));
