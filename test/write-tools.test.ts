@@ -7,6 +7,28 @@
 // Phải đặt TRƯỚC khi import module, vì DATA_ROOT đọc env lúc nạp module
 process.env.FIREBASE_DATA_ROOT = 'crmDataTest';
 
+// Từ khi Security Rules siết theo UID, test không còn đọc/ghi được nếu thiếu quyền admin.
+// Đặt file service account JSON tại .env.local (đã nằm trong .gitignore, không lên GitHub)
+// thì test tự nạp. Không có file thì báo rõ thay vì fail khó hiểu.
+{
+  const fs = await import('node:fs');
+  const path = new URL('../.env.local', import.meta.url);
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT && fs.existsSync(path)) {
+    process.env.FIREBASE_SERVICE_ACCOUNT = fs.readFileSync(path, 'utf8').trim();
+    console.log('   (da nap service account tu .env.local)');
+  }
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT) {
+    console.error(
+      '\nTHIEU QUYEN: Security Rules dang khoa theo UID nen test khong doc/ghi duoc.\n' +
+      'Cach xu ly: tai file service account JSON tu Firebase Console\n' +
+      '(Project settings > Service accounts > Generate new private key)\n' +
+      'roi luu NGUYEN NOI DUNG vao file .env.local o thu muc goc du an.\n' +
+      'File nay da nam trong .gitignore nen khong bao gio len GitHub.\n'
+    );
+    process.exit(1);
+  }
+}
+
 const DB = 'https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app';
 const ROOT = 'crmDataTest';
 
@@ -46,13 +68,59 @@ async function callTool(name: string, args: Record<string, unknown>) {
   return { text, isError: !!body?.result?.isError };
 }
 
+/**
+ * Gọi Firebase với quyền admin. Rules đã khoá theo UID nên mọi lệnh đọc/ghi trực tiếp
+ * của bài test đều phải kèm token, kể cả khi dựng và dọn nhánh sandbox.
+ * Luồng JWT -> access token viết riêng ở đây để không phải hé lộ nội bộ của api/mcp.ts.
+ */
+let tokenCache: { token: string; het: number } | null = null;
+
+async function adminToken(): Promise<string> {
+  if (tokenCache && tokenCache.het > Date.now() + 60_000) return tokenCache.token;
+  const { createSign } = await import('node:crypto');
+  const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT as string);
+  const b64 = (x: any) =>
+    Buffer.from(x).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const now = Math.floor(Date.now() / 1000);
+  const head = b64(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claim = b64(JSON.stringify({
+    iss: sa.client_email,
+    scope: 'https://www.googleapis.com/auth/firebase.database https://www.googleapis.com/auth/userinfo.email',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, iat: now,
+  }));
+  const signer = createSign('RSA-SHA256');
+  signer.update(`${head}.${claim}`);
+  const jwt = `${head}.${claim}.${b64(signer.sign(sa.private_key.replace(/\\n/g, '\n')))}`;
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  if (!res.ok) throw new Error('Khong lay duoc admin token: ' + (await res.text()));
+  const d = (await res.json()) as { access_token: string; expires_in: number };
+  tokenCache = { token: d.access_token, het: Date.now() + d.expires_in * 1000 };
+  return d.access_token;
+}
+
+async function dbFetch(path: string, init: RequestInit = {}) {
+  const t = await adminToken();
+  return fetch(`${DB}/${path}`, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}`, ...(init.headers || {}) },
+  });
+}
+
 const readSandbox = async (path = '') =>
-  (await fetch(`${DB}/${ROOT}${path}.json`)).json() as Promise<any>;
+  (await dbFetch(`${ROOT}${path}.json`)).json() as Promise<any>;
 
 try {
   /* ---------- Seed sandbox ---------- */
   console.log('\n>> Dung du lieu sandbox tai /' + ROOT);
-  const seedRes = await fetch(`${DB}/${ROOT}.json`, {
+  const seedRes = await dbFetch(`${ROOT}.json`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -229,12 +297,12 @@ try {
   console.log('\nNGOAI LE: ' + e.message + '\n' + e.stack);
 } finally {
   /* ---------- Dọn sandbox ---------- */
-  const del = await fetch(`${DB}/${ROOT}.json`, { method: 'DELETE' });
-  const leftover = await (await fetch(`${DB}/${ROOT}.json`)).json();
+  const del = await dbFetch(`${ROOT}.json`, { method: 'DELETE' });
+  const leftover = await (await dbFetch(`${ROOT}.json`)).json();
   console.log(`\n>> Xoa sandbox: HTTP ${del.status} | con lai: ${JSON.stringify(leftover)}`);
 
   // Chốt lại: dữ liệu thật phải còn nguyên
-  const realCount = Object.keys((await (await fetch(`${DB}/crmData/leads.json?shallow=true`)).json()) || {}).length;
+  const realCount = Object.keys((await (await dbFetch('crmData/leads.json?shallow=true')).json()) || {}).length;
   console.log(`>> Kiem tra du lieu THAT: ${realCount} lead trong crmData`);
 
   console.log(`\n${'='.repeat(50)}\nKET QUA: ${pass} PASS / ${fail} FAIL\n${'='.repeat(50)}`);

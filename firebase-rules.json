@@ -15,21 +15,25 @@
     "",
     "NHO LAM THEM: Console > Authentication > Settings > User actions >",
     "TAT 'Enable create (sign-up)'. Neu khong, nguoi la van tu tao tai khoan duoc",
-    "(ho khong doc duoc du lieu, nhung chan ngay tu dau van hon)."
+    "(ho khong doc duoc du lieu, nhung chan ngay tu dau van hon).",
+    "",
+    "Ghi chu ky thuat (truoc day de nham BEN TRONG khoi rules -> Firebase bao loi cu phap):",
+    "- crmData/leads/.indexOn ownerUid: de sau nay loc lead theo tung nguoi dung khong bi cham.",
+    "- appConfig: chua khoa ket noi MCP do app tu sinh, chi chu tai khoan doc/ghi duoc.",
+    "- authLog: ai dang nhap cung ghi duoc mot dong moi (de bat ke la), nhung khong ai sua/xoa duoc dong da co, va chi chu tai khoan doc duoc.",
+    "",
+    "CA FILE NAY gio dan thang vao Console duoc: Firebase bo qua khoa _huong_dan o ngoai khoi rules."
   ],
-
   "rules": {
     ".read": false,
     ".write": false,
-
     "crmData": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-
       "leads": {
-        "_ghi_chu_index": "indexOn ownerUid de sau nay loc lead theo tung nguoi dung khong bi cham. Chua dung den khi con mot nguoi, nhung khai bao san thi luc scale khong phai sua rules gap.",
-        ".indexOn": ["ownerUid"],
-
+        ".indexOn": [
+          "ownerUid"
+        ],
         "$leadId": {
           ".validate": "newData.hasChildren(['id', 'name', 'stage'])",
           "ownerUid": {
@@ -38,27 +42,30 @@
           "stage": {
             ".validate": "newData.val().matches(/^(leadin|baogia|follow1|follow2|follow3|nuoidaihan|won|lost)$/)"
           },
-          "revenueExpected": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-          "revenueActual": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+          "revenueExpected": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "revenueActual": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          }
         }
       },
-
-      "planRevenue": { ".validate": "newData.isNumber() && newData.val() >= 0" },
-      "planLeads": { ".validate": "newData.isNumber() && newData.val() >= 0" }
+      "planRevenue": {
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      },
+      "planLeads": {
+        ".validate": "newData.isNumber() && newData.val() >= 0"
+      }
     },
-
     "appConfig": {
-      "_ghi_chu": "Chua khoa ket noi MCP do app tu sinh. Chi chu tai khoan doc/ghi duoc; khong ai khac cham vao duoc, ke ca tai khoan Firebase hop le khac.",
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       "mcpSecret": {
         ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 128"
       }
     },
-
     "authLog": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-
       "$entry": {
         ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
         ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"

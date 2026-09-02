@@ -11,7 +11,7 @@
 <!-- ============ FIREBASE (Realtime Database) ============ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-  import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+  import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
   import {
     getAuth, setPersistence, browserLocalPersistence,
     signInWithEmailAndPassword, onAuthStateChanged, signOut
@@ -63,6 +63,19 @@
         ua: (navigator.userAgent || '').slice(0, 300),
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
       });
+
+      // Don bot ban ghi cu. Khong don thi authLog phinh vo han va moi lan xem nhat ky
+      // lai phai keo ve toan bo. Khoa bat dau bang timestamp nen sap theo khoa cung
+      // chinh la sap theo thoi gian.
+      const GIU_LAI = 200;
+      const snap = await get(ref(db, 'authLog'));
+      const keys = snap.exists() ? Object.keys(snap.val()) : [];
+      if (keys.length > GIU_LAI){
+        keys.sort();
+        const boDi = {};
+        keys.slice(0, keys.length - GIU_LAI).forEach(k => { boDi[k] = null; });
+        await update(ref(db, 'authLog'), boDi);
+      }
     } catch (e) {
       // Ghi nhat ky that bai thi thoi, khong duoc phep chan nguoi dung vao app
       console.warn('Khong ghi duoc nhat ky dang nhap:', e);
@@ -70,7 +83,7 @@
   }
 
   window.__firebase = {
-    db, dataRef, get, set, onValue, auth, persistenceOk, logLogin,
+    db, dataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -3121,16 +3134,45 @@ async function saveToCloud(){
 
   setSyncStatus('saving');
   try {
-    const payload = {
-      leads: leadsToObject(),
-      dailyTodos: dailyTodosToObject(),
+    // CHỈ ghi những nhánh thực sự đổi, thay vì ghi đè toàn bộ crmData.
+    // Trước đây app dùng set() cho cả cụm, nên mọi thay đổi do Claude ghi vào giữa
+    // lúc app đang mở đều bị lần lưu kế tiếp xoá sạch. Nay lead nào app không đụng
+    // tới thì không nằm trong lệnh ghi, nên thay đổi của Claude ở lead khác vẫn còn.
+    const truoc     = lastSyncedRaw ? JSON.parse(lastSyncedRaw) : {};
+    const leadTruoc = truoc.leads || {};
+    const leadNay   = leadsToObject();
+    const thayDoi   = {};
+
+    for (const [id, lead] of Object.entries(leadNay)){
+      if (JSON.stringify(lead) !== JSON.stringify(leadTruoc[id])) thayDoi['leads/' + id] = lead;
+    }
+    // Lead bị xoá: ghi null để Firebase gỡ hẳn nhánh đó
+    for (const id of Object.keys(leadTruoc)){
+      if (!leadNay[id]) thayDoi['leads/' + id] = null;
+    }
+
+    const todoNay = dailyTodosToObject();
+    if (JSON.stringify(todoNay) !== JSON.stringify(truoc.dailyTodos || {})) thayDoi.dailyTodos = todoNay;
+    if (planRevenue !== truoc.planRevenue) thayDoi.planRevenue = planRevenue;
+    if (planLeads   !== truoc.planLeads)   thayDoi.planLeads   = planLeads;
+
+    // Không có gì đổi thì khỏi gọi mạng
+    if (!Object.keys(thayDoi).length){ setSyncStatus('saved'); return; }
+
+    thayDoi.updatedAt = new Date().toISOString();
+    await window.__firebase.update(window.__firebase.dataRef, thayDoi);
+
+    // Đoán trước trạng thái máy chủ sau lệnh ghi này. Nếu đoán sai (vì Claude vừa
+    // sửa một lead khác mà app chưa nhận được), onValue sẽ thấy khác và tự đồng bộ lại
+    // — đó chính là lúc thay đổi của Claude được nạp về thay vì bị mất.
+    lastSyncedRaw = JSON.stringify({
+      ...truoc,
+      leads: leadNay,
+      dailyTodos: todoNay,
       planRevenue,
       planLeads,
-      updatedAt: new Date().toISOString(),
-    };
-    await window.__firebase.set(window.__firebase.dataRef, payload);
-    // Ghi nhớ bản vừa đẩy lên để onValue nhận lại không vẽ lại màn hình một cách vô ích
-    lastSyncedRaw = JSON.stringify(payload);
+      updatedAt: thayDoi.updatedAt,
+    });
     setSyncStatus('saved');
   } catch(e){
     console.error('Firebase save error:', e);
@@ -3216,7 +3258,9 @@ let lastSyncedRaw = null;   // ảnh chụp dữ liệu lần đồng bộ gần
 let pendingRemote = null;   // cập nhật từ xa đang chờ áp dụng vì UI đang bận
 
 function flushPendingRemote(){
-  if (!pendingRemote || uiIsBusy()) return;
+  // Thêm điều kiện saveTimer: còn thay đổi cục bộ chưa lưu mà áp dữ liệu từ xa vào
+  // là xoá mất phần người dùng vừa sửa. Chờ lưu xong rồi hãy áp.
+  if (!pendingRemote || uiIsBusy() || saveTimer) return;
   applyRemoteData(pendingRemote);
   pendingRemote = null;
   renderAll();
@@ -3265,8 +3309,10 @@ async function initCloudSync(){
       const raw = JSON.stringify(data);
       if (raw === lastSyncedRaw) return;   // không có gì mới (thường là chính app vừa ghi)
       lastSyncedRaw = raw;
-      if (saveTimer) return;               // đang có thay đổi cục bộ chờ lưu -> ưu tiên bản cục bộ
-      if (uiIsBusy()){ pendingRemote = data; return; }
+      // Đang có thay đổi cục bộ chờ lưu, hoặc người dùng đang gõ dở -> xếp vào hàng chờ,
+      // TUYỆT ĐỐI không bỏ đi. Dòng trên đã đánh dấu "đã thấy" nên onValue sẽ không báo
+      // lại lần nữa; bỏ đi ở đây là mất hẳn thay đổi đó.
+      if (saveTimer || uiIsBusy()){ pendingRemote = data; return; }
       applyRemoteData(data);
       renderAll();
     });

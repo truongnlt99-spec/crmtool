@@ -94,7 +94,11 @@ async function getAccessToken(): Promise<string | null> {
 
 async function fbRequest(path: string, init: RequestInit = {}): Promise<unknown> {
   const token = await getAccessToken();
-  const res = await fetch(`${DB_URL}/${path.replace(/^\//, '')}.json`, {
+  // Tách phần truy vấn ra khỏi đường dẫn: Firebase REST đòi ".json" nằm NGAY SAU
+  // đường dẫn rồi mới tới "?...". Ghép thẳng sẽ ra ".../authLog?orderBy=...json" — hỏng.
+  const [duongDan, truyVan] = path.replace(/^\//, '').split('?');
+  const url = `${DB_URL}/${duongDan}.json${truyVan ? '?' + truyVan : ''}`;
+  const res = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
@@ -138,7 +142,9 @@ async function getStoredSecret(): Promise<string | null> {
     cachedSecret = { value: typeof v === 'string' && v.length >= 32 ? v : null, at: Date.now() };
     return cachedSecret.value;
   } catch {
-    // Đọc lỗi thì coi như không có khoá phụ — khoá gốc trong biến môi trường vẫn dùng được
+    // Đọc lỗi cũng phải cache. Nếu không, ai gõ sai khoá liên tục sẽ khiến mỗi request
+    // kéo theo một lượt đọc Firebase — biến endpoint thành đòn bẩy khuếch đại tải.
+    cachedSecret = { value: null, at: Date.now() };
     return null;
   }
 }
@@ -1178,9 +1184,13 @@ const mcpHandler = createMcpHandler(
         }),
       },
       async (args) => {
+        // Chỉ kéo về N bản ghi mới nhất. Khoá của mỗi bản ghi bắt đầu bằng timestamp
+        // nên sắp theo khoá cũng chính là sắp theo thời gian — không cần index riêng.
+        // Đọc cả nhánh sẽ ngày càng chậm vì authLog không bao giờ tự dọn.
+        const soLay = Math.max(args.limit ?? 30, 200);
         const raw = await readPath<Record<string, {
           at?: string; uid?: string; email?: string | null; ua?: string; tz?: string | null;
-        }> | null>('authLog');
+        }> | null>(`authLog?orderBy=%22%24key%22&limitToLast=${soLay}`);
 
         const rows = Object.entries(raw || {})
           .map(([id, v]) => {
