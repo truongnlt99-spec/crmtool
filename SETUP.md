@@ -125,15 +125,16 @@ Mục tiêu: đóng database lại, chỉ app (có đăng nhập) và MCP (servi
 
 **Thứ tự bắt buộc — làm sai thứ tự là app của vợ mất dữ liệu hiển thị:**
 
-### Bước 2.1 — Thêm đăng nhập Firebase thật vào app
+### Bước 2.1 — Tạo tài khoản đăng nhập
 
-Đây là phần sửa code, Claude làm được — nhưng phải làm **trước** khi dán rules. Nội dung: thay màn khóa mật khẩu `8386` bằng đăng nhập Firebase Authentication (Email/Password) với một tài khoản duy nhất cho vợ bạn.
+Phần code đã xong: app không còn dùng mật khẩu `8386` nữa mà đăng nhập bằng Firebase Authentication thật. Giờ cần bạn tạo tài khoản trong Console:
 
-Bạn cần tự làm phần này trong Firebase Console:
+1. **Firebase Console** → project `huyentrancrm` → **Authentication** → **Get started**
+2. Tab **Sign-in method** → bật **Email/Password** → Save
+3. Tab **Users** → **Add user** → nhập email + mật khẩu cho vợ bạn → Add user
+4. **Copy UID** của tài khoản vừa tạo (cột User UID, bấm vào là copy được)
 
-1. Vào **Firebase Console** → project `huyentrancrm` → **Authentication** → **Get started**
-2. Bật phương thức **Email/Password**
-3. Tab **Users** → **Add user** → tạo tài khoản cho vợ bạn (email + mật khẩu)
+> Giữ UID lại, bước 2.4 cần đến.
 
 ### Bước 2.2 — Tạo service account cho MCP
 
@@ -157,9 +158,12 @@ Deploy lại để biến môi trường có hiệu lực.
 
 Chỉ làm bước này **sau khi 2.1–2.3 đã xong và đã kiểm tra app đăng nhập được**.
 
-1. Firebase Console → **Realtime Database** → tab **Rules**
-2. Dán nội dung phần `rules` trong file [`firebase-rules.json`](firebase-rules.json)
-3. Bấm **Publish**
+1. Mở [`firebase-rules.json`](firebase-rules.json), thay `UID_CUA_VO` bằng UID thật lấy ở bước 2.1 — có **2 chỗ** (`.read` và `.write`)
+2. Firebase Console → **Realtime Database** → tab **Rules**
+3. Dán phần `rules` (bỏ phần `_huong_dan`)
+4. Bấm **Publish**
+
+> **Vì sao khoá theo UID chứ không chỉ `auth != null`?** Firebase Email/Password mặc định cho phép **bất kỳ ai** tự đăng ký tài khoản, mà cấu hình Firebase nằm công khai trong `index.html`. Rules chỉ yêu cầu "có đăng nhập" thì người lạ chỉ cần tự tạo tài khoản là đọc được sạch dữ liệu khách hàng.
 
 ### Bước 2.5 — Kiểm chứng đã đóng
 
