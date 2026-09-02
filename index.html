@@ -12,6 +12,10 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
   import { getDatabase, ref, get, set, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+  import {
+    getAuth, setPersistence, browserLocalPersistence,
+    signInWithEmailAndPassword, onAuthStateChanged, signOut
+  } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDT8jy6J5ohBbnJxZdrOnZhyI57D2ZRDhQ",
@@ -27,9 +31,29 @@
   const db = getDatabase(fbApp);
   const dataRef = ref(db, 'crmData');
 
+  // Đăng nhập thật bằng Firebase Authentication.
+  // Trước đây màn khóa chỉ so chuỗi '8386' ngay trong trình duyệt — Firebase không hề
+  // biết đến nó, nên database buộc phải để mở cho ai cũng đọc được. Giờ mỗi phiên làm
+  // việc mang theo token thật, Security Rules mới chặn được người lạ.
+  const auth = getAuth(fbApp);
+
+  // Giữ phiên đăng nhập trong trình duyệt -> chỉ phải đăng nhập lại khi bấm Đăng xuất
+  // hoặc khi xoá dữ liệu duyệt web.
+  try { await setPersistence(auth, browserLocalPersistence); } catch (e) { console.warn('setPersistence:', e); }
+
   // Expose a small bridge so the main (classic, non-module) app script can use Firebase
-  window.__firebase = { db, dataRef, get, set, onValue };
-  window.dispatchEvent(new Event('firebase-ready'));
+  window.__firebase = {
+    db, dataRef, get, set, onValue, auth,
+    signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
+    signOut: () => signOut(auth),
+  };
+
+  // Nguồn sự thật duy nhất cho việc "đã đăng nhập hay chưa".
+  // App CHỈ được đọc/ghi dữ liệu sau khi sự kiện này báo có user.
+  onAuthStateChanged(auth, (user) => {
+    window.__authUser = user;
+    window.dispatchEvent(new CustomEvent('auth-changed', { detail: { user } }));
+  });
 </script>
 
 <style>
@@ -104,6 +128,16 @@
   body.sidebar-collapsed .brand-text,
   body.sidebar-collapsed .nav-item span,
   body.sidebar-collapsed .sidebar-stat{display:none;}
+  body.sidebar-collapsed .sidebar-logout-text{display:none;}
+  body.sidebar-collapsed .sidebar-logout{justify-content:center; padding:10px 0;}
+  .sidebar-logout{
+    margin-top:8px; width:100%; display:flex; align-items:center; gap:8px;
+    padding:9px 12px; border:1px solid var(--border); border-radius:var(--radius-sm);
+    background:transparent; color:var(--ink-faint); font-size:12.5px; font-weight:700;
+    cursor:pointer; transition:color .15s, border-color .15s, background .15s;
+  }
+  .sidebar-logout:hover{color:var(--red); border-color:var(--red); background:var(--red-soft);}
+  .sidebar-logout svg{width:15px; height:15px; flex:none;}
   body.sidebar-collapsed .nav-item{justify-content:center;}
   body.sidebar-collapsed .brand{justify-content:center;}
   .brand{display:flex; align-items:center; gap:10px; padding:4px 6px 20px 6px;}
@@ -687,11 +721,14 @@
   .lock-brand-row{display:flex; align-items:center; justify-content:center; gap:7px; margin-bottom:16px;}
   .lock-icon-mini{width:15px; height:15px; color:var(--green-600); flex-shrink:0;}
   .lock-brand-title{font-weight:800; font-size:13px; color:var(--ink-soft);}
+  /* Trước đây ô này dành cho mã PIN 4 số nên căn giữa + giãn chữ.
+     Nay nhập email/mật khẩu thật, căn trái và giãn chữ bình thường mới đọc được. */
   .lock-input{
-    width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; font-size:15px;
-    outline:none; text-align:center; letter-spacing:.2em; font-weight:700; margin-bottom:12px;
+    width:100%; border:1px solid var(--border); border-radius:var(--radius-sm); padding:11px 14px; font-size:14px;
+    outline:none; text-align:left; letter-spacing:normal; font-weight:600; margin-bottom:10px;
   }
   .lock-input:focus{border-color:var(--green-500);}
+  .lock-input:disabled{opacity:.6; cursor:not-allowed;}
   .lock-btn{width:100%; justify-content:center;}
   .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
 </style>
@@ -810,8 +847,9 @@
       <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span class="lock-brand-title">CRM của Huyền Trân</span>
     </div>
-    <input class="lock-input" id="lockPasswordInput" type="password" inputmode="numeric" placeholder="Mật khẩu" autofocus onkeydown="if(event.key==='Enter') checkLockPassword()">
-    <button class="btn btn-primary lock-btn" onclick="checkLockPassword()">Mở khóa</button>
+    <input class="lock-input" id="lockEmailInput" type="email" autocomplete="username" placeholder="Email" onkeydown="if(event.key==='Enter') document.getElementById('lockPasswordInput').focus()">
+    <input class="lock-input" id="lockPasswordInput" type="password" autocomplete="current-password" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="btn btn-primary lock-btn" id="lockBtn" onclick="doLogin()">Mở khóa</button>
     <div class="lock-error" id="lockError"></div>
   </div>
 </div>
@@ -860,6 +898,11 @@
       <div class="sidebar-stat-value" id="sidebarTodayCount">0</div>
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
+
+    <button class="sidebar-logout" onclick="doLogout()" title="Đăng xuất khỏi CRM">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+      <span class="sidebar-logout-text">Đăng xuất</span>
+    </button>
 
   </aside>
 
@@ -1341,7 +1384,8 @@ function matchesFilters(lead){
 }
 
 /* ======================= LOCK SCREEN ======================= */
-const APP_PASSWORD = '8386';
+// Mật khẩu cũ '8386' đã bỏ: nó nằm ngay trong mã nguồn public nên ai xem source
+// cũng thấy, và Firebase không hề biết đến nó. Nay dùng Firebase Authentication thật.
 
 // Những câu động viên yêu thương - mỗi ngày một câu, tự đổi mỗi khi qua ngày mới
 const LOCK_LOVE_MESSAGES = [
@@ -1401,17 +1445,74 @@ function initLockGreeting(){
 }
 initLockGreeting();
 
-function checkLockPassword(){
-  const input = document.getElementById('lockPasswordInput');
-  if (input.value === APP_PASSWORD){
-    const screen = document.getElementById('lockScreen');
-    screen.classList.add('unlocked');
-    setTimeout(() => screen.remove(), 300);
-  } else {
-    document.getElementById('lockError').textContent = 'Sai mật khẩu, thử lại nhé.';
-    input.value = '';
-    input.focus();
+// Đổi thông báo lỗi của Firebase sang tiếng Việt dễ hiểu.
+function authErrorText(code){
+  switch (code){
+    case 'auth/invalid-email':        return 'Email không đúng định dạng.';
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':   return 'Email hoặc mật khẩu chưa đúng.';
+    case 'auth/too-many-requests':    return 'Thử sai nhiều lần quá, đợi vài phút rồi thử lại nhé.';
+    case 'auth/network-request-failed': return 'Không có mạng. Kiểm tra kết nối rồi thử lại.';
+    case 'auth/user-disabled':        return 'Tài khoản này đang bị khoá.';
+    default:                          return 'Chưa đăng nhập được. Thử lại giúp nhé.';
   }
+}
+
+async function doLogin(){
+  const emailEl = document.getElementById('lockEmailInput');
+  const passEl  = document.getElementById('lockPasswordInput');
+  const btn     = document.getElementById('lockBtn');
+  const errEl   = document.getElementById('lockError');
+
+  const email = (emailEl.value || '').trim();
+  const pass  = passEl.value || '';
+  if (!email || !pass){
+    errEl.textContent = 'Nhập cả email và mật khẩu nhé.';
+    (email ? passEl : emailEl).focus();
+    return;
+  }
+  if (!window.__firebase){
+    errEl.textContent = 'Chưa kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.';
+    return;
+  }
+
+  btn.disabled = true; emailEl.disabled = true; passEl.disabled = true;
+  btn.textContent = 'Đang mở khóa...';
+  errEl.textContent = '';
+  try {
+    await window.__firebase.signIn(email, pass);
+    // Không tự đóng màn khóa ở đây — chờ onAuthStateChanged báo về,
+    // để chỉ có đúng một chỗ quyết định khi nào được vào app.
+  } catch (e){
+    errEl.textContent = authErrorText(e && e.code);
+    passEl.value = '';
+    passEl.focus();
+  } finally {
+    btn.disabled = false; emailEl.disabled = false; passEl.disabled = false;
+    btn.textContent = 'Mở khóa';
+  }
+}
+
+async function doLogout(){
+  if (!window.__firebase) return;
+  if (!confirm('Đăng xuất khỏi CRM?')) return;
+  try { await window.__firebase.signOut(); } catch(e){ console.error(e); }
+  // Tải lại trang để xoá sạch dữ liệu đang giữ trong bộ nhớ, tránh việc màn hình
+  // còn hiện lead của phiên trước sau khi đã đăng xuất.
+  location.reload();
+}
+
+function showLockScreen(){
+  const s = document.getElementById('lockScreen');
+  if (s) s.classList.remove('unlocked');
+  const el = document.getElementById('lockEmailInput');
+  if (el) el.focus();
+}
+
+function hideLockScreen(){
+  const s = document.getElementById('lockScreen');
+  if (s) s.classList.add('unlocked');
 }
 
 /* ======================= VIEW SWITCH ======================= */
@@ -2760,6 +2861,9 @@ function setSyncStatus(state){
     pending:    'Có thay đổi chưa lưu',
     error:      'Lỗi lưu — kiểm tra mạng',
     offline:    'Không kết nối được cloud (đang dùng tạm)',
+    // Tách riêng khỏi 'error': lần trước Security Rules bị siết mà app vẫn báo
+    // "kiểm tra mạng", làm mất thời gian đi tìm nhầm hướng.
+    denied:     'Không có quyền đọc dữ liệu — xem lại Security Rules',
   };
   el.className = 'sync-status ' + state;
   el.innerHTML = `<span class="sync-dot"></span>${labels[state] || ''}`;
@@ -2788,6 +2892,18 @@ async function saveToCloud(){
   // và chặn vĩnh viễn luồng đồng bộ realtime ở initCloudSync().
   saveTimer = null;
   if (!window.__firebase){ setSyncStatus('offline'); return; }
+
+  // CHỐT AN TOÀN. Sự cố đã xảy ra một lần: Security Rules bị siết trước khi app có
+  // đăng nhập -> mọi lệnh đọc bị từ chối -> app giữ danh sách lead RỖNG trong bộ nhớ.
+  // Lúc đó chỉ cần rules mở lại là thao tác kế tiếp ghi đè cái rỗng lên dữ liệu thật.
+  // Hai điều kiện dưới đây khiến kịch bản đó không thể xảy ra nữa.
+  if (!window.__authUser){ setSyncStatus('offline'); return; }
+  if (!cloudLoaded){
+    console.warn('Bỏ qua lệnh lưu: chưa nạp được dữ liệu từ máy chủ nên không thể ghi đè.');
+    setSyncStatus('error');
+    return;
+  }
+
   setSyncStatus('saving');
   try {
     const payload = {
@@ -2865,6 +2981,9 @@ function uiIsBusy(){
   return false;
 }
 
+// Đã nạp được dữ liệu từ máy chủ ít nhất một lần chưa. Chừng nào còn false thì
+// tuyệt đối không cho ghi lên máy chủ (xem chốt an toàn trong saveToCloud).
+let cloudLoaded = false;
 let lastSyncedRaw = null;   // ảnh chụp dữ liệu lần đồng bộ gần nhất (để bỏ qua chính mình vừa ghi)
 let pendingRemote = null;   // cập nhật từ xa đang chờ áp dụng vì UI đang bận
 
@@ -2885,12 +3004,20 @@ async function initCloudSync(){
       const data = snap.val() || {};
       lastSyncedRaw = JSON.stringify(data);
       applyRemoteData(data);
+      cloudLoaded = true;          // từ đây mới được phép ghi lên máy chủ
       setSyncStatus('loaded');
     } else {
-      // Database rỗng (lần đầu kết nối) -> đẩy dữ liệu mẫu hiện có lên làm dữ liệu khởi tạo
-      setSyncStatus('saving');
-      await saveToCloud();
-      setSyncStatus('seeded');
+      // Đọc được nhưng database trống. Đánh dấu đã nạp thành công (lệnh đọc CÓ chạy,
+      // kết quả đúng là trống), nhưng chỉ khởi tạo khi trong máy thực sự có dữ liệu
+      // để đẩy lên — cả hai bên đều trống thì không ghi gì cả.
+      cloudLoaded = true;
+      if (leads.length){
+        setSyncStatus('saving');
+        await saveToCloud();
+        setSyncStatus('seeded');
+      } else {
+        setSyncStatus('loaded');
+      }
     }
 
     // Lắng nghe realtime: cần thiết để nhận thay đổi do MCP (Claude) ghi vào.
@@ -2909,27 +3036,50 @@ async function initCloudSync(){
     });
   } catch(e){
     console.error('Firebase init error:', e);
-    setSyncStatus('error');
+    // cloudLoaded vẫn là false -> chốt an toàn trong saveToCloud sẽ chặn mọi lệnh ghi,
+    // nên màn hình trống lúc này KHÔNG thể ghi đè lên dữ liệu thật.
+    const denied = /permission|denied|PERMISSION/i.test(String((e && e.message) || e));
+    setSyncStatus(denied ? 'denied' : 'error');
+    if (denied){
+      alert(
+        'Không đọc được dữ liệu: tài khoản này chưa được Security Rules cho phép.\n\n' +
+        'Dữ liệu vẫn còn nguyên trên máy chủ, app chỉ đang không có quyền xem.\n' +
+        'App sẽ không ghi gì lên máy chủ cho tới khi đọc được, nên không có nguy cơ mất dữ liệu.'
+      );
+    }
   }
   renderAll();
 }
 
-// Khởi động app: chờ Firebase sẵn sàng, nếu quá 5s không kết nối được thì vẫn cho dùng app
-// với dữ liệu tạm trên máy (tránh app bị treo ở màn hình "Đang tải..." mãi mãi)
+// Khởi động app sau khi đã đăng nhập. Không còn chế độ "dùng tạm khi mất kết nối":
+// chế độ đó để app chạy với danh sách rỗng, đúng cái bẫy đã suýt ghi đè dữ liệu thật.
 let appStarted = false;
 function startWithCloud(){
   if (appStarted) return;
   appStarted = true;
   initCloudSync();
 }
-function startOffline(){
-  if (appStarted) return;
-  appStarted = true;
-  setSyncStatus('offline');
-  renderAll();
-}
-window.addEventListener('firebase-ready', startWithCloud, { once:true });
-setTimeout(() => { if (!appStarted) startOffline(); }, 5000);
+// Luồng khởi động giờ do trạng thái đăng nhập quyết định.
+// Quan trọng: KHÔNG chạy initCloudSync() khi chưa có user — nếu chạy, mọi lệnh đọc
+// đều bị Security Rules từ chối, app rơi vào trạng thái "danh sách lead rỗng", và
+// chỉ cần một thao tác là ghi đè cái rỗng đó lên dữ liệu thật.
+window.addEventListener('auth-changed', (e) => {
+  const user = e.detail && e.detail.user;
+  if (user){
+    hideLockScreen();
+    startWithCloud();
+  } else {
+    showLockScreen();
+  }
+});
+
+// Firebase không phản hồi sau 8s -> báo rõ, đừng để đứng hình ở màn "Đang tải..."
+setTimeout(() => {
+  if (!window.__firebase){
+    const errEl = document.getElementById('lockError');
+    if (errEl) errEl.textContent = 'Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.';
+  }
+}, 8000);
 </script>
 </body>
 </html>

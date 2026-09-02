@@ -1,10 +1,23 @@
 {
-  "_ghi_chu": [
-    "Bộ rules này CHỈ dán được sau khi app web đã có đăng nhập Firebase thật.",
-    "Hiện tại index.html không dùng Firebase Auth (mật khẩu 8386 chỉ là màn khóa giả lập phía trình duyệt),",
-    "nên nếu dán rules này vào ngay bây giờ thì app của vợ sẽ KHÔNG đọc được dữ liệu nữa.",
-    "MCP server không bị ảnh hưởng vì nó dùng service account (quyền admin, bỏ qua rules).",
-    "Xem SETUP.md phần 'Giai đoạn 2' để biết thứ tự triển khai đúng."
+  "_huong_dan": [
+    "QUAN TRONG - doc het truoc khi dan:",
+    "",
+    "1. Chi dan bo rules nay SAU KHI da tao tai khoan trong Firebase Console",
+    "   (Authentication > Users) va da thay UID that vao cho UID_CUA_VO ben duoi.",
+    "",
+    "2. Vi sao phai khoa theo UID chu khong chi 'auth != null':",
+    "   Firebase Email/Password mac dinh cho phep BAT KY AI tu dang ky tai khoan.",
+    "   Cau hinh Firebase nam cong khai trong index.html, nen nguoi la co the tu tao",
+    "   tai khoan roi doc toan bo du lieu khach hang. Khoa theo UID thi chi dung",
+    "   nhung tai khoan duoc liet ke moi vao duoc.",
+    "",
+    "3. MCP server khong bi anh huong: no dung service account (quyen admin,",
+    "   bo qua rules hoan toan).",
+    "",
+    "4. Them nguoi dung moi: them mot dieu kien || auth.uid === 'UID_MOI' vao ca",
+    "   .read lan .write, roi Publish lai.",
+    "",
+    "Chi dan phan 'rules' ben duoi vao Firebase Console > Realtime Database > Rules."
   ],
 
   "rules": {
@@ -12,8 +25,8 @@
     ".write": false,
 
     "crmData": {
-      ".read": "auth != null",
-      ".write": "auth != null",
+      ".read": "auth != null && (auth.uid === 'UID_CUA_VO')",
+      ".write": "auth != null && (auth.uid === 'UID_CUA_VO')",
 
       "leads": {
         "$leadId": {
