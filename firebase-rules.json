@@ -64,6 +64,11 @@
         ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 128"
       }
     },
+    "shareLog": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": false
+    },
+
     "authLog": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       "$entry": {

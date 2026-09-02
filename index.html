@@ -183,6 +183,27 @@
   .sidebar-logout-text{white-space:nowrap;}
   .sidebar-connect{margin-top:10px;}
   .sidebar-connect:hover{color:var(--green-600); border-color:var(--green-500); background:var(--green-50);}
+  .sidebar-share{margin-top:10px;}
+  .sidebar-share:hover{color:var(--slate); border-color:var(--slate); background:var(--slate-soft);}
+
+  /* ---------- Modal: chia sẻ chỉ xem ---------- */
+  .share-row{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;}
+  .share-on{
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
+    padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;
+  }
+  .share-on.bat{color:var(--green-700); background:var(--green-50);}
+  .share-on.tat{color:var(--gray-tag); background:var(--gray-tag-soft);}
+  .log-list{max-height:210px; overflow-y:auto; margin-top:8px;}
+  .log-row{
+    display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:var(--radius-sm);
+    background:var(--bg); margin-bottom:5px; font-size:11.5px; font-weight:600;
+  }
+  .log-row.sai{background:var(--red-soft);}
+  .log-when{flex:none; color:var(--ink-faint); font-weight:700;}
+  .log-ua{flex:1; min-width:0; color:var(--ink-soft); overflow-wrap:anywhere;}
+  .log-kq{flex:none; font-weight:800;}
+  .log-kq.ok{color:var(--green-600);} .log-kq.sai{color:var(--red);}
 
   /* ---------- Modal: link kết nối Claude ---------- */
   .mcp-url-box{
@@ -990,6 +1011,11 @@
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
 
+    <button class="sidebar-logout sidebar-share" onclick="openShareModal()" title="Chia sẻ link chỉ xem cho sếp">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span class="sidebar-logout-text">Chia sẻ chỉ xem</span>
+    </button>
+
     <button class="sidebar-logout sidebar-connect" onclick="openMcpModal()" title="Lấy link kết nối Claude">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.8 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.8-1.7"/></svg>
       <span class="sidebar-logout-text">Kết nối Claude</span>
@@ -1177,6 +1203,20 @@
     <div class="modal-body" id="remindersBody"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeRemindersModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Chia sẻ chỉ xem ============ -->
+<div class="modal-overlay" id="shareOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Chia sẻ chỉ xem</h3>
+      <p>Gửi link kèm mật khẩu cho người cần xem báo cáo — họ xem được Pipeline và Dashboard, không sửa được gì</p>
+    </div>
+    <div class="modal-body" id="shareBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeShareModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -1633,6 +1673,207 @@ function showLockScreen(){
 function hideLockScreen(){
   const s = document.getElementById('lockScreen');
   if (s) s.classList.add('unlocked');
+}
+
+/* ======================= MODAL: Chia sẻ chỉ xem ======================= */
+const SHARE_BASE_URL = 'https://huyentran.vercel.app/xem';
+
+// Băm mật khẩu ngay tại trình duyệt. Máy chủ chỉ nhận và lưu chuỗi băm —
+// mật khẩu gốc không bao giờ được lưu ở đâu cả, kể cả trong database.
+// Công thức phải trùng khít với bamMatKhau() trong api/mcp.ts: sha256("muối:mật khẩu").
+async function bamMatKhau(salt, pass){
+  if (!(window.crypto && crypto.subtle)){
+    throw new Error('Trình duyệt không hỗ trợ mã hoá ở trang này (cần HTTPS).');
+  }
+  const buf = new TextEncoder().encode(salt + ':' + pass);
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(h), b => b.toString(16).padStart(2, '0')).join('');
+}
+function chuoiNgauNhien(soByte){
+  const b = new Uint8Array(soByte);
+  crypto.getRandomValues(b);
+  return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function openShareModal(){
+  document.getElementById('shareOverlay').classList.add('show');
+  renderShareModal();
+}
+function closeShareModal(){
+  document.getElementById('shareOverlay').classList.remove('show');
+}
+
+async function docCauHinhChiaSe(){
+  const snap = await window.__firebase.get(window.__firebase.refAt('appConfig/share'));
+  return snap.exists() ? snap.val() : null;
+}
+
+async function renderShareModal(){
+  const body = document.getElementById('shareBody');
+  body.innerHTML = '<div class="list-empty">Đang tải...</div>';
+
+  let cfg = null;
+  try { cfg = await docCauHinhChiaSe(); }
+  catch(e){ body.innerHTML = '<div class="mcp-empty">Không đọc được cấu hình. Kiểm tra mạng rồi thử lại.</div>'; return; }
+
+  if (!cfg || !cfg.token){
+    body.innerHTML = `
+      <div class="mcp-empty">Chưa tạo link chia sẻ nào.</div>
+      <div class="field-group" style="margin-top:12px;">
+        <label class="field-label">Đặt mật khẩu cho người xem (ít nhất 4 ký tự)</label>
+        <input class="field-input" id="shareNewPass" type="text" placeholder="VD: 246810" autocomplete="off">
+      </div>
+      <div class="mcp-actions">
+        <button class="btn btn-primary" onclick="taoLinkChiaSe()">Tạo link chia sẻ</button>
+      </div>
+      <div class="mcp-warn">
+        Người có link <b>và</b> mật khẩu sẽ xem được toàn bộ Pipeline và Dashboard.
+        Số điện thoại, Facebook và ghi chú của khách đã được lược bỏ khỏi trang xem.
+      </div>`;
+    return;
+  }
+
+  const url = `${SHARE_BASE_URL}?t=${cfg.token}`;
+  const bat = cfg.enabled !== false;
+  body.innerHTML = `
+    <div class="share-row" style="margin-top:0;">
+      <span class="share-on ${bat ? 'bat' : 'tat'}">${bat ? '● Đang bật' : '○ Đang tắt'}</span>
+    </div>
+
+    <div class="field-label" style="margin:12px 0 6px;">Đường link gửi cho người xem</div>
+    <div class="mcp-url-box" id="shareUrlBox">${esc(url)}</div>
+    <div class="mcp-actions">
+      <button class="btn btn-primary" id="shareCopyBtn" onclick="copyShareUrl()">Copy link</button>
+      <button class="btn btn-secondary" onclick="doiMatKhauChiaSe()">Đổi mật khẩu</button>
+      <button class="btn btn-secondary" onclick="batTatChiaSe(${bat ? 'false' : 'true'})">${bat ? 'Tắt chia sẻ' : 'Bật lại'}</button>
+      <button class="btn btn-secondary" onclick="taoLinkChiaSe(true)">Tạo link mới</button>
+    </div>
+
+    <div class="mcp-warn">
+      Mật khẩu chỉ lưu dưới dạng đã mã hoá, không xem lại được. Quên thì bấm "Đổi mật khẩu".
+      Nhập sai 10 lần liên tiếp thì link tự khoá 15 phút.
+    </div>
+
+    <div class="field-label" style="margin:16px 0 0;">Lịch sử truy cập</div>
+    <div class="log-list" id="shareLogList"><div class="list-empty">Đang tải...</div></div>`;
+
+  renderShareLog();
+}
+
+async function renderShareLog(){
+  const box = document.getElementById('shareLogList');
+  if (!box) return;
+  try {
+    const snap = await window.__firebase.get(window.__firebase.refAt('shareLog'));
+    const rows = snap.exists() ? Object.entries(snap.val()) : [];
+    if (!rows.length){ box.innerHTML = '<div class="list-empty">Chưa có ai mở link.</div>'; return; }
+    rows.sort((a, b) => String(b[0]).localeCompare(String(a[0])));
+    box.innerHTML = rows.slice(0, 50).map(([, r]) => {
+      const t = r.at ? new Date(r.at).toLocaleString('vi-VN') : '—';
+      return `<div class="log-row ${r.ok ? '' : 'sai'}">
+        <span class="log-when">${esc(t)}</span>
+        <span class="log-ua">${esc(moTaThietBi(r.ua || ''))}</span>
+        <span class="log-kq ${r.ok ? 'ok' : 'sai'}">${r.ok ? 'Đã xem' : 'Sai mật khẩu'}</span>
+      </div>`;
+    }).join('');
+  } catch(e){
+    box.innerHTML = '<div class="list-empty">Không đọc được lịch sử.</div>';
+  }
+}
+
+// Đoán tên thiết bị từ User-Agent cho dễ đọc
+function moTaThietBi(ua){
+  if (!ua) return 'Không rõ thiết bị';
+  const hdh = /iPhone|iPad/i.test(ua) ? 'iPhone/iPad'
+    : /Android/i.test(ua) ? 'Android'
+    : /Windows/i.test(ua) ? 'Windows'
+    : /Macintosh|Mac OS/i.test(ua) ? 'Mac'
+    : /Linux/i.test(ua) ? 'Linux' : 'Không rõ';
+  const td = /Edg\//i.test(ua) ? 'Edge'
+    : /OPR\/|Opera/i.test(ua) ? 'Opera'
+    : /Chrome\//i.test(ua) ? 'Chrome'
+    : /Firefox\//i.test(ua) ? 'Firefox'
+    : /Safari\//i.test(ua) ? 'Safari' : 'trình duyệt lạ';
+  return hdh + ' · ' + td;
+}
+
+async function taoLinkChiaSe(daCo){
+  if (daCo && !confirm('Tạo link mới sẽ làm link cũ NGỪNG hoạt động ngay.\n\nNgười đang giữ link cũ sẽ không xem được nữa. Tiếp tục?')) return;
+
+  let pass;
+  if (daCo){
+    pass = prompt('Đặt mật khẩu cho link mới (ít nhất 4 ký tự):');
+    if (pass === null) return;
+  } else {
+    pass = (document.getElementById('shareNewPass') || {}).value || '';
+  }
+  pass = String(pass).trim();
+  if (pass.length < 4){ alert('Mật khẩu cần ít nhất 4 ký tự.'); return; }
+
+  const body = document.getElementById('shareBody');
+  body.innerHTML = '<div class="list-empty">Đang tạo...</div>';
+  try {
+    const salt = chuoiNgauNhien(16);
+    await window.__firebase.set(window.__firebase.refAt('appConfig/share'), {
+      token: chuoiNgauNhien(24),
+      salt,
+      passHash: await bamMatKhau(salt, pass),
+      enabled: true,
+      createdAt: new Date().toISOString(),
+      failCount: 0,
+      lockedUntil: 0,
+    });
+  } catch(e){
+    console.error(e);
+    body.innerHTML = `<div class="mcp-empty">Không tạo được link: ${esc(e.message || e)}</div>`;
+    return;
+  }
+  renderShareModal();
+}
+
+async function doiMatKhauChiaSe(){
+  const pass = prompt('Mật khẩu mới cho người xem (ít nhất 4 ký tự):');
+  if (pass === null) return;
+  if (String(pass).trim().length < 4){ alert('Mật khẩu cần ít nhất 4 ký tự.'); return; }
+  try {
+    const salt = chuoiNgauNhien(16);
+    // Đổi mật khẩu thì gỡ luôn khoá tạm và bộ đếm sai
+    await window.__firebase.update(window.__firebase.refAt('appConfig/share'), {
+      salt,
+      passHash: await bamMatKhau(salt, String(pass).trim()),
+      failCount: 0,
+      lockedUntil: 0,
+    });
+    alert('Đã đổi mật khẩu. Link giữ nguyên, nhớ báo mật khẩu mới cho người xem.');
+  } catch(e){
+    alert('Không đổi được mật khẩu: ' + (e.message || e));
+  }
+  renderShareModal();
+}
+
+async function batTatChiaSe(bat){
+  if (!bat && !confirm('Tắt chia sẻ? Người đang giữ link sẽ không xem được nữa.')) return;
+  try {
+    await window.__firebase.update(window.__firebase.refAt('appConfig/share'), { enabled: !!bat });
+  } catch(e){
+    alert('Không đổi được trạng thái: ' + (e.message || e));
+  }
+  renderShareModal();
+}
+
+async function copyShareUrl(){
+  const url = document.getElementById('shareUrlBox').textContent.trim();
+  const btn = document.getElementById('shareCopyBtn');
+  try {
+    await navigator.clipboard.writeText(url);
+    btn.textContent = 'Đã copy ✓';
+    setTimeout(() => { btn.textContent = 'Copy link'; }, 1600);
+  } catch(e){
+    const box = document.getElementById('shareUrlBox');
+    const r = document.createRange(); r.selectNodeContents(box);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    btn.textContent = 'Bấm Ctrl+C';
+  }
 }
 
 /* ======================= MODAL: Link kết nối Claude (MCP) ======================= */

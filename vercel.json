@@ -4,6 +4,14 @@
     {
       "source": "/api/mcp/:secret",
       "destination": "/api/mcp?key=:secret"
+    },
+    {
+      "source": "/api/share",
+      "destination": "/api/mcp?mode=share"
+    },
+    {
+      "source": "/xem",
+      "destination": "/xem.html"
     }
   ]
 }

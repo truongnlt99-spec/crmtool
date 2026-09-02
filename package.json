@@ -9,7 +9,8 @@
   },
   "scripts": {
     "test": "node test/write-tools.test.ts",
-    "audit": "node test/audit.ts"
+    "audit": "node test/audit.ts",
+    "test:share": "node test/share.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2",

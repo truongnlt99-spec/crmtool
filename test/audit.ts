@@ -44,6 +44,12 @@ const doc = async (path: string) => {
   return r.json() as Promise<any>;
 };
 
+/* ---- Cac nhanh o goc: phat hien nhanh rac do loi ghep duong dan hoac test bo quen ---- */
+const goc = await doc('?shallow=true');
+const nhanhGoc = Object.keys(goc || {});
+const HOP_LE = ['crmData', 'appConfig', 'authLog', 'shareLog'];
+const nhanhRac = nhanhGoc.filter((k) => !HOP_LE.includes(k));
+
 const raw = await doc('crmData/leads');
 const leads: any[] = Object.values(raw || {});
 const mang = (v: any) => (Array.isArray(v) ? v : Object.values(v || {}));
@@ -81,6 +87,8 @@ const xongThieuNgay = todos.filter((t) => t.done && !t.completedAt);
 console.log('='.repeat(58));
 console.log('DU LIEU THAT');
 console.log('='.repeat(58));
+console.log('  Cac nhanh o goc    :', nhanhGoc.join(', ') || '(trong)');
+console.log('  Nhanh rac          :', nhanhRac.length ? nhanhRac.join(', ') + '  <-- CAN XOA' : 'khong co');
 console.log('  So lead            :', leads.length);
 console.log('  planRevenue        :', (await doc('crmData/planRevenue'))?.toLocaleString('vi-VN'), 'd');
 console.log('  updatedAt          :', await doc('crmData/updatedAt'));

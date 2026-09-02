@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>CRM của Huyền Trân — Chế độ xem</title>
+<!--
+  TRANG CHỈ XEM.
+  Cố ý KHÔNG nhúng Firebase SDK và không có bất kỳ lệnh ghi nào. Toàn bộ dữ liệu
+  lấy qua POST /api/share; server mới là bên có quyền đọc database. Trình duyệt
+  của người xem không hề có thông tin đăng nhập nào để mà sửa dữ liệu.
+-->
+<style>
+  :root{
+    --green-50:#EAF7F0; --green-100:#CFEEDD; --green-500:#1FAE6F; --green-600:#178F5B; --green-700:#0F6E45;
+    --ink:#1C2622; --ink-soft:#5B6B64; --ink-faint:#8B9992;
+    --bg:#F5F7F4; --card:#FFFFFF; --border:#E4E8E2; --border-soft:#EDF0EB;
+    --blush:#E8899B; --blush-soft:#FBEAEE; --red:#DD525C; --red-soft:#FCEBEC;
+    --gray-tag:#94A099; --gray-tag-soft:#EEF1ED; --amber:#C98A2E; --amber-soft:#FBF1DF;
+    --purple:#8467C9; --purple-soft:#F1ECFB; --slate:#6E88A0; --slate-soft:#EAF0F5;
+    --radius-sm:6px; --radius-md:10px; --radius-lg:18px;
+    --shadow-card:0 1px 2px rgba(28,38,34,.07), 0 1px 1px rgba(28,38,34,.04);
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-size:14px; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,p{margin:0;}
+  .wrap{max-width:1400px; margin:0 auto; padding:20px 18px 60px;}
+
+  /* ---------- Màn nhập mật khẩu ---------- */
+  .gate{
+    position:fixed; inset:0; background:var(--bg); z-index:50;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .gate.hidden{display:none;}
+  .gate-card{
+    background:var(--card); border-radius:var(--radius-lg); padding:32px 28px;
+    box-shadow:0 20px 48px rgba(20,28,25,.12); max-width:360px; width:100%; text-align:center;
+  }
+  .gate-icon{font-size:34px; margin-bottom:10px;}
+  .gate-title{font-weight:800; font-size:17px; margin-bottom:5px;}
+  .gate-sub{font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-bottom:20px; line-height:1.55;}
+  .gate-input{
+    width:100%; border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:11px 14px; font-size:16px; outline:none; text-align:center;
+    letter-spacing:.25em; font-weight:700; font-family:inherit; margin-bottom:12px;
+  }
+  .gate-input:focus{border-color:var(--green-500);}
+  .gate-btn{
+    width:100%; border:0; border-radius:var(--radius-sm); padding:11px 14px;
+    background:var(--green-500); color:#fff; font-weight:800; font-size:14px;
+    font-family:inherit; cursor:pointer;
+  }
+  .gate-btn:hover{background:var(--green-600);}
+  .gate-btn:disabled{opacity:.6; cursor:not-allowed;}
+  .gate-err{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px; line-height:1.5;}
+
+  /* ---------- Đầu trang ---------- */
+  .top{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    flex-wrap:wrap; margin-bottom:18px;
+  }
+  .top h1{font-size:19px; font-weight:800;}
+  .top .sub{font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-top:2px;}
+  .badge-readonly{
+    display:inline-flex; align-items:center; gap:6px; flex:none;
+    background:var(--slate-soft); color:var(--slate); border-radius:999px;
+    padding:6px 13px; font-size:11.5px; font-weight:800;
+  }
+
+  /* ---------- Thẻ số liệu ---------- */
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:24px;}
+  .box{background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 16px; box-shadow:var(--shadow-card);}
+  .box-label{font-size:11px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em;}
+  .box-value{font-size:21px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums;}
+  .box-sub{font-size:11.5px; color:var(--ink-faint); font-weight:600; margin-top:3px;}
+  .box-value.red{color:var(--red);} .box-value.green{color:var(--green-600);}
+  .bar{height:5px; background:var(--border-soft); border-radius:999px; margin-top:9px; overflow:hidden;}
+  .bar span{display:block; height:100%; background:var(--green-500); border-radius:999px;}
+
+  h2.sec{font-size:14px; font-weight:800; margin:26px 0 12px; display:flex; align-items:center; gap:8px;}
+  h2.sec::after{content:''; flex:1; height:1px; background:var(--border);}
+
+  /* ---------- Bảng pipeline ---------- */
+  .board{display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;}
+  .col{flex:0 0 240px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md); padding:11px; min-width:0;}
+  .col-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:9px; padding-bottom:8px; border-bottom:1px solid var(--border-soft);}
+  .col-name{font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.03em;}
+  .col-count{font-size:11px; font-weight:800; color:var(--ink-faint); background:var(--bg); border-radius:999px; padding:1px 8px; flex:none;}
+  .col-sum{font-size:11px; color:var(--ink-faint); font-weight:700; margin-top:2px;}
+  .card{background:var(--bg); border:1px solid var(--border-soft); border-left:3px solid var(--gray-tag); border-radius:var(--radius-sm); padding:9px 10px; margin-bottom:7px;}
+  .card.red{border-left-color:var(--red);} .card.green{border-left-color:var(--green-500);}
+  .card.won{border-left-color:var(--green-600);} .card.lost{border-left-color:var(--gray-tag);}
+  .card-name{font-size:12.5px; font-weight:700; overflow-wrap:anywhere;}
+  .card-meta{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:3px; display:flex; gap:7px; flex-wrap:wrap;}
+  .chip{border-radius:4px; padding:1px 6px; font-size:10px; font-weight:800;}
+  .chip.red{color:var(--red); background:var(--red-soft);}
+  .chip.green{color:var(--green-600); background:var(--green-50);}
+  .chip.gray{color:var(--gray-tag); background:var(--gray-tag-soft);}
+  .chip.pkg{color:var(--slate); background:var(--slate-soft);}
+  .empty{font-size:11.5px; color:var(--ink-faint); text-align:center; padding:14px 0; font-weight:600;}
+
+  /* ---------- Lý do mất deal ---------- */
+  .reasons{background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md); padding:14px 16px; box-shadow:var(--shadow-card);}
+  .reason-row{display:flex; align-items:center; gap:10px; margin-bottom:8px; font-size:12px; font-weight:600;}
+  .reason-row:last-child{margin-bottom:0;}
+  .reason-name{flex:1; min-width:0; overflow-wrap:anywhere;}
+  .reason-bar{flex:0 0 90px; height:6px; background:var(--border-soft); border-radius:999px; overflow:hidden;}
+  .reason-bar span{display:block; height:100%; background:var(--blush); border-radius:999px;}
+  .reason-num{flex:none; width:20px; text-align:right; font-weight:800; font-variant-numeric:tabular-nums;}
+
+  footer{margin-top:34px; padding-top:16px; border-top:1px solid var(--border); font-size:11.5px; color:var(--ink-faint); font-weight:600; line-height:1.7;}
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <div class="gate-icon">🔒</div>
+    <div class="gate-title">CRM của Huyền Trân</div>
+    <div class="gate-sub">Nhập mật khẩu được cung cấp kèm đường link để xem báo cáo</div>
+    <input class="gate-input" id="pass" type="password" inputmode="numeric" placeholder="Mật khẩu" autocomplete="off">
+    <button class="gate-btn" id="btn">Xem báo cáo</button>
+    <div class="gate-err" id="err"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none;"></div>
+
+<script>
+(function(){
+  var token = new URLSearchParams(location.search).get('t') || '';
+  var gate = document.getElementById('gate');
+  var app  = document.getElementById('app');
+  var pass = document.getElementById('pass');
+  var btn  = document.getElementById('btn');
+  var err  = document.getElementById('err');
+
+  if (!token){
+    err.textContent = 'Đường link thiếu mã truy cập. Hãy mở đúng link được gửi.';
+    pass.disabled = true; btn.disabled = true;
+  }
+
+  var tien = function(n){
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString('vi-VN') + ' đ';
+  };
+  var esc = function(s){
+    return String(s === null || s === undefined ? '' : s)
+      .replace(/[&<>"']/g, function(c){
+        return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+      });
+  };
+  var ngay = function(s){
+    if (!s) return '—';
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+    return m ? (m[3] + '/' + m[2] + '/' + m[1]) : '—';
+  };
+
+  btn.addEventListener('click', moKhoa);
+  pass.addEventListener('keydown', function(e){ if (e.key === 'Enter') moKhoa(); });
+
+  async function moKhoa(){
+    var pc = pass.value.trim();
+    if (!pc){ err.textContent = 'Nhập mật khẩu giúp nhé.'; pass.focus(); return; }
+    btn.disabled = true; pass.disabled = true; btn.textContent = 'Đang tải...'; err.textContent = '';
+    try {
+      var res = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: token, passcode: pc })
+      });
+      var data = await res.json();
+      if (!res.ok){
+        err.textContent = data && data.loi ? data.loi : 'Không mở được. Thử lại sau.';
+        return;
+      }
+      gate.classList.add('hidden');
+      app.style.display = '';
+      ve(data);
+    } catch (e){
+      err.textContent = 'Lỗi kết nối. Kiểm tra mạng rồi thử lại.';
+    } finally {
+      btn.disabled = false; pass.disabled = false; btn.textContent = 'Xem báo cáo';
+    }
+  }
+
+  function ve(d){
+    var db = d.dashboard;
+    var html = '';
+
+    html += '<div class="top">'
+      + '<div><h1>CRM của Huyền Trân</h1>'
+      + '<div class="sub">HayDay Wedding · ' + esc(d.kyBaoCao) + ' · số liệu tới ' + ngay(d.homNay) + '</div></div>'
+      + '<div class="badge-readonly">👁 Chế độ chỉ xem</div>'
+      + '</div>';
+
+    /* --- Thẻ số liệu --- */
+    html += '<div class="grid">'
+      + thẻ('Giá trị pipeline', tien(db.pipeline.giaTri), db.pipeline.soLead + ' lead đang chăm sóc')
+      + thẻ('Doanh thu đã chốt', tien(db.doanhThuThucTe.soTien),
+            db.doanhThuThucTe.soDeal + ' deal · ' + db.doanhThuThucTe.phanTram + '% kế hoạch',
+            db.doanhThuThucTe.phanTram)
+      + thẻ('Lead mới trong tháng', db.leadMoi.soLuong,
+            'kế hoạch ' + db.leadMoi.keHoach + ' · ' + db.leadMoi.phanTram + '%',
+            db.leadMoi.phanTram)
+      + thẻ('Dự kiến chốt tháng này', tien(db.duKienChot.soTien), db.duKienChot.soLead + ' lead')
+      + thẻ('Deal cycle trung bình', db.dealCycle === null ? '—' : db.dealCycle + ' ngày', 'từ lúc tạo tới khi chốt')
+      + thẻ('Cần xử lý', db.treHen + db.denHanHomNay,
+            db.treHen + ' trễ hẹn · ' + db.denHanHomNay + ' đến hạn hôm nay',
+            null, db.treHen > 0 ? 'red' : 'green')
+      + '</div>';
+
+    /* --- Pipeline --- */
+    html += '<h2 class="sec">Pipeline</h2><div class="board">';
+    d.giaiDoan.forEach(function(g){
+      var ds = d.leads.filter(function(l){ return l.stage === g.id; });
+      var tong = ds.reduce(function(s,l){
+        return s + (g.id === 'won' ? (l.revenueActual || 0) : (l.revenueExpected || 0));
+      }, 0);
+      html += '<div class="col"><div class="col-head"><div>'
+        + '<div class="col-name">' + esc(g.name) + '</div>'
+        + '<div class="col-sum">' + tien(tong) + '</div></div>'
+        + '<div class="col-count">' + ds.length + '</div></div>';
+      if (!ds.length) html += '<div class="empty">Chưa có lead nào</div>';
+      ds.forEach(function(l){
+        var cls = l.stage === 'won' ? 'won' : l.stage === 'lost' ? 'lost' : l.statusType;
+        html += '<div class="card ' + cls + '">'
+          + '<div class="card-name">' + (l.isPotential ? '🔥 ' : '') + esc(l.name) + '</div>'
+          + '<div class="card-meta">'
+          + '<span class="chip pkg">' + esc(l.package || '—') + '</span>'
+          + '<span>' + tien(l.stage === 'won' ? l.revenueActual : l.revenueExpected) + '</span>'
+          + (l.stage === 'won' || l.stage === 'lost' ? ''
+              : '<span class="chip ' + l.statusType + '">' + esc(l.status) + '</span>')
+          + (l.weddingDate ? '<span>💍 ' + ngay(l.weddingDate) + '</span>' : '')
+          + (l.soViec ? '<span>✓ ' + l.soViecXong + '/' + l.soViec + '</span>' : '')
+          + '</div></div>';
+      });
+      html += '</div>';
+    });
+    html += '</div>';
+
+    /* --- Lý do mất deal --- */
+    var lyDo = Object.keys(db.lyDoMatDeal);
+    var tongMat = lyDo.reduce(function(s,k){ return s + db.lyDoMatDeal[k]; }, 0);
+    if (tongMat > 0){
+      var max = Math.max.apply(null, lyDo.map(function(k){ return db.lyDoMatDeal[k]; }));
+      html += '<h2 class="sec">Lý do mất deal trong tháng</h2><div class="reasons">';
+      lyDo.forEach(function(k){
+        var v = db.lyDoMatDeal[k];
+        html += '<div class="reason-row">'
+          + '<div class="reason-name">' + esc(k) + '</div>'
+          + '<div class="reason-bar"><span style="width:' + (max ? (v/max*100) : 0) + '%"></span></div>'
+          + '<div class="reason-num">' + v + '</div></div>';
+      });
+      html += '</div>';
+    }
+
+    html += '<footer>Trang này chỉ hiển thị số liệu, không thể chỉnh sửa dữ liệu.<br>'
+      + 'Đã bỏ số điện thoại, Facebook và ghi chú của khách để bảo vệ thông tin liên hệ.<br>'
+      + 'Cập nhật lúc mở trang: ' + esc(new Date(d.thoiDiem).toLocaleString('vi-VN')) + '</footer>';
+
+    app.innerHTML = html;
+  }
+
+  function thẻ(nhan, giaTri, phu, phanTram, mau){
+    return '<div class="box">'
+      + '<div class="box-label">' + esc(nhan) + '</div>'
+      + '<div class="box-value' + (mau ? ' ' + mau : '') + '">' + esc(giaTri) + '</div>'
+      + '<div class="box-sub">' + esc(phu) + '</div>'
+      + (phanTram === null || phanTram === undefined ? ''
+          : '<div class="bar"><span style="width:' + Math.min(100, phanTram) + '%"></span></div>')
+      + '</div>';
+  }
+})();
+</script>
+</body>
+</html>

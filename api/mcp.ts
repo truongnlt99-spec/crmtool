@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { createSign } from 'node:crypto';
+import { createSign, createHash, timingSafeEqual } from 'node:crypto';
 
 /*
  * LƯU Ý: toàn bộ code hỗ trợ được gộp thẳng vào file này, cố ý không tách
@@ -1286,11 +1286,191 @@ const mcpHandler = createMcpHandler(
   { basePath: '/api' }
 );
 
+/* ===================== Link chia sẻ CHỈ XEM ===================== */
+
+/**
+ * Sếp xem CRM qua link chia sẻ. Trình duyệt của người xem KHÔNG hề chạm tới Firebase —
+ * nó chỉ gọi endpoint này, và endpoint chỉ đọc rồi trả về dữ liệu đã tính sẵn.
+ * Không có bất kỳ đường ghi nào ở đây, nên người xem không thể sửa gì kể cả khi
+ * cố tình gọi thẳng API.
+ *
+ * Mật khẩu chỉ lưu dưới dạng băm (SHA-256 kèm muối), không bao giờ lưu hay trả về bản gốc.
+ */
+interface ShareConfig {
+  token?: string;
+  salt?: string;
+  passHash?: string;
+  enabled?: boolean;
+  createdAt?: string;
+  failCount?: number;
+  lockedUntil?: number;
+}
+
+function bamMatKhau(salt: string, pass: string): string {
+  return createHash('sha256').update(`${salt}:${pass}`).digest('hex');
+}
+
+/** So sánh theo thời gian hằng định, tránh dò mật khẩu qua chênh lệch thời gian phản hồi. */
+function soSanhAnToan(a: string, b: string): boolean {
+  const x = Buffer.from(a || '', 'utf8');
+  const y = Buffer.from(b || '', 'utf8');
+  if (x.length !== y.length) return false;
+  return timingSafeEqual(x, y);
+}
+
+function traLoiJson(data: unknown, status = 200): Response {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
+  });
+}
+
+async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
+  // CHỈ nhận POST. GET không làm gì để mật khẩu không bao giờ nằm trên thanh địa chỉ.
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ hỗ trợ POST' }, 405);
+
+  let body: { token?: string; passcode?: string };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return traLoiJson({ loi: 'Dữ liệu gửi lên không hợp lệ' }, 400);
+  }
+
+  const token = (body.token || url.searchParams.get('t') || '').trim();
+  const passcode = (body.passcode || '').trim();
+  if (!token) return traLoiJson({ loi: 'Thiếu mã link' }, 400);
+
+  const cfg = (await readPath<ShareConfig | null>('appConfig/share')) || {};
+
+  if (!cfg.token || !cfg.enabled) {
+    return traLoiJson({ loi: 'Link chia sẻ đã bị tắt hoặc chưa được tạo.' }, 403);
+  }
+  if (!soSanhAnToan(cfg.token, token)) {
+    return traLoiJson({ loi: 'Link không đúng hoặc đã hết hiệu lực.' }, 403);
+  }
+
+  // Khoá tạm sau nhiều lần sai, chống dò mật khẩu
+  if (cfg.lockedUntil && Date.now() < cfg.lockedUntil) {
+    const conLai = Math.ceil((cfg.lockedUntil - Date.now()) / 60000);
+    return traLoiJson({ loi: `Nhập sai quá nhiều lần. Thử lại sau ${conLai} phút.` }, 429);
+  }
+
+  const ua = (request.headers.get('user-agent') || '').slice(0, 300);
+  const dung = !!cfg.salt && !!cfg.passHash && soSanhAnToan(cfg.passHash, bamMatKhau(cfg.salt, passcode));
+
+  // Ghi nhật ký cả lần đúng lẫn lần sai — lần sai mới là thứ cho biết có ai đang dò
+  const logId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  await patchPath('shareLog', {
+    [logId]: { at: new Date().toISOString(), ok: dung, ua },
+  }).catch(() => {});
+
+  if (!dung) {
+    const soLanSai = (cfg.failCount || 0) + 1;
+    const capNhat: ShareConfig = { failCount: soLanSai };
+    if (soLanSai >= 10) {
+      capNhat.lockedUntil = Date.now() + 15 * 60 * 1000;
+      capNhat.failCount = 0;
+    }
+    await patchPath('appConfig/share', capNhat).catch(() => {});
+    return traLoiJson({ loi: 'Mật khẩu không đúng.' }, 401);
+  }
+
+  // Đúng mật khẩu -> xoá bộ đếm sai
+  if (cfg.failCount) await patchPath('appConfig/share', { failCount: 0 }).catch(() => {});
+
+  /* ---- Dựng dữ liệu chỉ xem ---- */
+  const crm = await loadCrm();
+  const cur = currentMonthYear();
+  const monthKey = monthKeyOf(cur.month, cur.year);
+
+  const dangCham = crm.leads.filter((l) => l.stage !== 'won' && l.stage !== 'lost');
+  const leadTrongThang = crm.leads.filter((l) => inMonth(l.createdAt, cur.month, cur.year));
+  const wonThang = crm.leads.filter((l) => l.stage === 'won' && inMonth(l.wonAt, cur.month, cur.year));
+  const lostThang = crm.leads.filter((l) => l.stage === 'lost' && inMonth(l.lostAt, cur.month, cur.year));
+
+  const doanhThuThuc = wonThang.reduce((s, l) => s + (l.revenueActual || 0), 0);
+  const giaTriPipeline = dangCham.reduce((s, l) => s + (l.revenueExpected || 0), 0);
+  const duKienChot = dangCham.filter((l) => l.expectedCloseMonth === monthKey);
+  const cycle = wonThang
+    .map((l) => daysBetween(l.createdAt, l.wonAt))
+    .filter((n): n is number => n !== null && n >= 0);
+
+  const lyDoMat: Record<string, number> = {};
+  LOST_REASONS.forEach((r) => (lyDoMat[r] = 0));
+  lostThang.forEach((l) => {
+    if (l.lostReason) lyDoMat[l.lostReason] = (lyDoMat[l.lostReason] || 0) + 1;
+  });
+
+  // Chỉ gửi đúng những gì màn Pipeline và Dashboard cần hiển thị.
+  // CỐ Ý bỏ số điện thoại, Facebook, ghi chú, lịch sử hoạt động — link lỡ lọt ra ngoài
+  // thì cũng không lộ thông tin liên hệ của khách.
+  const leadRutGon = (l: Lead) => {
+    const st = leadStatus(l);
+    return {
+      id: l.id,
+      name: l.name,
+      stage: l.stage,
+      stageName: STAGE_NAME[l.stage] || l.stage,
+      leadType: leadTypeOf(l),
+      package: l.package || null,
+      revenueExpected: l.revenueExpected || 0,
+      revenueActual: l.revenueActual || 0,
+      deadline: l.deadline || null,
+      weddingDate: l.weddingDate || null,
+      expectedCloseMonth: l.expectedCloseMonth || null,
+      status: st.label,
+      statusType: st.type,
+      isPotential: (l.tags || []).includes('Tiềm năng'),
+      soViec: (l.todos || []).length,
+      soViecXong: (l.todos || []).filter((t) => t.done).length,
+    };
+  };
+
+  return traLoiJson({
+    ok: true,
+    thoiDiem: new Date().toISOString(),
+    homNay: todayISO(),
+    kyBaoCao: `Tháng ${cur.month + 1}/${cur.year}`,
+    giaiDoan: STAGES.map((s) => ({ id: s.id, name: s.name })),
+    leads: crm.leads.map(leadRutGon),
+    dashboard: {
+      pipeline: { soLead: dangCham.length, giaTri: giaTriPipeline },
+      doanhThuThucTe: {
+        soTien: doanhThuThuc,
+        soDeal: wonThang.length,
+        keHoach: crm.planRevenue,
+        phanTram: crm.planRevenue ? Math.round((doanhThuThuc / crm.planRevenue) * 100) : 0,
+      },
+      leadMoi: {
+        soLuong: leadTrongThang.length,
+        keHoach: crm.planLeads,
+        phanTram: crm.planLeads ? Math.round((leadTrongThang.length / crm.planLeads) * 100) : 0,
+      },
+      duKienChot: { soTien: duKienChot.reduce((s, l) => s + (l.revenueExpected || 0), 0), soLead: duKienChot.length },
+      dealCycle: cycle.length ? Math.round(cycle.reduce((a, b) => a + b, 0) / cycle.length) : null,
+      treHen: dangCham.filter((l) => leadStatus(l).type === 'red').length,
+      denHanHomNay: dangCham.filter((l) => leadStatus(l).type === 'green').length,
+      lyDoMatDeal: lyDoMat,
+    },
+  });
+}
+
 /* ===================== Vercel Function (framework: other) ===================== */
 
 export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
+
+    // Nhánh link chia sẻ chỉ xem — có cơ chế xác thực riêng (mã link + mật khẩu),
+    // không dùng khoá MCP. Phải xử lý TRƯỚC phần kiểm tra khoá bên dưới.
+    if (url.searchParams.get('mode') === 'share') {
+      try {
+        return await xuLyChiaSe(request, url);
+      } catch (e) {
+        console.error('Share error:', e);
+        return traLoiJson({ loi: 'Không tải được dữ liệu. Thử lại sau.' }, 500);
+      }
+    }
 
     // Secret có thể nằm ở query (?key=...) hoặc ở path (/api/mcp/<secret>, nhờ rewrite trong vercel.json)
     let provided = url.searchParams.get('key');
