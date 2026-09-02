@@ -38,12 +38,20 @@
   const auth = getAuth(fbApp);
 
   // Giữ phiên đăng nhập trong trình duyệt -> chỉ phải đăng nhập lại khi bấm Đăng xuất
-  // hoặc khi xoá dữ liệu duyệt web.
-  try { await setPersistence(auth, browserLocalPersistence); } catch (e) { console.warn('setPersistence:', e); }
+  // hoặc khi xoá dữ liệu duyệt web. Firebase tự gia hạn token nên phiên không tự hết hạn.
+  // Chế độ ẩn danh hoặc trình duyệt chặn lưu trữ sẽ làm bước này thất bại — khi đó phải
+  // đăng nhập lại mỗi lần mở app, nên ghi nhận lại để báo cho người dùng biết lý do.
+  let persistenceOk = true;
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (e) {
+    persistenceOk = false;
+    console.warn('Không lưu được phiên đăng nhập:', e);
+  }
 
   // Expose a small bridge so the main (classic, non-module) app script can use Firebase
   window.__firebase = {
-    db, dataRef, get, set, onValue, auth,
+    db, dataRef, get, set, onValue, auth, persistenceOk,
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
     signOut: () => signOut(auth),
   };
@@ -138,6 +146,7 @@
   }
   .sidebar-logout:hover{color:var(--red); border-color:var(--red); background:var(--red-soft);}
   .sidebar-logout svg{width:15px; height:15px; flex:none;}
+  .sidebar-logout-text{white-space:nowrap;}
   body.sidebar-collapsed .nav-item{justify-content:center;}
   body.sidebar-collapsed .brand{justify-content:center;}
   .brand{display:flex; align-items:center; gap:10px; padding:4px 6px 20px 6px;}
@@ -729,6 +738,22 @@
   }
   .lock-input:focus{border-color:var(--green-500);}
   .lock-input:disabled{opacity:.6; cursor:not-allowed;}
+
+  /* Chua biet da dang nhap hay chua -> chi hien dong "dang kiem tra", giau form.
+     Biet roi -> nguoc lai. Tranh loe man dang nhap voi nguoi dang co phien hop le. */
+  .lock-checking{
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    font-size:12.5px; font-weight:600; color:var(--ink-faint); padding:14px 0 4px;
+  }
+  .lock-spinner{
+    width:13px; height:13px; border-radius:50%; flex:none;
+    border:2px solid var(--green-100); border-top-color:var(--green-500);
+    animation:lock-spin .7s linear infinite;
+  }
+  @keyframes lock-spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion:reduce){ .lock-spinner{animation:none;} }
+  .lock-screen.checking .lock-form{display:none;}
+  .lock-screen:not(.checking) .lock-checking{display:none;}
   .lock-btn{width:100%; justify-content:center;}
   .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
 </style>
@@ -760,7 +785,7 @@
 </svg>
 
 <!-- ============ LOCK SCREEN ============ -->
-<div class="lock-screen" id="lockScreen">
+<div class="lock-screen checking" id="lockScreen">
   <div class="lock-bg-deco" aria-hidden="true">
     <!-- Kho hình dùng chung (lá, cánh hoa) - không hiển thị trực tiếp -->
 
@@ -847,9 +872,20 @@
       <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       <span class="lock-brand-title">CRM của Huyền Trân</span>
     </div>
-    <input class="lock-input" id="lockEmailInput" type="email" autocomplete="username" placeholder="Email" onkeydown="if(event.key==='Enter') document.getElementById('lockPasswordInput').focus()">
-    <input class="lock-input" id="lockPasswordInput" type="password" autocomplete="current-password" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter') doLogin()">
-    <button class="btn btn-primary lock-btn" id="lockBtn" onclick="doLogin()">Mở khóa</button>
+    <!-- Trong lúc chờ Firebase trả lời "đã đăng nhập hay chưa" thì KHÔNG hiện form.
+         Nếu hiện, người đang có phiên hợp lệ vẫn thấy loé lên màn đăng nhập mỗi lần
+         mở app, tưởng như bị đăng xuất. -->
+    <div class="lock-checking" id="lockChecking">
+      <span class="lock-spinner" aria-hidden="true"></span>
+      Đang kiểm tra đăng nhập...
+    </div>
+
+    <div class="lock-form" id="lockForm">
+      <input class="lock-input" id="lockEmailInput" type="email" autocomplete="username" placeholder="Email" onkeydown="if(event.key==='Enter') document.getElementById('lockPasswordInput').focus()">
+      <input class="lock-input" id="lockPasswordInput" type="password" autocomplete="current-password" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter') doLogin()">
+      <button class="btn btn-primary lock-btn" id="lockBtn" onclick="doLogin()">Mở khóa</button>
+    </div>
+
     <div class="lock-error" id="lockError"></div>
   </div>
 </div>
@@ -1503,11 +1539,21 @@ async function doLogout(){
   location.reload();
 }
 
+// Hiện màn đăng nhập kèm form. Bỏ 'checking' vì đến đây đã biết chắc là chưa đăng nhập.
 function showLockScreen(){
   const s = document.getElementById('lockScreen');
-  if (s) s.classList.remove('unlocked');
+  if (s){ s.classList.remove('unlocked'); s.classList.remove('checking'); }
   const el = document.getElementById('lockEmailInput');
-  if (el) el.focus();
+  // Không tự focus trên điện thoại — sẽ bật bàn phím ảo che mất màn hình chào
+  if (el && window.innerWidth > 720) el.focus();
+
+  // Trình duyệt chặn lưu phiên -> nói rõ, kẻo tưởng app lỗi vì cứ bắt đăng nhập mãi
+  if (window.__firebase && window.__firebase.persistenceOk === false){
+    const errEl = document.getElementById('lockError');
+    if (errEl && !errEl.textContent){
+      errEl.textContent = 'Trình duyệt đang chặn lưu phiên (chế độ ẩn danh?) — sẽ phải đăng nhập lại mỗi lần mở.';
+    }
+  }
 }
 
 function hideLockScreen(){
@@ -3063,21 +3109,33 @@ function startWithCloud(){
 // Quan trọng: KHÔNG chạy initCloudSync() khi chưa có user — nếu chạy, mọi lệnh đọc
 // đều bị Security Rules từ chối, app rơi vào trạng thái "danh sách lead rỗng", và
 // chỉ cần một thao tác là ghi đè cái rỗng đó lên dữ liệu thật.
+let authResolved = false;
+
 window.addEventListener('auth-changed', (e) => {
   const user = e.detail && e.detail.user;
+  authResolved = true;
   if (user){
     hideLockScreen();
     startWithCloud();
   } else {
+    // Có thể là chưa từng đăng nhập, cũng có thể là phiên vừa hết hiệu lực giữa chừng
+    // (tài khoản bị khoá/xoá). Hạ cờ cloudLoaded để chốt an toàn trong saveToCloud
+    // chặn mọi lệnh ghi còn sót lại của phiên cũ.
+    cloudLoaded = false;
     showLockScreen();
   }
 });
 
-// Firebase không phản hồi sau 8s -> báo rõ, đừng để đứng hình ở màn "Đang tải..."
+// Firebase không phản hồi sau 8s -> thoát khỏi trạng thái "đang kiểm tra", hiện form
+// kèm lời nhắc, thay vì để người dùng nhìn vòng xoay mãi mãi.
 setTimeout(() => {
-  if (!window.__firebase){
-    const errEl = document.getElementById('lockError');
-    if (errEl) errEl.textContent = 'Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.';
+  if (authResolved) return;
+  showLockScreen();
+  const errEl = document.getElementById('lockError');
+  if (errEl){
+    errEl.textContent = window.__firebase
+      ? 'Máy chủ phản hồi chậm. Thử đăng nhập lại, hoặc tải lại trang.'
+      : 'Không kết nối được máy chủ. Kiểm tra mạng rồi tải lại trang.';
   }
 }, 8000);
 </script>
