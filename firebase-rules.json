@@ -41,6 +41,15 @@
       "planLeads": { ".validate": "newData.isNumber() && newData.val() >= 0" }
     },
 
+    "appConfig": {
+      "_ghi_chu": "Chua khoa ket noi MCP do app tu sinh. Chi chu tai khoan doc/ghi duoc; khong ai khac cham vao duoc, ke ca tai khoan Firebase hop le khac.",
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      "mcpSecret": {
+        ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 128"
+      }
+    },
+
     "authLog": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
 

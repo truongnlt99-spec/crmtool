@@ -124,6 +124,25 @@ function patchPath(path: string, data: unknown): Promise<unknown> {
   return fbRequest(path, { method: 'PATCH', body: JSON.stringify(data) });
 }
 
+/**
+ * Khoá MCP do app tự sinh, lưu tại appConfig/mcpSecret.
+ * Cache ngắn để mỗi request không phải gọi Firebase thêm một vòng; đổi lại khoá cũ
+ * còn hiệu lực tối đa 60 giây sau khi bấm tạo khoá mới.
+ */
+let cachedSecret: { value: string | null; at: number } | null = null;
+
+async function getStoredSecret(): Promise<string | null> {
+  if (cachedSecret && Date.now() - cachedSecret.at < 60_000) return cachedSecret.value;
+  try {
+    const v = await readPath<unknown>('appConfig/mcpSecret');
+    cachedSecret = { value: typeof v === 'string' && v.length >= 32 ? v : null, at: Date.now() };
+    return cachedSecret.value;
+  } catch {
+    // Đọc lỗi thì coi như không có khoá phụ — khoá gốc trong biến môi trường vẫn dùng được
+    return null;
+  }
+}
+
 /* ===================== Logic nghiệp vụ CRM ===================== */
 
 /**
@@ -1252,12 +1271,21 @@ export default {
     const fromPath = /^\/api\/mcp\/([^/]+)\/?$/.exec(url.pathname);
     if (!provided && fromPath) provided = decodeURIComponent(fromPath[1]);
 
-    const secret = process.env.MCP_SECRET;
-    if (secret && provided !== secret) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { 'Content-Type': 'application/json' },
-      });
+    // Khoá hợp lệ có thể đến từ 2 nguồn:
+    //  1. Biến môi trường MCP_SECRET — khoá gốc, luôn dùng được, chỉ đổi qua Vercel
+    //  2. appConfig/mcpSecret trong Firebase — khoá do chính app sinh ra, để vợ tự
+    //     lấy link và tự tạo khoá mới mà không cần đụng tới Vercel
+    // Không nhúng khoá vào index.html được vì file đó công khai trên GitHub.
+    const envSecret = process.env.MCP_SECRET;
+    if (envSecret) {
+      let hopLe = provided === envSecret;
+      if (!hopLe && provided) hopLe = provided === (await getStoredSecret());
+      if (!hopLe) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // Chuẩn hóa URL về /api/mcp để mcp-handler định tuyến đúng, và không để lộ secret xuống dưới

@@ -71,6 +71,8 @@
 
   window.__firebase = {
     db, dataRef, get, set, onValue, auth, persistenceOk, logLogin,
+    // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
+    refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
     signOut: () => signOut(auth),
   };
@@ -166,6 +168,27 @@
   .sidebar-logout:hover{color:var(--red); border-color:var(--red); background:var(--red-soft);}
   .sidebar-logout svg{width:15px; height:15px; flex:none;}
   .sidebar-logout-text{white-space:nowrap;}
+  .sidebar-connect{margin-top:10px;}
+  .sidebar-connect:hover{color:var(--green-600); border-color:var(--green-500); background:var(--green-50);}
+
+  /* ---------- Modal: link kết nối Claude ---------- */
+  .mcp-url-box{
+    background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-md);
+    padding:10px 12px; font-size:11.5px; font-weight:600; line-height:1.5;
+    overflow-wrap:anywhere; word-break:break-word; min-width:0;
+    color:var(--ink-soft); max-height:100px; overflow-y:auto;
+  }
+  .mcp-empty{
+    background:var(--amber-soft); border:1px solid var(--amber); border-radius:var(--radius-md);
+    padding:11px 13px; font-size:12.5px; font-weight:600; color:var(--amber); line-height:1.5;
+  }
+  .mcp-warn{
+    background:var(--red-soft); border:1px solid var(--red); border-radius:var(--radius-md);
+    padding:11px 13px; font-size:12px; font-weight:600; color:var(--red); line-height:1.5; margin-top:12px;
+  }
+  .mcp-steps{font-size:12.5px; color:var(--ink-soft); line-height:1.7; margin:12px 0 0; padding-left:18px;}
+  .mcp-steps b{color:var(--ink); font-weight:700;}
+  .mcp-actions{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
   body.sidebar-collapsed .nav-item{justify-content:center;}
   body.sidebar-collapsed .brand{justify-content:center;}
   .brand{display:flex; align-items:center; gap:10px; padding:4px 6px 20px 6px;}
@@ -954,6 +977,11 @@
       <div class="sidebar-stat-sub" id="sidebarOverdueCount">0 việc trong 7 ngày tới</div>
     </div>
 
+    <button class="sidebar-logout sidebar-connect" onclick="openMcpModal()" title="Lấy link kết nối Claude">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.8 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.8-1.7"/></svg>
+      <span class="sidebar-logout-text">Kết nối Claude</span>
+    </button>
+
     <button class="sidebar-logout" onclick="doLogout()" title="Đăng xuất khỏi CRM">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
       <span class="sidebar-logout-text">Đăng xuất</span>
@@ -1136,6 +1164,20 @@
     <div class="modal-body" id="remindersBody"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeRemindersModal()">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODAL: Link kết nối Claude (MCP) ============ -->
+<div class="modal-overlay" id="mcpOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Kết nối Claude với CRM</h3>
+      <p>Dán đường link này vào Claude để hỏi Claude về lead, ghi chú, việc cần làm — không cần mở app</p>
+    </div>
+    <div class="modal-body" id="mcpBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeMcpModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -1578,6 +1620,112 @@ function showLockScreen(){
 function hideLockScreen(){
   const s = document.getElementById('lockScreen');
   if (s) s.classList.add('unlocked');
+}
+
+/* ======================= MODAL: Link kết nối Claude (MCP) ======================= */
+// Khoá KHÔNG được nhúng vào file này — index.html công khai trên GitHub, nhúng vào là
+// ai cũng đọc được rồi vào thẳng CRM. Khoá nằm trong Firebase tại appConfig/mcpSecret,
+// Security Rules chỉ cho đúng tài khoản của Trân đọc và ghi.
+const MCP_BASE_URL = 'https://huyentran.vercel.app/api/mcp';
+
+function taoKhoaNgauNhien(){
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function docKhoaMcp(){
+  if (!window.__firebase) return null;
+  const { db, get } = window.__firebase;
+  const snap = await get(window.__firebase.refAt('appConfig/mcpSecret'));
+  const v = snap.exists() ? snap.val() : null;
+  return (typeof v === 'string' && v.length >= 32) ? v : null;
+}
+
+function openMcpModal(){
+  document.getElementById('mcpOverlay').classList.add('show');
+  renderMcpModal();
+}
+function closeMcpModal(){
+  document.getElementById('mcpOverlay').classList.remove('show');
+}
+
+async function renderMcpModal(){
+  const body = document.getElementById('mcpBody');
+  body.innerHTML = '<div class="list-empty">Đang tải...</div>';
+
+  let khoa = null, loi = null;
+  try { khoa = await docKhoaMcp(); } catch(e){ loi = e; }
+
+  if (loi){
+    body.innerHTML = `<div class="mcp-empty">Không đọc được khoá kết nối. Kiểm tra mạng rồi thử lại.</div>`;
+    return;
+  }
+
+  const huongDan = `
+    <ol class="mcp-steps">
+      <li>Mở <b>claude.ai</b> → <b>Settings</b> → <b>Connectors</b></li>
+      <li>Bấm <b>Add custom connector</b></li>
+      <li>Dán đường link ở trên vào, rồi lưu lại</li>
+      <li>Xong! Thử hỏi Claude: <b>"Hôm nay chị cần liên hệ những ai?"</b></li>
+    </ol>
+    <div class="mcp-warn">
+      Ai có đường link này là xem và sửa được toàn bộ CRM. Đừng gửi vào nhóm chat chung,
+      đừng đăng lên đâu cả. Lỡ để lộ thì bấm "Tạo link mới" — link cũ hết tác dụng ngay.
+    </div>`;
+
+  if (!khoa){
+    body.innerHTML = `
+      <div class="mcp-empty">Chưa có link kết nối. Bấm nút bên dưới để tạo.</div>
+      <div class="mcp-actions">
+        <button class="btn btn-primary" onclick="taoLinkMcp()">Tạo link kết nối</button>
+      </div>${huongDan}`;
+    return;
+  }
+
+  const url = `${MCP_BASE_URL}/${khoa}`;
+  body.innerHTML = `
+    <div class="field-label" style="margin-bottom:6px;">Đường link kết nối</div>
+    <div class="mcp-url-box" id="mcpUrlBox">${esc(url)}</div>
+    <div class="mcp-actions">
+      <button class="btn btn-primary" id="mcpCopyBtn" onclick="copyMcpUrl()">Copy link</button>
+      <button class="btn btn-secondary" onclick="taoLinkMcp(true)">Tạo link mới</button>
+    </div>${huongDan}`;
+}
+
+async function copyMcpUrl(){
+  const url = document.getElementById('mcpUrlBox').textContent.trim();
+  const btn = document.getElementById('mcpCopyBtn');
+  const xong = () => {
+    btn.textContent = 'Đã copy ✓';
+    setTimeout(() => { btn.textContent = 'Copy link'; }, 1600);
+  };
+  try {
+    await navigator.clipboard.writeText(url);
+    xong();
+  } catch(e){
+    // Trình duyệt chặn clipboard -> bôi đen sẵn để người dùng tự Ctrl+C
+    const box = document.getElementById('mcpUrlBox');
+    const r = document.createRange();
+    r.selectNodeContents(box);
+    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    btn.textContent = 'Bấm Ctrl+C để copy';
+  }
+}
+
+async function taoLinkMcp(daCo){
+  if (daCo && !confirm('Tạo link mới sẽ làm link cũ NGỪNG hoạt động ngay.\n\nMọi nơi đang dùng link cũ sẽ phải cập nhật lại. Tiếp tục?')) return;
+  if (!window.__firebase) return;
+  const body = document.getElementById('mcpBody');
+  body.innerHTML = '<div class="list-empty">Đang tạo...</div>';
+  try {
+    await window.__firebase.set(window.__firebase.refAt('appConfig/mcpSecret'), taoKhoaNgauNhien());
+  } catch(e){
+    console.error(e);
+    body.innerHTML = `<div class="mcp-empty">Không tạo được link. Thử lại giúp nhé.</div>`;
+    return;
+  }
+  renderMcpModal();
 }
 
 /* ======================= VIEW SWITCH ======================= */
