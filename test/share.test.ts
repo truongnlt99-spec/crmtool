@@ -169,12 +169,42 @@ try {
   check('lan mo khoa co tra ve phien', typeof sess === 'string' && sess.length > 10);
   const rP = await goiShare({ token: TOKEN, session: sess, month: 1, year: 2026 });
   check('dung phien tai duoc du lieu', rP.status === 200, String(rP.status));
-  check('doi dung thang duoc yeu cau', rP.data.thang === 1 && rP.data.nam === 2026,
-        `${rP.data.thang}/${rP.data.nam}`);
+  // API tra ve khoang [tu, den] thay vi thang/nam roi
+  check('doi dung thang duoc yeu cau', rP.data.tu === '2026-01-01' && rP.data.den === '2026-01-31',
+        `${rP.data.tu} → ${rP.data.den}`);
 
   console.log('\n>> 10b. Phien gia mao phai bi tu choi');
   const rG = await goiShare({ token: TOKEN, session: '9999999999999.abcdef0123456789abcdef0123456789' });
   check('tu choi phien gia mao', rG.status === 401 || rG.status === 403, String(rG.status));
+
+  console.log('\n>> 10c. Bo loc thoi gian: tuan / quy / nam / tuy chon');
+  const rTuan = await goiShare({ token: TOKEN, session: sess, don: 'tuan', lui: 0 });
+  check('theo tuan: khoang dung 7 ngay',
+        (Date.parse(rTuan.data.den) - Date.parse(rTuan.data.tu)) / 86400000 === 6,
+        `${rTuan.data.tu} → ${rTuan.data.den}`);
+  check('theo tuan: bat dau thu Hai',
+        new Date(rTuan.data.tu + 'T00:00:00Z').getUTCDay() === 1, rTuan.data.tu);
+
+  const rQuy = await goiShare({ token: TOKEN, session: sess, don: 'quy', lui: 0 });
+  check('theo quy: nhan co chu "Quý"', /^Quý \d\/\d{4}$/.test(rQuy.data.kyBaoCao), rQuy.data.kyBaoCao);
+  check('theo quy: cham toi 3 thang', rQuy.data.thangTrongKy.length === 3,
+        JSON.stringify(rQuy.data.thangTrongKy));
+
+  const rNam = await goiShare({ token: TOKEN, session: sess, don: 'nam', lui: 0 });
+  check('theo nam: 01/01 - 31/12',
+        rTuan.data.tu.slice(0,4) && rNam.data.tu.endsWith('-01-01') && rNam.data.den.endsWith('-12-31'),
+        `${rNam.data.tu} → ${rNam.data.den}`);
+  check('theo nam: cham toi 12 thang', rNam.data.thangTrongKy.length === 12);
+
+  const rTC = await goiShare({ token: TOKEN, session: sess, don: 'tuyChon', tu: '2026-08-10', den: '2026-08-20' });
+  check('tuy chon: dung khoang da gui', rTC.data.tu === '2026-08-10' && rTC.data.den === '2026-08-20',
+        `${rTC.data.tu} → ${rTC.data.den}`);
+
+  const rLui = await goiShare({ token: TOKEN, session: sess, don: 'thang', lui: 1 });
+  const rNay = await goiShare({ token: TOKEN, session: sess, don: 'thang', lui: 0 });
+  check('lui 1 thang cho ky khac ky hien tai', rLui.data.tu !== rNay.data.tu,
+        `${rLui.data.tu} vs ${rNay.data.tu}`);
+  check('lui am bi chan ve 0', (await goiShare({ token:TOKEN, session:sess, don:'thang', lui:-5 })).data.lui === 0);
 
   console.log('\n>> 11. Loc theo loai lead');
   const rL = await goiShare({ token: TOKEN, session: sess, leadType: 'Lead salehunt' });

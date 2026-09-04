@@ -232,8 +232,10 @@
     opts = opts || {};
     var body = { token: TOKEN };
     if (phien) body.session = phien; else body.passcode = opts.passcode || '';
-    if (opts.month) body.month = opts.month;
-    if (opts.year) body.year = opts.year;
+    if (opts.don) body.don = opts.don;
+    if (opts.lui !== undefined) body.lui = opts.lui;
+    if (opts.tu) body.tu = opts.tu;
+    if (opts.den) body.den = opts.den;
     if (opts.leadType !== undefined) body.leadType = opts.leadType;
 
     var res = await fetch('/api/share', {
@@ -288,19 +290,38 @@
       + '<div class="sub">HayDay Wedding · số liệu tới ' + ngay(d.homNay) + '</div></div>'
       + '<div class="badge-readonly">👁 Chế độ chỉ xem</div></div>';
 
-    /* Thanh điều khiển: đổi tháng + lọc loại lead */
+    /* Thanh điều khiển: đơn vị thời gian + lùi/tiến kỳ + lọc loại lead */
+    var tuyChon = d.don === 'tuyChon';
+    var DON = [['tuan','Theo tuần'],['thang','Theo tháng'],['quy','Theo quý'],['nam','Theo năm'],['tuyChon','Khoảng ngày tự chọn']];
+
     h += '<div class="controls">'
-      + '<button class="ctrl-btn" onclick="XEM.doiThang(-1)">‹</button>'
-      + '<span class="ctrl-month">' + esc(d.kyBaoCao) + '</span>'
-      + '<button class="ctrl-btn" onclick="XEM.doiThang(1)">›</button>'
-      + '<button class="ctrl-btn" onclick="XEM.thangNay()">Tháng này</button>'
-      + '<select class="ctrl-btn" onchange="XEM.doiLoai(this.value)">'
+      + '<select class="ctrl-btn" onchange="XEM.doiDon(this.value)">'
+      + DON.map(function(x){
+          return '<option value="'+x[0]+'"' + (d.don === x[0] ? ' selected' : '') + '>'+x[1]+'</option>';
+        }).join('')
+      + '</select>';
+
+    if (tuyChon){
+      h += '<input type="date" class="ctrl-btn" id="tuNgay" value="' + esc(d.tu) + '">'
+        + '<span style="color:var(--ink-faint);font-weight:700;">→</span>'
+        + '<input type="date" class="ctrl-btn" id="denNgay" value="' + esc(d.den) + '">'
+        + '<button class="ctrl-btn" onclick="XEM.xemKhoang()">Xem</button>';
+    } else {
+      h += '<button class="ctrl-btn" onclick="XEM.luiKy(1)" title="Kỳ trước">‹</button>'
+        + '<span class="ctrl-month">' + esc(d.kyBaoCao) + '</span>'
+        + '<button class="ctrl-btn" onclick="XEM.luiKy(-1)"' + (d.lui <= 0 ? ' disabled' : '') + ' title="Kỳ sau">›</button>'
+        + (d.lui > 0 ? '<button class="ctrl-btn" onclick="XEM.veHienTai()">Hiện tại</button>' : '');
+    }
+
+    h += '<select class="ctrl-btn" onchange="XEM.doiLoai(this.value)">'
       + '<option value=""' + (!d.loaiLead ? ' selected' : '') + '>Tất cả loại lead</option>'
       + d.danhSachLoaiLead.map(function(t){
           return '<option value="'+esc(t)+'"' + (d.loaiLead === t ? ' selected' : '') + '>'+esc(t)+'</option>';
         }).join('')
       + '</select>'
-      + '<span class="loading" id="trangThai"></span></div>';
+      + '<span class="loading" id="trangThai"></span></div>'
+      + '<div class="box-sub" style="margin:-10px 0 16px;">Số liệu trong kỳ: '
+      + ngay(d.tu) + ' → ' + ngay(d.den) + '</div>';
 
     /* Thẻ số liệu — bấm được */
     h += '<div class="grid">'
@@ -408,7 +429,7 @@
     won:      { ten:'Deal đã chốt trong kỳ', loc:function(l){ return l.wonTrongKy; }, tien:'revenueActual' },
     moi:      { ten:'Lead mới trong kỳ', loc:function(l){ return l.taoTrongKy; } },
     tiemNang: { ten:'Lead gắn nhãn tiềm năng', loc:function(l){ return l.isPotential && l.stage!=='won' && l.stage!=='lost'; } },
-    duKien:   { ten:'Dự kiến chốt trong kỳ', loc:function(l){ return l.stage!=='won' && l.stage!=='lost' && l.expectedCloseMonth===duLieu.monthKey; } },
+    duKien:   { ten:'Dự kiến chốt trong kỳ', loc:function(l){ return l.stage!=='won' && l.stage!=='lost' && !!l.expectedCloseMonth && duLieu.thangTrongKy.indexOf(l.expectedCloseMonth) >= 0; } },
     treHen:   { ten:'Lead trễ hẹn', loc:function(l){ return l.stage!=='won' && l.stage!=='lost' && l.statusType==='red'; } },
     homNay:   { ten:'Lead đến hạn hôm nay', loc:function(l){ return l.stage!=='won' && l.stage!=='lost' && l.statusType==='green'; } }
   };
@@ -554,16 +575,34 @@
   }
 
   /* ---------- Điều hướng ---------- */
-  function doiThang(delta){
-    var t = duLieu.thang + delta, n = duLieu.nam;
-    if (t < 1){ t = 12; n--; } else if (t > 12){ t = 1; n++; }
-    taiLai({ month:t, year:n, leadType: duLieu.loaiLead || '' });
+  // Giữ nguyên mọi lựa chọn hiện tại, chỉ thay phần được truyền vào.
+  function ky(thayDoi){
+    var g = { don: duLieu.don, lui: duLieu.lui, leadType: duLieu.loaiLead || '' };
+    if (duLieu.don === 'tuyChon'){ g.tu = duLieu.tu; g.den = duLieu.den; }
+    for (var k in thayDoi) g[k] = thayDoi[k];
+    taiLai(g);
   }
-  function thangNay(){ taiLai({ leadType: duLieu.loaiLead || '' }); }
-  function doiLoai(v){ taiLai({ month:duLieu.thang, year:duLieu.nam, leadType:v }); }
+  function luiKy(buoc){ ky({ lui: Math.max(0, duLieu.lui + buoc) }); }
+  function veHienTai(){ ky({ lui: 0 }); }
+  function doiLoai(v){ ky({ leadType: v }); }
+  function doiDon(v){
+    // Đổi đơn vị thì về kỳ hiện tại, vì "lùi 3 kỳ" của tuần và của năm khác nhau xa
+    if (v === 'tuyChon'){
+      ky({ don:'tuyChon', lui:0, tu: duLieu.tu, den: duLieu.den });
+    } else {
+      ky({ don: v, lui: 0 });
+    }
+  }
+  function xemKhoang(){
+    var a = document.getElementById('tuNgay').value;
+    var b = document.getElementById('denNgay').value;
+    if (!a || !b){ alert('Chọn đủ ngày bắt đầu và ngày kết thúc nhé.'); return; }
+    ky({ don:'tuyChon', lui:0, tu:a, den:b });
+  }
 
   window.XEM = { moLead:moLead, moDs:moDs, moPheu:moPheu, dong:dong,
-                 doiThang:doiThang, thangNay:thangNay, doiLoai:doiLoai };
+                 luiKy:luiKy, veHienTai:veHienTai, doiDon:doiDon,
+                 xemKhoang:xemKhoang, doiLoai:doiLoai };
 })();
 </script>
 </body>

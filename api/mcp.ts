@@ -1343,6 +1343,97 @@ function phienConHieuLuc(shareToken: string, phien: string): boolean {
   return soSanhAnToan(chuKy, mongDoi);
 }
 
+/* ---- Khoảng thời gian cho báo cáo chia sẻ ---- */
+
+// Mọi phép tính ngày dùng UTC để múi giờ không làm lệch mốc. Chuỗi YYYY-MM-DD so sánh
+// theo thứ tự từ điển cũng chính là so sánh theo thời gian, nên không cần đổi sang Date.
+export function congNgay(iso: string, n: number): string {
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+export function dauTuan(iso: string): string {
+  const d = new Date(iso + 'T00:00:00Z');
+  const thu = d.getUTCDay();              // 0 = Chủ nhật
+  return congNgay(iso, -(thu === 0 ? 6 : thu - 1));   // tuần bắt đầu từ thứ Hai
+}
+function ngayTrongThang(nam: number, thang1: number): number {
+  return new Date(Date.UTC(nam, thang1, 0)).getUTCDate();  // thang1 tính từ 1
+}
+function ghepNgay(nam: number, thang1: number, ngay: number): string {
+  return `${nam}-${String(thang1).padStart(2, '0')}-${String(ngay).padStart(2, '0')}`;
+}
+function laNgayHopLe(s: unknown): s is string {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s + 'T00:00:00Z'));
+}
+
+type DonVi = 'tuan' | 'thang' | 'quy' | 'nam' | 'tuyChon';
+
+/**
+ * Quy mọi lựa chọn thời gian về một khoảng [tu, den].
+ * `lui` là số kỳ lùi về trước (0 = kỳ hiện tại, 1 = kỳ trước, ...) nên một đơn vị
+ * phủ được vô hạn kỳ, đỡ phải liệt kê "tháng trước", "2 tháng trước"...
+ */
+export function tinhKhoang(don: DonVi, lui: number, homNay: string, tu?: string, den?: string) {
+  const [nam, thang1] = homNay.split('-').map(Number);
+
+  if (don === 'tuyChon') {
+    const a = laNgayHopLe(tu) ? tu : homNay;
+    const b = laNgayHopLe(den) ? den : homNay;
+    const [x, y] = a <= b ? [a, b] : [b, a];   // lỡ chọn ngược thì tự đảo lại
+    return { tu: x, den: y, nhan: `${x} → ${y}` };
+  }
+
+  if (don === 'tuan') {
+    const dau = congNgay(dauTuan(homNay), -7 * lui);
+    return { tu: dau, den: congNgay(dau, 6), nhan: `Tuần ${dau} → ${congNgay(dau, 6)}` };
+  }
+
+  if (don === 'quy') {
+    const quyHienTai = Math.floor((thang1 - 1) / 3);
+    const tong = nam * 4 + quyHienTai - lui;
+    const n = Math.floor(tong / 4);
+    const q = tong - n * 4;
+    const dauThang = q * 3 + 1;
+    return {
+      tu: ghepNgay(n, dauThang, 1),
+      den: ghepNgay(n, dauThang + 2, ngayTrongThang(n, dauThang + 2)),
+      nhan: `Quý ${q + 1}/${n}`,
+    };
+  }
+
+  if (don === 'nam') {
+    const n = nam - lui;
+    return { tu: `${n}-01-01`, den: `${n}-12-31`, nhan: `Năm ${n}` };
+  }
+
+  // Mặc định: theo tháng
+  const tong = nam * 12 + (thang1 - 1) - lui;
+  const n = Math.floor(tong / 12);
+  const t = tong - n * 12 + 1;
+  return { tu: ghepNgay(n, t, 1), den: ghepNgay(n, t, ngayTrongThang(n, t)), nhan: `Tháng ${t}/${n}` };
+}
+
+/** Các mã tháng (YYYY-MM) mà khoảng thời gian chạm tới — dùng khớp "tháng chốt dự kiến". */
+export function cacThangTrongKhoang(tu: string, den: string): string[] {
+  const ra: string[] = [];
+  let [n, t] = [Number(tu.slice(0, 4)), Number(tu.slice(5, 7))];
+  const cuoi = den.slice(0, 7);
+  for (let i = 0; i < 240; i++) {          // chặn trên phòng dữ liệu bậy gây vòng lặp vô tận
+    const key = `${n}-${String(t).padStart(2, '0')}`;
+    ra.push(key);
+    if (key >= cuoi) break;
+    if (++t > 12) { t = 1; n++; }
+  }
+  return ra;
+}
+
+const trongKhoang = (d: string | null | undefined, tu: string, den: string): boolean => {
+  if (!d) return false;
+  const s = String(d).slice(0, 10);
+  return s >= tu && s <= den;
+};
+
 function traLoiJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
@@ -1357,6 +1448,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   let body: {
     token?: string; passcode?: string; session?: string;
     month?: number; year?: number; leadType?: string;
+    don?: string; lui?: number; tu?: string; den?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -1417,25 +1509,39 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
 
   /* ---- Dựng dữ liệu chỉ xem ---- */
   const crm = await loadCrm();
-  const cur = currentMonthYear();
-  // Cho phép xem lại tháng cũ. Giới hạn trong khoảng hợp lệ để không nhận số bậy bạ.
-  const thang = Number.isInteger(body.month) && body.month! >= 1 && body.month! <= 12
-    ? body.month! - 1 : cur.month;
-  const nam = Number.isInteger(body.year) && body.year! >= 2020 && body.year! <= 2100
-    ? body.year! : cur.year;
-  const monthKey = monthKeyOf(thang, nam);
+  const homNay = todayISO();
+
+  // Ưu tiên month/year nếu được gửi (giữ tương thích với cách gọi cũ), ngược lại
+  // dùng bộ đơn vị + số kỳ lùi.
+  let ky: { tu: string; den: string; nhan: string };
+  let don: DonVi = 'thang';
+  let lui = 0;
+
+  if (Number.isInteger(body.month) && Number.isInteger(body.year)) {
+    const t = Math.min(12, Math.max(1, body.month as number));
+    const n = Math.min(2100, Math.max(2020, body.year as number));
+    ky = { tu: ghepNgay(n, t, 1), den: ghepNgay(n, t, ngayTrongThang(n, t)), nhan: `Tháng ${t}/${n}` };
+  } else {
+    const dsDon: DonVi[] = ['tuan', 'thang', 'quy', 'nam', 'tuyChon'];
+    don = dsDon.includes(body.don as DonVi) ? (body.don as DonVi) : 'thang';
+    lui = Number.isInteger(body.lui) ? Math.min(600, Math.max(0, body.lui as number)) : 0;
+    ky = tinhKhoang(don, lui, homNay, body.tu, body.den);
+  }
+
+  const thangTrongKy = cacThangTrongKhoang(ky.tu, ky.den);
 
   const locLoai = LEAD_TYPES.includes(body.leadType as any) ? (body.leadType as string) : null;
   const tatCa = locLoai ? crm.leads.filter((l) => leadTypeOf(l) === locLoai) : crm.leads;
 
   const dangCham = tatCa.filter((l) => l.stage !== 'won' && l.stage !== 'lost');
-  const leadTrongThang = tatCa.filter((l) => inMonth(l.createdAt, thang, nam));
-  const wonThang = tatCa.filter((l) => l.stage === 'won' && inMonth(l.wonAt, thang, nam));
-  const lostThang = tatCa.filter((l) => l.stage === 'lost' && inMonth(l.lostAt, thang, nam));
+  const leadTrongThang = tatCa.filter((l) => trongKhoang(l.createdAt, ky.tu, ky.den));
+  const wonThang = tatCa.filter((l) => l.stage === 'won' && trongKhoang(l.wonAt, ky.tu, ky.den));
+  const lostThang = tatCa.filter((l) => l.stage === 'lost' && trongKhoang(l.lostAt, ky.tu, ky.den));
 
   const doanhThuThuc = wonThang.reduce((s, l) => s + (l.revenueActual || 0), 0);
   const giaTriPipeline = dangCham.reduce((s, l) => s + (l.revenueExpected || 0), 0);
-  const duKienChot = dangCham.filter((l) => l.expectedCloseMonth === monthKey);
+  // "Tháng chốt dự kiến" vốn là mã YYYY-MM, nên khớp với MỌI tháng mà kỳ báo cáo chạm tới
+  const duKienChot = dangCham.filter((l) => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
   const cycle = wonThang
     .map((l) => daysBetween(l.createdAt, l.wonAt))
     .filter((n): n is number => n !== null && n >= 0);
@@ -1454,7 +1560,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   const todoXong = tatCa
     .flatMap((l) =>
       (l.todos || [])
-        .filter((t) => t.done && t.completedAt && inMonth(t.completedAt, thang, nam))
+        .filter((t) => t.done && trongKhoang(t.completedAt, ky.tu, ky.den))
         .map((t) => ({
           leadId: l.id,
           leadName: l.name,
@@ -1524,9 +1630,9 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
       soViecXong: (l.todos || []).filter((t) => t.done).length,
       // Để trang xem lọc theo bước phễu mà không phải chép lại công thức
       reachedIndex: reachedStageIndex(l),
-      taoTrongKy: inMonth(l.createdAt, thang, nam),
-      wonTrongKy: l.stage === 'won' && inMonth(l.wonAt, thang, nam),
-      lostTrongKy: l.stage === 'lost' && inMonth(l.lostAt, thang, nam),
+      taoTrongKy: trongKhoang(l.createdAt, ky.tu, ky.den),
+      wonTrongKy: l.stage === 'won' && trongKhoang(l.wonAt, ky.tu, ky.den),
+      lostTrongKy: l.stage === 'lost' && trongKhoang(l.lostAt, ky.tu, ky.den),
     };
   };
 
@@ -1535,10 +1641,12 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
     ...(phienMoi ? { session: phienMoi } : {}),
     thoiDiem: new Date().toISOString(),
     homNay: todayISO(),
-    thang: thang + 1,
-    nam,
-    monthKey,
-    kyBaoCao: `Tháng ${thang + 1}/${nam}`,
+    don,
+    lui,
+    tu: ky.tu,
+    den: ky.den,
+    thangTrongKy,
+    kyBaoCao: ky.nhan,
     loaiLead: locLoai,
     danhSachLoaiLead: LEAD_TYPES,
     giaiDoan: STAGES.map((s) => ({ id: s.id, name: s.name })),
