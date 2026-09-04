@@ -3290,23 +3290,41 @@ function renderDashboard(){
   renderDailyTodos();
 }
 
+/**
+ * Ô "Việc cần làm hôm nay".
+ *
+ * Trước đây ô này hiển thị mảng `dailyTodos` — một danh sách việc cá nhân tách rời
+ * khỏi việc của lead. Nhưng trong app KHÔNG hề có chỗ nào thêm việc vào mảng đó
+ * (chỉ có chỗ hiển thị, tick và lưu), nên nó vĩnh viễn rỗng: ô luôn trống trong khi
+ * sidebar vẫn báo có 9 nhắc nhở, gây hiểu nhầm là mất dữ liệu.
+ *
+ * Nay ô này lấy đúng nguồn mà sidebar đang đếm: việc của lead đến hạn hôm nay
+ * hoặc đã trễ (getReminderBuckets().today) — khớp với cái tên của ô.
+ */
 function renderDailyTodos(){
   const box = document.getElementById('dailyTodoList');
   if (!box) return;
-  box.innerHTML = dailyTodos.map((t,i) => `
-    <div class="todo-row">
-      <div class="todo-check ${t.done?'done':''}" onclick="toggleDailyTodo(${i})">
+  const { today } = getReminderBuckets();
+  if (!today.length){
+    box.innerHTML = '<div class="list-empty">Không có việc nào đến hạn hôm nay.</div>';
+    return;
+  }
+  box.innerHTML = today.map(r => `
+    <div class="today-todo-row">
+      <div class="todo-check" onclick="toggleReminderItem('${r.leadId}', '${r.todoId}')" title="Đánh dấu hoàn thành">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
       </div>
-      <div class="todo-text ${t.done?'done':''}">${esc(t.text)}</div>
+      <div class="today-todo-main" onclick="jumpToLead('${r.leadId}')">
+        <div class="today-todo-text">${esc(r.text)}</div>
+        <div class="today-todo-sub">${esc(r.leadName)} · ${esc(r.stageName)}</div>
+      </div>
+      <div class="today-todo-tag ${r.statusType}">${esc(r.statusLabel)}</div>
     </div>
   `).join('');
 }
-function toggleDailyTodo(i){
-  dailyTodos[i].done = !dailyTodos[i].done;
-  renderDailyTodos();
-  scheduleSave();
-}
+// Đã gỡ toggleDailyTodo(): không còn chỗ nào gọi tới sau khi ô "Việc cần làm hôm nay"
+// chuyển sang dùng việc của lead. Vẫn giữ nguyên phần nạp/lưu `dailyTodos` để không
+// đổi hình dạng dữ liệu đã lưu trên máy chủ.
 
 function jumpToLead(id){
   setView('pipeline');
