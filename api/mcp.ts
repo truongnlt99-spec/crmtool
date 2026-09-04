@@ -758,7 +758,17 @@ const mcpHandler = createMcpHandler(
             soLead: expectedCloseLeads.length,
             danhSach: expectedCloseLeads.map(summarizeLead),
           },
-          tiLeChuyenDoi: { crToWonPhanTram: crToWon, phanTich: funnel },
+          tiLeChuyenDoi: {
+            crToWonPhanTram: crToWon,
+            _giaiThich: 'CR theo phễu: trong số lead TẠO trong kỳ, bao nhiêu lên được Won. Deal chốt trong kỳ nhưng lead vào từ kỳ trước KHÔNG được tính.',
+            phanTich: funnel,
+          },
+          crTrongKy: {
+            phanTram: monthLeads.length ? Math.round((wonThisMonth.length / monthLeads.length) * 100) : 0,
+            soDealChot: wonThisMonth.length,
+            soLeadNhan: monthLeads.length,
+            _giaiThich: 'CR trong kỳ: số deal CHỐT trong kỳ chia cho số lead NHẬN trong kỳ, không quan tâm lead được tạo lúc nào. Chỉ số này tách hoàn toàn khỏi CR theo phễu.',
+          },
           dealCycleTrungBinhNgay: avgCycle,
           cangBaoDong: {
             treHen: overdue.length,
@@ -1675,6 +1685,9 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
       lyDoMatDeal: lyDoMat,
       pheu,
       crToWon: leadTrongThang.length ? Math.round((datWon / leadTrongThang.length) * 100) : 0,
+      // Chi so RIENG, khong lien quan crToWon o tren: deal chot trong ky chia cho lead
+      // nhan trong ky, KHONG quan tam lead duoc tao luc nao.
+      crTrongKy: leadTrongThang.length ? Math.round((wonThang.length / leadTrongThang.length) * 100) : 0,
     },
   });
 }

@@ -399,6 +399,18 @@
   /* ---------- Dashboard ---------- */
   .dash-wrap{flex:1; overflow:auto; padding:22px;}
   .dash-header-row{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+  .dash-ky-nav{display:flex; align-items:center; gap:6px;}
+  .dash-ky-btn{
+    border:1px solid var(--border); background:var(--card); border-radius:var(--radius-sm);
+    padding:6px 10px; font-size:12px; font-weight:700; font-family:inherit; cursor:pointer; color:var(--ink);
+  }
+  .dash-ky-btn:hover{border-color:var(--green-500); color:var(--green-600);}
+  .dash-ky-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .dash-ky-nhan{font-size:12.5px; font-weight:800; min-width:132px; text-align:center; white-space:nowrap;}
+  .dash-ky-nav input[type=date]{
+    border:1px solid var(--border); background:var(--card); border-radius:var(--radius-sm);
+    padding:5px 8px; font-size:12px; font-weight:600; font-family:inherit; color:var(--ink);
+  }
   .dash-greeting{margin-bottom:0;}
   .dash-greeting h2{font-size:19px; font-weight:800;}
   .dash-greeting p{font-size:12.5px; color:var(--ink-faint); margin-top:3px; font-weight:500;}
@@ -1105,8 +1117,31 @@
               </select>
             </div>
             <div class="dash-month-field">
-              <label for="dashMonthInput">Xem báo cáo tháng</label>
-              <input type="month" id="dashMonthInput" onchange="changeDashMonth(this.value)">
+              <label for="dashDonInput">Kỳ báo cáo</label>
+              <select id="dashDonInput" onchange="doiDonDashboard(this.value)">
+                <option value="tuan">Theo tuần</option>
+                <option value="thang">Theo tháng</option>
+                <option value="quy">Theo quý</option>
+                <option value="nam">Theo năm</option>
+                <option value="tuyChon">Khoảng ngày tự chọn</option>
+              </select>
+            </div>
+            <div class="dash-month-field" id="dashKyNav">
+              <label>&nbsp;</label>
+              <div class="dash-ky-nav">
+                <button class="dash-ky-btn" onclick="luiKyDashboard(1)" title="Kỳ trước">‹</button>
+                <span class="dash-ky-nhan" id="dashKyNhan"></span>
+                <button class="dash-ky-btn" id="dashKyToi" onclick="luiKyDashboard(-1)" title="Kỳ sau">›</button>
+                <button class="dash-ky-btn" id="dashKyNay" onclick="veKyHienTai()">Hiện tại</button>
+              </div>
+            </div>
+            <div class="dash-month-field" id="dashKhoangTuChon" style="display:none;">
+              <label>Từ ngày → đến ngày</label>
+              <div class="dash-ky-nav">
+                <input type="date" id="dashTuInput">
+                <input type="date" id="dashDenInput">
+                <button class="dash-ky-btn" onclick="xemKhoangDashboard()">Xem</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1374,8 +1409,85 @@ let currentLeadId = null;
 let pendingDropId = null;
 let pendingDropStage = null;
 let dashLeadType = 'all';               // Bộ lọc loại lead trên dashboard: 'all' | 'Lead công ty' | 'Lead salehunt'
-let dashMonth = TODAY.getMonth();      // Tháng đang xem trên dashboard (0-based), mặc định = tháng hiện tại
-let dashYear = TODAY.getFullYear();
+
+/* ---- Kỳ báo cáo trên dashboard ----
+   Trước đây chỉ xem được theo tháng. Nay chọn ĐƠN VỊ (tuần/tháng/quý/năm) rồi lùi
+   bao nhiêu kỳ cũng được — một đơn vị phủ vô hạn kỳ, đỡ phải liệt kê từng lựa chọn.
+   Công thức phải trùng khít với tinhKhoang() trong api/mcp.ts để số liệu trên app
+   và trên báo cáo chia sẻ luôn khớp nhau. */
+let dashDon = 'thang';                  // 'tuan' | 'thang' | 'quy' | 'nam' | 'tuyChon'
+let dashLui = 0;                        // 0 = kỳ hiện tại, 1 = kỳ trước...
+let dashTu = '', dashDen = '', dashNhan = '';
+
+function congNgayISO(iso, n){
+  const d = new Date(iso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0,10);
+}
+function dauTuanISO(iso){
+  const thu = new Date(iso + 'T00:00:00Z').getUTCDay();   // 0 = Chủ nhật
+  return congNgayISO(iso, -(thu === 0 ? 6 : thu - 1));    // tuần bắt đầu từ thứ Hai
+}
+function soNgayCuaThang(nam, thang1){ return new Date(Date.UTC(nam, thang1, 0)).getUTCDate(); }
+function ghepNgayISO(nam, thang1, ngay){
+  return nam + '-' + String(thang1).padStart(2,'0') + '-' + String(ngay).padStart(2,'0');
+}
+function trongKhoang(d, tu, den){
+  if (!d) return false;
+  const s = String(d).slice(0,10);
+  return s >= tu && s <= den;
+}
+function cacThangTrongKhoang(tu, den){
+  const ra = [];
+  let n = Number(tu.slice(0,4)), t = Number(tu.slice(5,7));
+  const cuoi = den.slice(0,7);
+  for (let i = 0; i < 240; i++){
+    const key = n + '-' + String(t).padStart(2,'0');
+    ra.push(key);
+    if (key >= cuoi) break;
+    if (++t > 12){ t = 1; n++; }
+  }
+  return ra;
+}
+
+// Quy lựa chọn hiện tại về khoảng [dashTu, dashDen] + nhãn hiển thị
+function tinhKyDashboard(){
+  const homNay = todayISO();
+  const nam = Number(homNay.slice(0,4)), thang1 = Number(homNay.slice(5,7));
+
+  if (dashDon === 'tuyChon'){
+    let a = dashTu || homNay, b = dashDen || homNay;
+    if (a > b){ const tmp = a; a = b; b = tmp; }   // chọn ngược thì tự đảo
+    dashTu = a; dashDen = b;
+    dashNhan = formatDate(a) + ' → ' + formatDate(b);
+    return;
+  }
+  if (dashDon === 'tuan'){
+    const dau = congNgayISO(dauTuanISO(homNay), -7 * dashLui);
+    dashTu = dau; dashDen = congNgayISO(dau, 6);
+    dashNhan = 'Tuần ' + formatDate(dashTu) + ' → ' + formatDate(dashDen);
+    return;
+  }
+  if (dashDon === 'quy'){
+    const tong = nam * 4 + Math.floor((thang1 - 1) / 3) - dashLui;
+    const n = Math.floor(tong / 4), q = tong - n * 4, dt = q * 3 + 1;
+    dashTu = ghepNgayISO(n, dt, 1);
+    dashDen = ghepNgayISO(n, dt + 2, soNgayCuaThang(n, dt + 2));
+    dashNhan = 'Quý ' + (q + 1) + '/' + n;
+    return;
+  }
+  if (dashDon === 'nam'){
+    const n = nam - dashLui;
+    dashTu = n + '-01-01'; dashDen = n + '-12-31'; dashNhan = 'Năm ' + n;
+    return;
+  }
+  const tong = nam * 12 + (thang1 - 1) - dashLui;
+  const n = Math.floor(tong / 12), t = tong - n * 12 + 1;
+  dashTu = ghepNgayISO(n, t, 1);
+  dashDen = ghepNgayISO(n, t, soNgayCuaThang(n, t));
+  dashNhan = 'Tháng ' + t + '/' + n;
+}
+tinhKyDashboard();
 let editingNoteId = null;              // id ghi chú đang được sửa trong drawer (null = đang viết ghi chú mới)
 
 /* ======================= HELPERS ======================= */
@@ -2759,8 +2871,8 @@ function updatePlan(key, value){
 
 function refreshDashboardKPIOnly(){
   const scoped = scopeByLeadType(leads);
-  const wonThisMonth = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
-  const monthLeads = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const wonThisMonth = scoped.filter(l => l.stage === 'won' && trongKhoang(l.wonAt, dashTu, dashDen));
+  const monthLeads = scoped.filter(l => trongKhoang(l.createdAt, dashTu, dashDen));
   const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
   const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
   const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
@@ -2776,11 +2888,33 @@ function refreshDashboardKPIOnly(){
   if (leadsPctText) leadsPctText.textContent = `${leadsPct}% so với kế hoạch ${planLeads} lead`;
 }
 
-function changeDashMonth(value){
-  if (!value) return;
-  const [y, m] = value.split('-').map(Number);
-  dashYear = y;
-  dashMonth = m - 1;
+function doiDonDashboard(v){
+  // Đổi đơn vị thì về kỳ hiện tại — "lùi 3 kỳ" của tuần và của năm khác nhau quá xa
+  dashDon = v || 'thang';
+  dashLui = 0;
+  if (dashDon === 'tuyChon' && (!dashTu || !dashDen)){
+    dashTu = dashTu || todayISO();
+    dashDen = dashDen || todayISO();
+  }
+  tinhKyDashboard();
+  renderDashboard();
+}
+function luiKyDashboard(buoc){
+  dashLui = Math.max(0, dashLui + buoc);
+  tinhKyDashboard();
+  renderDashboard();
+}
+function veKyHienTai(){
+  dashLui = 0;
+  tinhKyDashboard();
+  renderDashboard();
+}
+function xemKhoangDashboard(){
+  const a = document.getElementById('dashTuInput').value;
+  const b = document.getElementById('dashDenInput').value;
+  if (!a || !b){ alert('Chọn đủ ngày bắt đầu và ngày kết thúc nhé.'); return; }
+  dashDon = 'tuyChon'; dashTu = a; dashDen = b; dashLui = 0;
+  tinhKyDashboard();
   renderDashboard();
 }
 
@@ -2790,20 +2924,36 @@ function onFilterDashLeadType(value){
 }
 
 function renderDashboard(){
-  // Đồng bộ ô chọn tháng với dashMonth/dashYear đang xem (mặc định = tháng hiện tại)
-  const monthInput = document.getElementById('dashMonthInput');
-  if (monthInput) monthInput.value = monthKeyOf(dashMonth, dashYear);
+  // Đồng bộ các ô điều khiển với kỳ đang xem
+  const donInput = document.getElementById('dashDonInput');
+  if (donInput) donInput.value = dashDon;
+  const tuyChon = dashDon === 'tuyChon';
+  const navEl = document.getElementById('dashKyNav');
+  const khoangEl = document.getElementById('dashKhoangTuChon');
+  if (navEl) navEl.style.display = tuyChon ? 'none' : '';
+  if (khoangEl) khoangEl.style.display = tuyChon ? '' : 'none';
+  const nhanEl = document.getElementById('dashKyNhan');
+  if (nhanEl) nhanEl.textContent = dashNhan;
+  const toiEl = document.getElementById('dashKyToi');
+  if (toiEl) toiEl.disabled = dashLui <= 0;
+  const nayEl = document.getElementById('dashKyNay');
+  if (nayEl) nayEl.style.display = dashLui > 0 ? '' : 'none';
+  if (tuyChon){
+    const oTu = document.getElementById('dashTuInput'), oDen = document.getElementById('dashDenInput');
+    if (oTu) oTu.value = dashTu;
+    if (oDen) oDen.value = dashDen;
+  }
   const leadTypeInput = document.getElementById('dashLeadTypeInput');
   if (leadTypeInput) leadTypeInput.value = dashLeadType;
   document.getElementById('dashDate').textContent = `Hôm nay là ${formatDate(todayISO())}`;
 
-  const monthKey = monthKeyOf(dashMonth, dashYear);
+  const thangTrongKy = cacThangTrongKhoang(dashTu, dashDen);
   // Dữ liệu dashboard lọc theo "Loại lead" đang chọn (Tất cả / Lead công ty / Lead salehunt)
   const scoped = scopeByLeadType(leads);
   const activeLeads = scoped.filter(l => l.stage !== 'won' && l.stage !== 'lost');
-  const monthLeads = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
-  const wonThisMonth = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
-  const lostThisMonth = scoped.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
+  const monthLeads = scoped.filter(l => trongKhoang(l.createdAt, dashTu, dashDen));
+  const wonThisMonth = scoped.filter(l => l.stage === 'won' && trongKhoang(l.wonAt, dashTu, dashDen));
+  const lostThisMonth = scoped.filter(l => l.stage === 'lost' && trongKhoang(l.lostAt, dashTu, dashDen));
   const actualRevenue = wonThisMonth.reduce((s,l) => s + (l.revenueActual||0), 0);
   const pipelineValue = activeLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
   const overdueLeads = activeLeads.filter(l => leadStatus(l).type === 'red').sort((a,b) => daysDiff(a.deadline) - daysDiff(b.deadline));
@@ -2814,11 +2964,11 @@ function renderDashboard(){
   const potentialRevenue = potentialLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
 
   // Doanh thu dự kiến chốt trong tháng đang xem, dựa trên field "Tháng chốt dự kiến" của từng lead
-  const expectedCloseLeads = activeLeads.filter(l => l.expectedCloseMonth === monthKey);
+  const expectedCloseLeads = activeLeads.filter(l => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
   const expectedCloseRevenue = expectedCloseLeads.reduce((s,l) => s + (l.revenueExpected||0), 0);
 
   // Số todo đã hoàn thành trong tháng báo cáo đang xem (mọi lead, kể cả Won/Lost)
-  const completedTodosStat = countCompletedTodosInMonth(dashMonth, dashYear);
+  const completedTodosStat = demTodoXongTrongKy(dashTu, dashDen);
 
   const revenuePct = Math.min(100, Math.round((actualRevenue / (planRevenue||1)) * 100));
   const leadsPct = Math.min(100, Math.round((monthLeads.length / (planLeads||1)) * 100));
@@ -2840,6 +2990,14 @@ function renderDashboard(){
   const wonIdx = STAGES.findIndex(s => s.id === 'won');
   const wonReached = funnelLeads.filter(l => reachedStageIndex(l) >= wonIdx).length;
   const crToWon = funnelLeads.length ? Math.round((wonReached / funnelLeads.length) * 100) : 0;
+
+  // CR TRONG KY — chi so MOI, tach hoan toan khoi crToWon o tren.
+  // crToWon la CR theo phe: chi dem lead TAO trong ky roi xem bao nhieu len duoc Won.
+  // Hau qua: deal chot trong ky nhung lead vao tu ky truoc khong duoc tinh, nen co thang
+  // co 3 deal Won ma CR van bao 0%.
+  // crTrongKy tra loi cau khac: trong ky nay chot duoc bao nhieu deal so voi so lead nhan vao,
+  // KHONG quan tam lead duoc tao luc nao.
+  const crTrongKy = monthLeads.length ? Math.round((wonThisMonth.length / monthLeads.length) * 100) : 0;
   // CR giữa các bước liên tiếp trong phễu
   const stepCR = funnelStages.map((s, i) => {
     if (i === 0) return null;
@@ -2861,7 +3019,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Doanh thu thực tế tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Doanh thu thực tế ${dashNhan}</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
         <input type="text" inputmode="numeric" id="planRevenueInput" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
@@ -2871,7 +3029,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Số lead nhận tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Số lead nhận ${dashNhan}</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${monthLeads.length}</div>
         <input type="number" id="planLeadsInput" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
@@ -2888,24 +3046,32 @@ function renderDashboard(){
     </div>
 
     <div class="card-box clickable-box" onclick="openRevenueListModal('expectedClose')">
-      <div class="box-label">Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Dự kiến chốt trong ${dashNhan}</div>
       <div class="box-value">${formatMoney(expectedCloseRevenue)}</div>
       <div class="box-sub">${expectedCloseLeads.length} lead hẹn chốt tháng này (theo "Tháng chốt dự kiến")</div>
       <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box clickable-box" onclick="openTodoCompletedModal()">
-      <div class="box-label">Todo hoàn thành tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Todo hoàn thành ${dashNhan}</div>
       <div class="box-value">${completedTodosStat.count}</div>
       <div class="box-sub">${completedTodosStat.leadCount} lead có việc đã hoàn thành</div>
       <div class="box-hint">Xem danh sách <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
+    <div class="card-box clickable-box" onclick="openLeadListModal('won')">
+      <div class="box-label">CR trong kỳ ⚡</div>
+      <div class="box-value">${crTrongKy}%</div>
+      <div class="box-sub">${wonThisMonth.length} deal chốt ÷ ${monthLeads.length} lead nhận trong kỳ</div>
+      <div class="box-sub" style="margin-top:4px; color:var(--ink-faint);">Không quan tâm lead được tạo lúc nào</div>
+      <div class="box-hint">Xem deal đã chốt <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+    </div>
+
     <div class="card-box span-8">
-      <div class="box-label">Tỉ lệ chuyển đổi (CR) — tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Tỉ lệ chuyển đổi theo phễu (CR) — ${dashNhan}</div>
       <div class="kpi-row">
         <div class="box-value">${crToWon}%</div>
-        <div class="cr-caption">${wonReached}/${funnelLeads.length} lead-in chuyển thành Won</div>
+        <div class="cr-caption">${wonReached}/${funnelLeads.length} lead tạo trong kỳ đã chuyển thành Won</div>
       </div>
       <div class="funnel">
         ${funnelStages.map((s,i) => {
@@ -2926,11 +3092,11 @@ function renderDashboard(){
     <div class="card-box">
       <div class="box-label">Deal cycle trung bình ⏱️</div>
       <div class="box-value">${avgCycle === null ? '—' : avgCycle + ' ngày'}</div>
-      <div class="box-sub">${cycleDays.length ? `Từ lead-in đến Won · ${cycleDays.length} deal Won tháng ${dashMonth+1}/${dashYear}` : 'Chưa có deal Won trong tháng để tính'}</div>
+      <div class="box-sub">${cycleDays.length ? `Từ lead-in đến Won · ${cycleDays.length} deal Won ${dashNhan}` : 'Chưa có deal Won trong tháng để tính'}</div>
     </div>
 
     <div class="card-box span-12">
-      <div class="box-label">Tổng quan lead tháng ${dashMonth+1}/${dashYear}</div>
+      <div class="box-label">Tổng quan lead ${dashNhan}</div>
       <div class="box-sub" style="margin-top:2px">Bấm vào từng ô để xem danh sách lead tương ứng</div>
       <div class="trio">
         <div class="trio-item trio-clickable" onclick="openLeadListModal('leadin')"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
@@ -3102,10 +3268,10 @@ function getRevenueListData(type){
       items, revenueField: 'revenueExpected',
     };
   }
-  const monthKey = monthKeyOf(dashMonth, dashYear);
-  const items = activeLeads.filter(l => l.expectedCloseMonth === monthKey);
+  const thangTrongKy = cacThangTrongKhoang(dashTu, dashDen);
+  const items = activeLeads.filter(l => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
   return {
-    title: `Dự kiến chốt trong tháng ${dashMonth+1}/${dashYear}`,
+    title: `Dự kiến chốt trong ${dashNhan}`,
     items, revenueField: 'revenueExpected',
   };
 }
@@ -3139,13 +3305,13 @@ function closeRevenueListModal(){
 function getLeadListData(kind){
   const scoped = scopeByLeadType(leads);
   const activeLeads = scoped.filter(l => l.stage !== 'won' && l.stage !== 'lost');
-  const mLabel = `${dashMonth+1}/${dashYear}`;
+  const mLabel = dashNhan;
   if (kind === 'won'){
-    const items = scoped.filter(l => l.stage === 'won' && inMonth(l.wonAt, dashMonth, dashYear));
+    const items = scoped.filter(l => l.stage === 'won' && trongKhoang(l.wonAt, dashTu, dashDen));
     return { title:`Lead Won tháng ${mLabel}`, items, tag:l => ({ cls:'money', text:formatMoney(l.revenueActual||0) }) };
   }
   if (kind === 'lost'){
-    const items = scoped.filter(l => l.stage === 'lost' && inMonth(l.lostAt, dashMonth, dashYear));
+    const items = scoped.filter(l => l.stage === 'lost' && trongKhoang(l.lostAt, dashTu, dashDen));
     return { title:`Lead Lost tháng ${mLabel}`, items, tag:l => ({ cls:'red', text:esc(l.lostReason||'Chưa rõ lý do') }) };
   }
   if (kind === 'overdue'){
@@ -3157,7 +3323,7 @@ function getLeadListData(kind){
     return { title:'Lead cần xử lý hôm nay', items, tag:() => ({ cls:'green', text:'Hôm nay' }) };
   }
   // leadin (mặc định): các lead được tạo trong tháng đang xem
-  const items = scoped.filter(l => inMonth(l.createdAt, dashMonth, dashYear));
+  const items = scoped.filter(l => trongKhoang(l.createdAt, dashTu, dashDen));
   return { title:`Lead in tháng ${mLabel}`, items, tag:l => ({ cls:'money', text:formatMoney(l.revenueExpected||0) }) };
 }
 function openLeadListModal(kind){
@@ -3213,18 +3379,17 @@ function getTodoDateRange(){
     const to = todoCustomTo ? new Date(todoCustomTo + 'T23:59:59') : new Date();
     return { from, to };
   }
-  return getMonthRange(dashMonth, dashYear); // mặc định: tháng báo cáo hiện tại
+  // Mặc định: bám theo kỳ báo cáo đang chọn trên dashboard
+  return { from: new Date(dashTu + 'T00:00:00'), to: new Date(dashDen + 'T23:59:59') };
 }
-function countCompletedTodosInMonth(month, year){
-  const { from, to } = getMonthRange(month, year);
+// Đếm việc đã hoàn thành trong một khoảng ngày. So sánh thẳng trên chuỗi YYYY-MM-DD
+// nên không dính chuyện lệch múi giờ như cách đổi sang Date rồi so.
+function demTodoXongTrongKy(tu, den){
   let count = 0;
   const leadSet = new Set();
   leads.forEach(l => {
     (l.todos || []).forEach(t => {
-      if (t.done && t.completedAt){
-        const d = new Date(t.completedAt + 'T12:00:00');
-        if (d >= from && d <= to){ count++; leadSet.add(l.id); }
-      }
+      if (t.done && trongKhoang(t.completedAt, tu, den)){ count++; leadSet.add(l.id); }
     });
   });
   return { count, leadCount: leadSet.size };
@@ -3252,7 +3417,7 @@ function todoFilterLabel(){
     if (todoCustomFrom && todoCustomTo) return `${formatDate(todoCustomFrom)} — ${formatDate(todoCustomTo)}`;
     return 'Khoảng thời gian tuỳ chọn';
   }
-  return `Tháng báo cáo ${dashMonth+1}/${dashYear}`;
+  return `Kỳ báo cáo: ${dashNhan}`;
 }
 function openTodoCompletedModal(){
   todoFilterType = 'month';

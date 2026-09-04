@@ -163,6 +163,26 @@ try {
   check('co phan tich pheu', Array.isArray(dash.pheu) && dash.pheu.length === 7);
   check('co ti le CR', typeof dash.crToWon === 'number');
   check('co o tiem nang', !!dash.tiemNang);
+  check('co CR trong ky (chi so moi)', typeof dash.crTrongKy === 'number', JSON.stringify(dash.crTrongKy));
+  check('CR theo phe VAN con nguyen', typeof dash.crToWon === 'number');
+
+  console.log('\n>> 9b. Hai chi so CR do hai thu KHAC nhau');
+  // Lead tao thang truoc, chot thang nay -> CR theo phe khong tinh, CR trong ky co tinh
+  const homNay2 = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit',
+  }).format(new Date());
+  const thangTruoc = (() => { const d = new Date(homNay2 + 'T00:00:00Z'); d.setUTCDate(1); d.setUTCDate(0); return d.toISOString().slice(0,10); })();
+  await db('crmDataTest/leads/LCR', { method:'PUT', body: JSON.stringify({
+    id:'LCR', name:'Tao ky truoc chot ky nay', stage:'won',
+    revenueActual: 10000000, revenueExpected: 10000000,
+    createdAt: thangTruoc, wonAt: homNay2, leadType:'Lead công ty',
+    todos:[], notesList:[], tags:[], activityLog:[] }) });
+  const rCR = await goiShare({ token: TOKEN, session: r3.data.session, don:'thang', lui:0 });
+  const d2 = rCR.data.dashboard;
+  check('deal do duoc dem vao CR trong ky', d2.doanhThuThucTe.soDeal >= 1, JSON.stringify(d2.doanhThuThucTe));
+  check('nhung KHONG lam tang CR theo phe', d2.crToWon === 0,
+        `crToWon=${d2.crToWon} crTrongKy=${d2.crTrongKy}`);
+  await db('crmDataTest/leads/LCR', { method:'DELETE' });
 
   console.log('\n>> 10. Phien xem — doi thang khong phai nhap lai mat khau');
   const sess = r3.data.session;

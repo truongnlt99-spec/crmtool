@@ -335,13 +335,15 @@
       + the('Dự kiến chốt trong kỳ', tien(db.duKienChot.soTien), db.duKienChot.soLead + ' lead', null, null, 'duKien')
       + the('Trễ hẹn', db.treHen, 'cần liên hệ gấp', null, db.treHen > 0 ? 'red' : 'green', 'treHen')
       + the('Đến hạn hôm nay', db.denHanHomNay, 'theo lịch hẹn', null, null, 'homNay')
+      + the('CR trong kỳ ⚡', db.crTrongKy + '%',
+            db.doanhThuThucTe.soDeal + ' deal chốt ÷ ' + db.leadMoi.soLuong + ' lead nhận', null, null, 'won')
       + the('Việc đã hoàn thành ✓', db.todoHoanThanh.soViec,
             'trên ' + db.todoHoanThanh.soLead + ' lead trong kỳ', null, null, 'todoXong')
       + the('Deal cycle trung bình', db.dealCycle === null ? '—' : db.dealCycle + ' ngày', 'từ lúc tạo tới khi chốt')
       + '</div>';
 
     /* Phễu chuyển đổi */
-    h += '<h2 class="sec">Phễu chuyển đổi · CR ' + db.crToWon + '%</h2><div class="funnel">';
+    h += '<h2 class="sec">Phễu chuyển đổi · CR theo phễu ' + db.crToWon + '%</h2><div class="funnel">';
     var maxPheu = Math.max.apply(null, db.pheu.map(function(p){ return p.soLead; }).concat([1]));
     db.pheu.forEach(function(p, i){
       h += '<div class="fn-row" onclick="XEM.moPheu(' + i + ')">'
