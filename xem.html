@@ -312,6 +312,8 @@
       + the('Dự kiến chốt trong kỳ', tien(db.duKienChot.soTien), db.duKienChot.soLead + ' lead', null, null, 'duKien')
       + the('Trễ hẹn', db.treHen, 'cần liên hệ gấp', null, db.treHen > 0 ? 'red' : 'green', 'treHen')
       + the('Đến hạn hôm nay', db.denHanHomNay, 'theo lịch hẹn', null, null, 'homNay')
+      + the('Việc đã hoàn thành ✓', db.todoHoanThanh.soViec,
+            'trên ' + db.todoHoanThanh.soLead + ' lead trong kỳ', null, null, 'todoXong')
       + the('Deal cycle trung bình', db.dealCycle === null ? '—' : db.dealCycle + ' ngày', 'từ lúc tạo tới khi chốt')
       + '</div>';
 
@@ -410,9 +412,41 @@
   };
 
   function moDs(khoa){
+    // Danh sách việc đã hoàn thành có cấu trúc khác (theo việc, không theo lead)
+    if (khoa === 'todoXong') return moTodoXong();
     var c = DS[khoa]; if (!c) return;
     var ds = duLieu.leads.filter(c.loc);
     moModal(c.ten, ds.length + ' lead · ' + duLieu.kyBaoCao, dsHtml(ds, c.tien, khoa));
+  }
+
+  function moTodoXong(){
+    var ds = duLieu.todoHoanThanh || [];
+    if (!ds.length){
+      moModal('Việc đã hoàn thành', duLieu.kyBaoCao, '<div class="empty">Chưa có việc nào hoàn thành trong kỳ này.</div>');
+      return;
+    }
+    // Gom theo ngày hoàn thành cho dễ đọc — thấy được nhịp làm việc trong tháng
+    var theoNgay = {};
+    ds.forEach(function(t){ (theoNgay[t.completedAt] = theoNgay[t.completedAt] || []).push(t); });
+    var cacNgay = Object.keys(theoNgay).sort().reverse();
+
+    var h = cacNgay.map(function(ng){
+      return '<div class="blk"><div class="blk-title">' + ngay(ng)
+        + ' · ' + theoNgay[ng].length + ' việc</div>'
+        + theoNgay[ng].map(function(t){
+            return '<div class="lrow" onclick="XEM.moLead(\'' + esc(t.leadId) + '\',\'todoXong\')">'
+              + '<span class="tick on" style="flex:none;width:15px;height:15px;border-radius:4px;'
+              + 'background:var(--green-500);color:#fff;display:flex;align-items:center;'
+              + 'justify-content:center;font-size:10px;">✓</span>'
+              + '<span class="lrow-name">' + esc(t.text)
+              + '<br><span style="font-size:11px;color:var(--ink-faint);font-weight:600;">'
+              + esc(t.leadName) + ' · ' + esc(t.stageName) + '</span></span></div>';
+          }).join('')
+        + '</div>';
+    }).join('');
+
+    moModal('Việc đã hoàn thành',
+      ds.length + ' việc trên ' + duLieu.dashboard.todoHoanThanh.soLead + ' lead · ' + duLieu.kyBaoCao, h);
   }
 
   function moPheu(i){
@@ -481,7 +515,9 @@
     }).join('') : '<div class="empty">Chưa có hoạt động nào.</div>';
     h += '</div>';
 
-    moModal(l.name, l.stageName + ' · ' + esc(l.leadType), h, tuDau && DS[tuDau] ? tuDau : null);
+    // 'todoXong' khong nam trong bang DS nhung van la mot danh sach quay lai duoc
+    var quayLaiDuoc = tuDau && (DS[tuDau] || tuDau === 'todoXong') ? tuDau : null;
+    moModal(l.name, l.stageName + ' · ' + esc(l.leadType), h, quayLaiDuoc);
   }
 
   /* ---------- Điều hướng ---------- */

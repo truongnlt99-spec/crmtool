@@ -137,6 +137,27 @@ try {
   check('VAN khong co so dien thoai', !('phone' in l0));
   check('VAN khong co facebook', !('facebook' in l0));
 
+  console.log('\n>> 8b. Viec da hoan thanh trong ky');
+  // Seed co 1 viec xong trong thang hien tai + 1 viec xong thang khac (khong duoc tinh)
+  const homNayVN = new Intl.DateTimeFormat('en-CA', {
+    timeZone:'Asia/Ho_Chi_Minh', year:'numeric', month:'2-digit', day:'2-digit',
+  }).format(new Date());
+  const [nam2, thang2] = homNayVN.split('-').map(Number);
+  await db('crmDataTest/leads/L1/todos', { method:'PUT', body: JSON.stringify([
+    { id:'t0', text:'viec', done:false },
+    { id:'t1', text:'VIEC XONG TRONG KY', done:true, completedAt: homNayVN },
+    { id:'t2', text:'VIEC XONG KY KHAC', done:true, completedAt: '2020-01-15' },
+  ]) });
+  const rT = await goiShare({ token: TOKEN, session: r3.data.session, month: thang2, year: nam2 });
+  check('dem dung so viec trong ky', rT.data.dashboard.todoHoanThanh.soViec === 1,
+        JSON.stringify(rT.data.dashboard.todoHoanThanh));
+  check('dem dung so lead', rT.data.dashboard.todoHoanThanh.soLead === 1);
+  check('co danh sach chi tiet', Array.isArray(rT.data.todoHoanThanh) && rT.data.todoHoanThanh.length === 1);
+  check('dung viec cua ky nay', (rT.data.todoHoanThanh[0]||{}).text === 'VIEC XONG TRONG KY',
+        JSON.stringify(rT.data.todoHoanThanh[0]));
+  check('co kem ten lead de bam sang', !!(rT.data.todoHoanThanh[0]||{}).leadName);
+  check('viec ky khac KHONG bi tinh', !JSON.stringify(rT.data.todoHoanThanh).includes('KY KHAC'));
+
   console.log('\n>> 9. Dashboard co so lieu de bam vao xem chi tiet');
   const dash: any = r3.data.dashboard;
   check('co phan tich pheu', Array.isArray(dash.pheu) && dash.pheu.length === 7);

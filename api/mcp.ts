@@ -1448,6 +1448,25 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
 
   const tiemNang = dangCham.filter((l) => (l.tags || []).includes('Tiềm năng'));
 
+  // Việc đã hoàn thành trong kỳ — mirror getCompletedTodosData() của app.
+  // Lấy trên TOÀN BỘ lead kể cả Won/Lost: công đã bỏ ra vẫn là công, deal đóng rồi
+  // không có nghĩa là việc làm trong tháng đó không được tính.
+  const todoXong = tatCa
+    .flatMap((l) =>
+      (l.todos || [])
+        .filter((t) => t.done && t.completedAt && inMonth(t.completedAt, thang, nam))
+        .map((t) => ({
+          leadId: l.id,
+          leadName: l.name,
+          stage: l.stage,
+          stageName: STAGE_NAME[l.stage] || l.stage,
+          text: t.text,
+          completedAt: t.completedAt as string,
+        }))
+    )
+    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+  const soLeadCoViecXong = new Set(todoXong.map((t) => t.leadId)).size;
+
   // Phễu chuyển đổi — tính trên lead ĐƯỢC TẠO trong kỳ, giống hệt dashboard của app
   const buocPheu = STAGES.filter((s) => s.id !== 'lost');
   const pheu = buocPheu.map((s) => {
@@ -1524,6 +1543,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
     danhSachLoaiLead: LEAD_TYPES,
     giaiDoan: STAGES.map((s) => ({ id: s.id, name: s.name })),
     leads: tatCa.map(leadChiTiet),
+    todoHoanThanh: todoXong,
     dashboard: {
       pipeline: { soLead: dangCham.length, giaTri: giaTriPipeline },
       doanhThuThucTe: {
@@ -1539,6 +1559,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
       },
       tiemNang: { soTien: tiemNang.reduce((s, l) => s + (l.revenueExpected || 0), 0), soLead: tiemNang.length },
       duKienChot: { soTien: duKienChot.reduce((s, l) => s + (l.revenueExpected || 0), 0), soLead: duKienChot.length },
+      todoHoanThanh: { soViec: todoXong.length, soLead: soLeadCoViecXong },
       dealCycle: cycle.length ? Math.round(cycle.reduce((a, b) => a + b, 0) / cycle.length) : null,
       treHen: dangCham.filter((l) => leadStatus(l).type === 'red').length,
       denHanHomNay: dangCham.filter((l) => leadStatus(l).type === 'green').length,
