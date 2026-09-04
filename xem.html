@@ -421,28 +421,59 @@
     moModal(c.ten, ds.length + ' lead · ' + duLieu.kyBaoCao, dsHtml(ds, c.tien, khoa));
   }
 
+  // Tuần bắt đầu từ THỨ HAI (kiểu Việt Nam). Tính bằng UTC để không bị múi giờ làm lệch ngày.
+  var TEN_THU = ['CN','T2','T3','T4','T5','T6','T7'];
+  function thuHaiCuaTuan(iso){
+    var d = new Date(iso + 'T00:00:00Z');
+    var thu = d.getUTCDay();                 // 0 = Chủ nhật
+    d.setUTCDate(d.getUTCDate() - (thu === 0 ? 6 : thu - 1));
+    return d.toISOString().slice(0, 10);
+  }
+  function thuCuaNgay(iso){
+    return TEN_THU[new Date(iso + 'T00:00:00Z').getUTCDay()];
+  }
+  function nhanTuan(thuHaiIso){
+    var tuanNay = thuHaiCuaTuan(duLieu.homNay);
+    if (thuHaiIso === tuanNay) return 'Tuần này';
+    var truoc = new Date(tuanNay + 'T00:00:00Z');
+    truoc.setUTCDate(truoc.getUTCDate() - 7);
+    if (thuHaiIso === truoc.toISOString().slice(0, 10)) return 'Tuần trước';
+    var cn = new Date(thuHaiIso + 'T00:00:00Z');
+    cn.setUTCDate(cn.getUTCDate() + 6);
+    return ngay(thuHaiIso) + ' – ' + ngay(cn.toISOString().slice(0, 10));
+  }
+
   function moTodoXong(){
     var ds = duLieu.todoHoanThanh || [];
     if (!ds.length){
       moModal('Việc đã hoàn thành', duLieu.kyBaoCao, '<div class="empty">Chưa có việc nào hoàn thành trong kỳ này.</div>');
       return;
     }
-    // Gom theo ngày hoàn thành cho dễ đọc — thấy được nhịp làm việc trong tháng
-    var theoNgay = {};
-    ds.forEach(function(t){ (theoNgay[t.completedAt] = theoNgay[t.completedAt] || []).push(t); });
-    var cacNgay = Object.keys(theoNgay).sort().reverse();
+    // Gom theo TUẦN — nhìn ra được tuần nào chạy mạnh, tuần nào chững.
+    // Ngày cụ thể vẫn hiện trên từng dòng nên không mất chi tiết.
+    var theoTuan = {};
+    ds.forEach(function(t){
+      var k = thuHaiCuaTuan(t.completedAt);
+      (theoTuan[k] = theoTuan[k] || []).push(t);
+    });
+    var cacTuan = Object.keys(theoTuan).sort().reverse();
 
-    var h = cacNgay.map(function(ng){
-      return '<div class="blk"><div class="blk-title">' + ngay(ng)
-        + ' · ' + theoNgay[ng].length + ' việc</div>'
-        + theoNgay[ng].map(function(t){
+    var h = cacTuan.map(function(tuan){
+      var items = theoTuan[tuan].slice().sort(function(a,b){
+        return String(b.completedAt).localeCompare(String(a.completedAt));
+      });
+      return '<div class="blk"><div class="blk-title">' + esc(nhanTuan(tuan))
+        + ' · ' + items.length + ' việc</div>'
+        + items.map(function(t){
             return '<div class="lrow" onclick="XEM.moLead(\'' + esc(t.leadId) + '\',\'todoXong\')">'
               + '<span class="tick on" style="flex:none;width:15px;height:15px;border-radius:4px;'
               + 'background:var(--green-500);color:#fff;display:flex;align-items:center;'
               + 'justify-content:center;font-size:10px;">✓</span>'
               + '<span class="lrow-name">' + esc(t.text)
               + '<br><span style="font-size:11px;color:var(--ink-faint);font-weight:600;">'
-              + esc(t.leadName) + ' · ' + esc(t.stageName) + '</span></span></div>';
+              + esc(t.leadName) + ' · ' + esc(t.stageName) + '</span></span>'
+              + '<span class="lrow-val" style="font-size:11px;">' + esc(thuCuaNgay(t.completedAt))
+              + '<br>' + esc(ngay(t.completedAt).slice(0, 5)) + '</span></div>';
           }).join('')
         + '</div>';
     }).join('');
