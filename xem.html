@@ -88,7 +88,7 @@
   .box.clickable{cursor:pointer; transition:border-color .15s, transform .1s;}
   .box.clickable:hover{border-color:var(--green-500); transform:translateY(-1px);}
   .box.clickable:active{transform:none;}
-  .box-label{font-size:11px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em; display:flex; align-items:center; gap:5px;}
+  .box-label{font-size:11px; font-weight:800; color:var(--ink-faint);  display:flex; align-items:center; gap:5px;}
   .box-value{font-size:21px; font-weight:800; margin-top:5px; font-variant-numeric:tabular-nums;}
   .box-sub{font-size:11.5px; color:var(--ink-faint); font-weight:600; margin-top:3px;}
   .box-value.red{color:var(--red);} .box-value.green{color:var(--green-600);}
@@ -113,15 +113,16 @@
   .board{display:flex; gap:12px; overflow-x:auto; padding-bottom:10px;}
   .col{flex:0 0 240px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius-md); padding:11px; min-width:0;}
   .col-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:9px; padding-bottom:8px; border-bottom:1px solid var(--border-soft);}
-  .col-name{font-size:11.5px; font-weight:800; text-transform:uppercase; letter-spacing:.03em;}
+  .col-name{font-size:11.5px; font-weight:800; }
   .col-count{font-size:11px; font-weight:800; color:var(--ink-faint); background:var(--bg); border-radius:999px; padding:1px 8px; flex:none;}
   .col-sum{font-size:11px; color:var(--ink-faint); font-weight:700; margin-top:2px;}
-  .card{background:var(--bg); border:1px solid var(--border-soft); border-left:3px solid var(--gray-tag);
+  .card{background:var(--bg); border:1px solid var(--border-soft); 
     border-radius:var(--radius-sm); padding:9px 10px; margin-bottom:7px; cursor:pointer; transition:border-color .15s;}
-  .card:hover{border-color:var(--green-500); border-left-color:var(--green-500);}
-  .card.red{border-left-color:var(--red);} .card.green{border-left-color:var(--green-500);}
-  .card.won{border-left-color:var(--green-600);} .card.lost{border-left-color:var(--gray-tag);}
-  .card-name{font-size:12.5px; font-weight:700; overflow-wrap:anywhere;}
+  .card:hover{border-color:var(--green-500);}
+  .card-dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--gray-tag);}
+  .card.red .card-dot{background:var(--red);} .card.green .card-dot{background:var(--green-500);}
+  .card.won .card-dot{background:var(--green-600);} .card.lost .card-dot{background:var(--gray-tag);}
+  .card-name{font-size:12.5px; font-weight:700; overflow-wrap:anywhere; display:flex; align-items:center; gap:7px;}
   .card-meta{font-size:11px; color:var(--ink-faint); font-weight:600; margin-top:3px; display:flex; gap:7px; flex-wrap:wrap;}
   .chip{border-radius:4px; padding:1px 6px; font-size:10px; font-weight:800;}
   .chip.red{color:var(--red); background:var(--red-soft);}
@@ -159,7 +160,7 @@
   .kv dt{color:var(--ink-faint); font-weight:700;}
   .kv dd{margin:0; font-weight:600; overflow-wrap:anywhere;}
   .blk{margin-bottom:14px;}
-  .blk-title{font-size:11px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
+  .blk-title{font-size:11px; font-weight:800; color:var(--ink-faint);  margin-bottom:6px;}
   .note{background:var(--bg); border:1px solid var(--border-soft); border-radius:var(--radius-sm); padding:9px 11px; margin-bottom:6px;}
   .note-time{font-size:10.5px; color:var(--ink-faint); font-weight:700; margin-bottom:3px;}
   .note-text{font-size:12.5px; font-weight:500; white-space:pre-wrap; line-height:1.5; overflow-wrap:anywhere;}
@@ -385,7 +386,7 @@
       ds.forEach(function(l){
         var cls = l.stage === 'won' ? 'won' : l.stage === 'lost' ? 'lost' : l.statusType;
         h += '<div class="card ' + cls + '" onclick="XEM.moLead(\'' + esc(l.id) + '\')">'
-          + '<div class="card-name">' + (l.isPotential ? '🔥 ' : '') + esc(l.name) + '</div>'
+          + '<div class="card-name"><span class="card-dot"></span>' + (l.isPotential ? '🔥 ' : '') + esc(l.name) + '</div>'
           + '<div class="card-meta">'
           + '<span class="chip pkg">' + esc(l.package || '—') + '</span>'
           + '<span>' + tien(l.stage === 'won' ? l.revenueActual : l.revenueExpected) + '</span>'

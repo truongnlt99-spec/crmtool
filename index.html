@@ -252,6 +252,8 @@
   .sidebar-connect{margin-top:10px;}
   .sidebar-connect:hover{color:var(--green-600); border-color:var(--green-500); background:var(--green-50);}
   .sidebar-theme{margin-top:10px;}
+  .theme-icon{display:flex; flex:none;}
+  .theme-icon svg{width:15px; height:15px;}
   .sidebar-theme:hover{color:var(--amber); border-color:var(--amber); background:var(--amber-soft);}
   .sidebar-share{margin-top:10px;}
   .sidebar-share:hover{color:var(--slate); border-color:var(--slate); background:var(--slate-soft);}
@@ -260,7 +262,7 @@
   .share-row{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;}
   .share-on{
     display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
-    padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.03em;
+    padding:3px 9px; border-radius:999px; 
   }
   .share-on.bat{color:var(--green-700); background:var(--green-50);}
   .share-on.tat{color:var(--gray-tag); background:var(--gray-tag-soft);}
@@ -322,7 +324,7 @@
     border:1px solid transparent; transition:background .12s ease, border-color .12s ease; width:100%; text-align:left;
   }
   .sidebar-stat:hover{background:var(--stat-hover); border-color:var(--green-100);}
-  .sidebar-stat-label{font-size:11px; color:var(--green-700); font-weight:700; text-transform:uppercase; letter-spacing:.03em; display:flex; align-items:center; justify-content:space-between;}
+  .sidebar-stat-label{font-size:11px; color:var(--green-700); font-weight:700;  display:flex; align-items:center; justify-content:space-between;}
   .sidebar-stat-label svg{width:12px; height:12px;}
   .sidebar-stat-value{font-size:19px; font-weight:800; color:var(--ink); margin-top:4px;}
   .sidebar-stat-sub{font-size:11.5px; color:var(--ink-soft); margin-top:2px;}
@@ -395,7 +397,7 @@
   .column-title-row{display:flex; align-items:center; gap:7px;}
   .column-dot{width:8px; height:8px; border-radius:50%; flex:none;}
   .column-title{
-    font-weight:800; font-size:12.5px; flex:1; color:var(--green-700); text-transform:uppercase; letter-spacing:.05em;
+    font-weight:800; font-size:12.5px; flex:1; color:var(--green-700); 
   }
   .column-count{
     font-size:11px; font-weight:700; color:var(--ink-soft); background:var(--card); border-radius:999px;
@@ -415,20 +417,28 @@
   }
   .column-empty svg{width:24px; height:24px; opacity:.6; overflow:visible;}
 
+  /* Bỏ thanh màu dọc bên trái thẻ: mẫu đó bị dùng quá nhiều đến sáo mòn.
+     Trạng thái nay báo bằng một chấm tròn ngay cạnh tên khách — gọn hơn, và đặt
+     màu ngay chỗ mắt đang đọc thay vì ở rìa thẻ. */
   .card{
     background:var(--card); border-radius:var(--radius-md); padding:11px 12px; cursor:grab;
-    box-shadow:var(--shadow-card); border-left:4px solid var(--gray-tag); transition:box-shadow .12s ease, transform .12s ease;
+    box-shadow:var(--shadow-card); border:1px solid var(--border-soft);
+    transition:box-shadow .12s ease, transform .12s ease, border-color .12s ease;
   }
-  .card:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px);}
+  .card:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px); border-color:var(--border);}
   .card.dragging{opacity:.4;}
-  .card.status-red{border-left-color:var(--red);}
-  .card.status-green{border-left-color:var(--green-500);}
-  .card.status-gray{border-left-color:var(--gray-tag);}
-  .card.status-won{border-left-color:var(--green-700);}
-  .card.status-lost{border-left-color:var(--stage-lost);}
+  .card-dot{
+    width:7px; height:7px; border-radius:50%; flex:none; margin-right:7px;
+    background:var(--gray-tag); align-self:center;
+  }
+  .card.status-red .card-dot{background:var(--red);}
+  .card.status-green .card-dot{background:var(--green-500);}
+  .card.status-gray .card-dot{background:var(--gray-tag);}
+  .card.status-won .card-dot{background:var(--green-700);}
+  .card.status-lost .card-dot{background:var(--stage-lost);}
 
-  .card-top{display:flex; align-items:flex-start; justify-content:space-between; gap:6px;}
-  .card-name{font-weight:700; font-size:13.5px; line-height:1.3;}
+  .card-top{display:flex; align-items:center; justify-content:space-between; gap:6px;}
+  .card-name{font-weight:700; font-size:13.5px; line-height:1.3; flex:1; min-width:0;}
   .card-top-right{display:flex; align-items:center; gap:6px; flex:none;}
   .card-move-btn{
     display:flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%;
@@ -500,15 +510,15 @@
   .card-box.span-8{grid-column:span 8;}
   .card-box.span-12{grid-column:span 12;}
 
-  .box-label{font-size:11.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;}
-  .box-value{font-size:26px; font-weight:800; margin-top:8px; letter-spacing:-.02em;}
+  .box-label{font-size:11.5px; font-weight:700; color:var(--ink-faint); }
+  .box-value{font-size:clamp(19px, 2.1vw, 26px); font-weight:800; margin-top:8px; letter-spacing:-.02em;}
   .box-sub{font-size:12px; color:var(--ink-soft); margin-top:4px; font-weight:500;}
 
-  .kpi-row{display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; gap:10px;}
+  .kpi-row{display:flex; align-items:baseline; justify-content:space-between; margin-top:8px; gap:10px; flex-wrap:wrap;}
   /* Không đặt background/color thì trình duyệt tự tô theo color-scheme, ra màu xám
      lạc lõng ở chế độ tối. Gán token để khớp với các ô nhập khác. */
   .kpi-row input{
-    width:120px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 8px; font-size:12px;
+    width:110px; flex:none; border:1px solid var(--border); border-radius:var(--radius-sm); padding:5px 8px; font-size:12px;
     font-weight:700; text-align:right; background:var(--card); color:var(--ink);
   }
   .progress-track{height:8px; background:var(--border-soft); border-radius:999px; margin-top:12px; overflow:hidden;}
@@ -629,7 +639,7 @@
   @media (max-width:900px){ .drawer-deco{display:none;} }
   .drawer-body{flex:1; overflow:auto; padding:26px 28px 60px 28px; position:relative; z-index:1;}
   .drawer-section{margin-bottom:16px;}
-  .drawer-section-title{font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:10px; opacity:.65;}
+  .drawer-section-title{font-size:11px; font-weight:800;  margin-bottom:10px; opacity:.65;}
   .field-row{display:flex; gap:10px;}
   .field-group{margin-bottom:12px; flex:1;}
   .field-label{font-size:11.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; display:block;}
@@ -776,7 +786,7 @@
   .reminder-section{margin-bottom:18px;}
   .reminder-section:last-child{margin-bottom:0;}
   .reminder-section-title{
-    font-size:12px; font-weight:800; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em;
+    font-size:12px; font-weight:800; color:var(--ink-faint); 
     display:flex; align-items:center; gap:8px; margin-bottom:6px; padding-bottom:6px; border-bottom:1px solid var(--border-soft);
   }
   .reminder-section-count{font-size:11px; font-weight:700; background:var(--bg); border-radius:999px; padding:1px 8px; color:var(--ink-soft);}
@@ -883,7 +893,7 @@
 
   /* ---------- Lock screen: lời chào yêu thương buổi sáng ---------- */
   .lock-emoji{font-size:34px; line-height:1; margin-bottom:10px;}
-  .lock-date{font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:9px;}
+  .lock-date{font-size:10.5px; font-weight:700;  color:var(--ink-faint); margin-bottom:9px;}
   .lock-greeting{font-size:19px; font-weight:800; color:var(--ink); line-height:1.35; margin-bottom:9px;}
   .lock-quote{font-size:13px; font-weight:500; color:var(--blush); font-style:italic; line-height:1.55; margin-bottom:22px; padding:0 2px;}
   .lock-divider{height:1px; background:var(--border-soft); margin:0 0 20px;}
@@ -1096,7 +1106,7 @@
     </div>
 
     <button class="sidebar-logout sidebar-theme" onclick="doiCheDoGiaoDien()" id="btnTheme" title="Đổi giao diện sáng / tối / tự động">
-      <span id="themeIcon" style="font-size:15px; line-height:1;">🌗</span>
+      <span id="themeIcon" class="theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg></span>
       <span class="sidebar-logout-text" id="themeText">Tự động</span>
     </button>
 
@@ -1867,10 +1877,20 @@ function hideLockScreen(){
 /* ======================= GIAO DIỆN SÁNG / TỐI ======================= */
 // Ba chế độ, bấm một nút xoay vòng: Tự động → Sáng → Tối → Tự động.
 // Chế độ "Tự động" bật tối từ 18h tới 6h sáng theo giờ máy.
+// Icon vẽ bằng SVG chứ không dùng emoji: mọi nút khác trong sidebar đều là SVG,
+// để lẫn emoji vào vừa lệch nhịp vừa là kiểu trang trí sáo mòn.
+const SVG_THEME = {
+  // Nửa sáng nửa tối
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg>',
+  // Mặt trời
+  sang: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4"/></svg>',
+  // Mặt trăng khuyết
+  toi:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.2A8.5 8.5 0 0 1 9.8 4a8.5 8.5 0 1 0 10.2 10.2Z"/></svg>',
+};
 const CHE_DO_GIAO_DIEN = [
-  { ma:'auto', icon:'🌗', ten:'Tự động' },
-  { ma:'sang', icon:'☀️', ten:'Sáng' },
-  { ma:'toi',  icon:'🌙', ten:'Tối' },
+  { ma:'auto', ten:'Tự động' },
+  { ma:'sang', ten:'Sáng' },
+  { ma:'toi',  ten:'Tối' },
 ];
 
 function veNutTheme(){
@@ -1879,7 +1899,7 @@ function veNutTheme(){
   const iconEl = document.getElementById('themeIcon');
   const textEl = document.getElementById('themeText');
   const btn = document.getElementById('btnTheme');
-  if (iconEl) iconEl.textContent = c.icon;
+  if (iconEl) iconEl.innerHTML = SVG_THEME[c.ma] || SVG_THEME.auto;
   if (textEl) textEl.textContent = c.ten;
   if (btn){
     btn.title = che === 'auto'
@@ -2276,6 +2296,7 @@ function cardHtml(lead){
   return `
     <div class="card status-${status.type}" draggable="true" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')">
       <div class="card-top">
+        <span class="card-dot"></span>
         <div class="card-name">${esc(lead.name)}</div>
         <div class="card-top-right">
           ${tag}
@@ -3139,7 +3160,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Doanh thu thực tế ${dashNhan}</div>
+      <div class="box-label">Doanh thu thực tế</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
         <input type="text" inputmode="numeric" id="planRevenueInput" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
@@ -3149,7 +3170,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-4">
-      <div class="box-label">Số lead nhận ${dashNhan}</div>
+      <div class="box-label">Số lead nhận</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${monthLeads.length}</div>
         <input type="number" id="planLeadsInput" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
@@ -3162,21 +3183,18 @@ function renderDashboard(){
       <div class="box-label">Doanh thu gắn nhãn Tiềm năng 🔥</div>
       <div class="box-value">${formatMoney(potentialRevenue)}</div>
       <div class="box-sub">${potentialLeads.length} lead đang gắn nhãn tiềm năng</div>
-      <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box clickable-box" onclick="openRevenueListModal('expectedClose')">
-      <div class="box-label">Dự kiến chốt trong ${dashNhan}</div>
+      <div class="box-label">Dự kiến chốt</div>
       <div class="box-value">${formatMoney(expectedCloseRevenue)}</div>
       <div class="box-sub">${expectedCloseLeads.length} lead hẹn chốt tháng này (theo "Tháng chốt dự kiến")</div>
-      <div class="box-hint">Xem danh sách lead <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box clickable-box" onclick="openTodoCompletedModal()">
-      <div class="box-label">Todo hoàn thành ${dashNhan}</div>
+      <div class="box-label">Todo hoàn thành</div>
       <div class="box-value">${completedTodosStat.count}</div>
       <div class="box-sub">${completedTodosStat.leadCount} lead có việc đã hoàn thành</div>
-      <div class="box-hint">Xem danh sách <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box clickable-box" onclick="openLeadListModal('won')">
@@ -3184,11 +3202,10 @@ function renderDashboard(){
       <div class="box-value">${crTrongKy}%</div>
       <div class="box-sub">${wonThisMonth.length} deal chốt ÷ ${monthLeads.length} lead nhận trong kỳ</div>
       <div class="box-sub" style="margin-top:4px; color:var(--ink-faint);">Không quan tâm lead được tạo lúc nào</div>
-      <div class="box-hint">Xem deal đã chốt <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
     </div>
 
     <div class="card-box span-8">
-      <div class="box-label">Tỉ lệ chuyển đổi theo phễu (CR) — ${dashNhan}</div>
+      <div class="box-label">Tỉ lệ chuyển đổi theo phễu</div>
       <div class="kpi-row">
         <div class="box-value">${crToWon}%</div>
         <div class="cr-caption">${wonReached}/${funnelLeads.length} lead tạo trong kỳ đã chuyển thành Won</div>
@@ -3216,7 +3233,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-12">
-      <div class="box-label">Tổng quan lead ${dashNhan}</div>
+      <div class="box-label">Tổng quan lead</div>
       <div class="box-sub" style="margin-top:2px">Bấm vào từng ô để xem danh sách lead tương ứng</div>
       <div class="trio">
         <div class="trio-item trio-clickable" onclick="openLeadListModal('leadin')"><div class="trio-num">${monthLeads.length}</div><div class="trio-label">Lead in</div></div>
@@ -3228,7 +3245,7 @@ function renderDashboard(){
     </div>
 
     <div class="card-box span-6 list-box">
-      <div class="box-label">Lý do Lost trong tháng (${lostThisMonth.length})</div>
+      <div class="box-label">Lý do Lost (${lostThisMonth.length})</div>
       ${LOST_REASONS.map(r => `
         <div class="reason-row">
           <div class="reason-label">${esc(r)}</div>
@@ -3391,7 +3408,7 @@ function getRevenueListData(type){
   const thangTrongKy = cacThangTrongKhoang(dashTu, dashDen);
   const items = activeLeads.filter(l => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
   return {
-    title: `Dự kiến chốt trong ${dashNhan}`,
+    title: `Dự kiến chốt`,
     items, revenueField: 'revenueExpected',
   };
 }
