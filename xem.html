@@ -24,6 +24,24 @@
     --radius-sm:6px; --radius-md:10px; --radius-lg:18px;
     --shadow-card:0 1px 2px rgba(28,38,34,.07), 0 1px 1px rgba(28,38,34,.04);
   }
+  /* Trang này không có nút chuyển: người xem là khách, cứ bám theo cài đặt sáng/tối
+     của máy họ là hợp lý nhất. Cùng bảng màu tối với app để hai bên nhìn như một. */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --green-50:#15291F;  --green-100:#1E3B2C; --green-500:#35C98A; --green-600:#55D89F; --green-700:#86EBBE;
+      --ink:#E7EEE9;       --ink-soft:#A6B5AC;  --ink-faint:#7C8B83;
+      --bg:#101613;        --card:#18201C;      --border:#2B352E;    --border-soft:#232C27;
+      --blush:#F0A0B2;     --blush-soft:#2F1E23;
+      --red:#FF7078;       --red-soft:#331C1F;
+      --gray-tag:#96A59D;  --gray-tag-soft:#242D28;
+      --amber:#E2B468;     --amber-soft:#2E2719;
+      --purple:#A98DEC;    --purple-soft:#251E34;
+      --slate:#91AAC1;     --slate-soft:#1D252C;
+      --shadow-card:0 1px 2px rgba(0,0,0,.5), 0 1px 1px rgba(0,0,0,.3);
+      color-scheme: dark;
+    }
+  }
+
   *,*::before,*::after{box-sizing:border-box;}
   body{margin:0; background:var(--bg); color:var(--ink);
     font-family:'Be Vietnam Pro',system-ui,-apple-system,'Segoe UI',sans-serif;
