@@ -3678,6 +3678,27 @@ function scheduleSave(){
   saveTimer = setTimeout(saveToCloud, 700);
 }
 
+// So state trong máy với BẢN GỐC -> những gì người dùng đã sửa mà máy chủ chưa có.
+// Trả kèm chuỗi JSON chụp lúc tính, để dời bản gốc sau khi ghi thành công.
+function tinhThayDoiCucBo(){
+  const thayDoi = {}, chuoiLead = {};
+  const leadNay = leadsToObject();
+  for (const [id, lead] of Object.entries(leadNay)){
+    const s = JSON.stringify(lead);
+    if (s !== banGoc.leads[id]){ thayDoi['leads/' + id] = lead; chuoiLead[id] = s; }
+  }
+  // Có trong bản gốc mà không còn trong máy = người dùng đã xoá -> ghi null.
+  // Lead không có trong bản gốc (vd Claude vừa tạo, app chưa áp) thì không bao giờ bị ghi null.
+  for (const id of Object.keys(banGoc.leads)){
+    if (!leadNay[id]){ thayDoi['leads/' + id] = null; chuoiLead[id] = null; }
+  }
+  const chuoiTodo = JSON.stringify(dailyTodosToObject());
+  if (chuoiTodo !== banGoc.dailyTodos) thayDoi.dailyTodos = JSON.parse(chuoiTodo);
+  if (planRevenue !== banGoc.planRevenue) thayDoi.planRevenue = planRevenue;
+  if (planLeads   !== banGoc.planLeads)   thayDoi.planLeads   = planLeads;
+  return { thayDoi, chuoiLead, chuoiTodo };
+}
+
 async function saveToCloud(){
   // Đánh dấu đã hết thay đổi cục bộ đang chờ — nếu không, cờ saveTimer sẽ kẹt ở giá trị cũ
   // và chặn vĩnh viễn luồng đồng bộ realtime ở initCloudSync().
@@ -3697,45 +3718,44 @@ async function saveToCloud(){
 
   setSyncStatus('saving');
   try {
-    // CHỈ ghi những nhánh thực sự đổi, thay vì ghi đè toàn bộ crmData.
-    // Trước đây app dùng set() cho cả cụm, nên mọi thay đổi do Claude ghi vào giữa
-    // lúc app đang mở đều bị lần lưu kế tiếp xoá sạch. Nay lead nào app không đụng
-    // tới thì không nằm trong lệnh ghi, nên thay đổi của Claude ở lead khác vẫn còn.
-    const truoc     = lastSyncedRaw ? JSON.parse(lastSyncedRaw) : {};
-    const leadTruoc = truoc.leads || {};
-    const leadNay   = leadsToObject();
-    const thayDoi   = {};
+    // CHỈ ghi những gì người dùng thực sự sửa, thay vì ghi đè toàn bộ crmData.
+    // Mốc so sánh là BẢN GỐC (dữ liệu máy chủ mà state trong máy được dựng từ đó), KHÔNG
+    // phải bản máy chủ mới nhất. Trước đây so với bản mới nhất: khi UI bận, cập nhật của
+    // Claude nằm chờ trong pendingRemote chưa vào leads, nên lead Claude vừa sửa trông như
+    // "app sửa" -> bị ghi lại bản cũ, còn lead Claude vừa tạo trông như "app xoá" -> bị ghi
+    // null. So với bản gốc thì các lead đó không lệch gì nên không nằm trong lệnh ghi.
+    const { thayDoi, chuoiLead, chuoiTodo } = tinhThayDoiCucBo();
 
-    for (const [id, lead] of Object.entries(leadNay)){
-      if (JSON.stringify(lead) !== JSON.stringify(leadTruoc[id])) thayDoi['leads/' + id] = lead;
+    // Lead cũ vừa được gắn chủ sở hữu lúc nạp: chỉ ghi đúng trường ownerUid. Ghi cả lead
+    // thì bản trong máy (có thể chưa áp cập nhật đang chờ) sẽ đè thay đổi Claude vừa ghi vào nó.
+    const leadMayChu = lastSyncedRaw ? (JSON.parse(lastSyncedRaw).leads || {}) : {};
+    const chuSoHuuDangXet = [...chuSoHuuChuaLuu];
+    for (const id of chuSoHuuDangXet){
+      const lead = leads.find(l => l.id === id);
+      // Ghi cả lead thì ownerUid đã đi kèm. Lead không còn trên máy chủ thì bỏ: ghi riêng
+      // một trường vào đó sẽ đẻ ra một lead chỉ có mỗi ownerUid.
+      if (!lead || !lead.ownerUid || !leadMayChu[id] || ('leads/' + id) in thayDoi) continue;
+      thayDoi['leads/' + id + '/ownerUid'] = lead.ownerUid;
     }
-    // Lead bị xoá: ghi null để Firebase gỡ hẳn nhánh đó
-    for (const id of Object.keys(leadTruoc)){
-      if (!leadNay[id]) thayDoi['leads/' + id] = null;
-    }
-
-    const todoNay = dailyTodosToObject();
-    if (JSON.stringify(todoNay) !== JSON.stringify(truoc.dailyTodos || {})) thayDoi.dailyTodos = todoNay;
-    if (planRevenue !== truoc.planRevenue) thayDoi.planRevenue = planRevenue;
-    if (planLeads   !== truoc.planLeads)   thayDoi.planLeads   = planLeads;
 
     // Không có gì đổi thì khỏi gọi mạng
-    if (!Object.keys(thayDoi).length){ setSyncStatus('saved'); return; }
+    if (!Object.keys(thayDoi).length){ chuSoHuuChuaLuu.clear(); setSyncStatus('saved'); return; }
 
     thayDoi.updatedAt = new Date().toISOString();
     await window.__firebase.update(window.__firebase.dataRef, thayDoi);
 
-    // Đoán trước trạng thái máy chủ sau lệnh ghi này. Nếu đoán sai (vì Claude vừa
-    // sửa một lead khác mà app chưa nhận được), onValue sẽ thấy khác và tự đồng bộ lại
-    // — đó chính là lúc thay đổi của Claude được nạp về thay vì bị mất.
-    lastSyncedRaw = JSON.stringify({
-      ...truoc,
-      leads: leadNay,
-      dailyTodos: todoNay,
-      planRevenue,
-      planLeads,
-      updatedAt: thayDoi.updatedAt,
-    });
+    // Ghi xong: máy chủ đã có đúng những gì vừa ghi -> dời bản gốc tới đó. Dùng chuỗi chụp
+    // LÚC TÍNH chứ không chụp lại: người dùng có thể đã sửa tiếp trong lúc chờ mạng, phần
+    // đó phải còn lệch để lần lưu sau ghi nốt.
+    // Không tự đoán lastSyncedRaw nữa: SDK bắn onValue ngay trong lời gọi update() với dữ
+    // liệu vừa ghi, nên lastSyncedRaw đã là ảnh máy chủ thật.
+    for (const [id, s] of Object.entries(chuoiLead)){
+      if (s === null) delete banGoc.leads[id]; else banGoc.leads[id] = s;
+    }
+    if ('dailyTodos' in thayDoi)  banGoc.dailyTodos  = chuoiTodo;
+    if ('planRevenue' in thayDoi) banGoc.planRevenue = thayDoi.planRevenue;
+    if ('planLeads' in thayDoi)   banGoc.planLeads   = thayDoi.planLeads;
+    chuSoHuuDangXet.forEach(id => chuSoHuuChuaLuu.delete(id));
     setSyncStatus('saved');
   } catch(e){
     console.error('Firebase save error:', e);
@@ -3756,7 +3776,7 @@ function migrateLead(l){
   // là cướp mất quyền sở hữu lead của người trước.
   if (!l.ownerUid && window.__authUser){
     l.ownerUid = window.__authUser.uid;
-    coLeadVuaGanChuSoHuu = true;   // để ghi hẳn xuống database, không chỉ gắn trong bộ nhớ
+    chuSoHuuChuaLuu.add(l.id);   // để ghi hẳn xuống database, không chỉ gắn trong bộ nhớ
   }
 
   if (typeof l.notes === 'string'){
@@ -3792,12 +3812,55 @@ function migrateLead(l){
   return l;
 }
 
-// Nạp dữ liệu từ snapshot Firebase vào state của app
+// Nạp dữ liệu từ snapshot Firebase vào state của app. Phần nào người dùng đang sửa dở
+// (lệch khỏi bản gốc) thì giữ bản trong máy, còn lại lấy bản máy chủ. Bản gốc dời theo
+// máy chủ, nên phần giữ lại vẫn còn lệch và lần lưu kế tiếp sẽ ghi nó lên.
 function applyRemoteData(data){
-  if (data.leads) leads = Object.values(data.leads).map(migrateLead);
-  if (data.dailyTodos) dailyTodos = Object.values(data.dailyTodos);
-  if (typeof data.planRevenue === 'number') planRevenue = data.planRevenue;
-  if (typeof data.planLeads === 'number') planLeads = data.planLeads;
+  if (data.leads){
+    const trongMay = leadsToObject();
+    const dangSua = id => (trongMay[id] ? JSON.stringify(trongMay[id]) : undefined) !== banGoc.leads[id];
+    const moi = [], goc = {};
+    // Lead tạo trong máy chưa kịp lưu -> giữ, để đầu danh sách giống leads.unshift()
+    for (const [id, l] of Object.entries(trongMay)){
+      if (!(id in data.leads) && dangSua(id)) moi.push(l);
+    }
+    for (const [id, l] of Object.entries(data.leads)){
+      if (dangSua(id)){
+        if (trongMay[id]) moi.push(trongMay[id]);   // xoá trong máy mà chưa lưu thì vẫn bỏ
+        goc[id] = JSON.stringify(l);
+      } else {
+        // Bản gốc chụp SAU migrateLead: phần app tự bù (id việc, ownerUid...) không tính là sửa
+        const m = migrateLead(l);
+        moi.push(m);
+        goc[id] = JSON.stringify(m);
+      }
+    }
+    leads = moi;
+    banGoc.leads = goc;
+  }
+  if (data.dailyTodos){
+    if (JSON.stringify(dailyTodosToObject()) === banGoc.dailyTodos){
+      dailyTodos = Object.values(data.dailyTodos);
+      banGoc.dailyTodos = JSON.stringify(dailyTodosToObject());
+    } else {
+      banGoc.dailyTodos = JSON.stringify(data.dailyTodos);
+    }
+  }
+  if (typeof data.planRevenue === 'number'){
+    if (planRevenue === banGoc.planRevenue) planRevenue = data.planRevenue;
+    banGoc.planRevenue = data.planRevenue;
+  }
+  if (typeof data.planLeads === 'number'){
+    if (planLeads === banGoc.planLeads) planLeads = data.planLeads;
+    banGoc.planLeads = data.planLeads;
+  }
+}
+
+// Coi toàn bộ state đang có trong máy là "chưa sửa gì". Chỉ dùng ngay trước lần nạp đầu,
+// khi dữ liệu máy chủ phải thay trọn state mặc định.
+function datBanGocTheoMay(){
+  banGoc = { leads: {}, dailyTodos: JSON.stringify(dailyTodosToObject()), planRevenue, planLeads };
+  leads.forEach(l => { banGoc.leads[l.id] = JSON.stringify(l); });
 }
 
 // Đang mở drawer/modal hoặc đang gõ trong ô nhập -> hoãn việc vẽ lại,
@@ -3814,15 +3877,21 @@ function uiIsBusy(){
 // Đã nạp được dữ liệu từ máy chủ ít nhất một lần chưa. Chừng nào còn false thì
 // tuyệt đối không cho ghi lên máy chủ (xem chốt an toàn trong saveToCloud).
 let cloudLoaded = false;
-// migrateLead() bật cờ này khi vừa gắn chủ sở hữu cho lead cũ. Sau lần nạp đầu tiên,
-// app tự lưu lại một lần để ghi hẳn ownerUid xuống database.
-let coLeadVuaGanChuSoHuu = false;
-let lastSyncedRaw = null;   // ảnh chụp dữ liệu lần đồng bộ gần nhất (để bỏ qua chính mình vừa ghi)
+// migrateLead() ghi id vào đây khi vừa gắn chủ sở hữu cho lead cũ. Sau lần nạp đầu tiên,
+// app tự lưu một lần, ghi riêng trường ownerUid của các lead này xuống database.
+const chuSoHuuChuaLuu = new Set();
+let lastSyncedRaw = null;   // ảnh chụp máy chủ mới nhất đã nhận (để bỏ qua sự kiện trùng)
 let pendingRemote = null;   // cập nhật từ xa đang chờ áp dụng vì UI đang bận
+// BẢN GỐC: dữ liệu máy chủ mà state trong máy được dựng từ đó, ở dạng trong máy (đã qua
+// migrateLead); mỗi lead là một chuỗi JSON. Lead trong máy khác bản gốc = người dùng đã sửa
+// mà chưa lưu. Phải tách khỏi lastSyncedRaw: hai thứ lệch nhau đúng lúc có cập nhật từ xa
+// đang chờ, và lần lưu từng lấy nhầm lastSyncedRaw làm mốc nên xoá lead / đảo ngược thay
+// đổi của Claude.
+let banGoc = { leads: {}, dailyTodos: null, planRevenue: undefined, planLeads: undefined };
 
 function flushPendingRemote(){
-  // Thêm điều kiện saveTimer: còn thay đổi cục bộ chưa lưu mà áp dữ liệu từ xa vào
-  // là xoá mất phần người dùng vừa sửa. Chờ lưu xong rồi hãy áp.
+  // Chờ lưu xong rồi hãy áp cho gọn. Áp giữa chừng cũng không mất gì (applyRemoteData giữ
+  // phần đang sửa), nhưng đỡ vẽ lại màn hình hai lần liền nhau.
   if (!pendingRemote || uiIsBusy() || saveTimer) return;
   applyRemoteData(pendingRemote);
   pendingRemote = null;
@@ -3838,14 +3907,14 @@ async function initCloudSync(){
     if (snap.exists()){
       const data = snap.val() || {};
       lastSyncedRaw = JSON.stringify(data);
+      datBanGocTheoMay();          // lần nạp đầu: dữ liệu máy chủ thay trọn state mặc định
       applyRemoteData(data);
       cloudLoaded = true;          // từ đây mới được phép ghi lên máy chủ
       setSyncStatus('loaded');
 
       // Vừa gắn chủ sở hữu cho lead cũ -> lưu một lần để ghi hẳn xuống database.
       // Đặt SAU cloudLoaded = true, nếu không chốt an toàn trong saveToCloud sẽ chặn.
-      if (coLeadVuaGanChuSoHuu){
-        coLeadVuaGanChuSoHuu = false;
+      if (chuSoHuuChuaLuu.size){
         console.info('Đã gắn chủ sở hữu cho các lead cũ, đang lưu lại...');
         scheduleSave();
       }
@@ -3870,12 +3939,15 @@ async function initCloudSync(){
       if (!s.exists()) return;
       const data = s.val() || {};
       const raw = JSON.stringify(data);
-      if (raw === lastSyncedRaw) return;   // không có gì mới (thường là chính app vừa ghi)
+      if (raw === lastSyncedRaw) return;   // không có gì mới
       lastSyncedRaw = raw;
       // Đang có thay đổi cục bộ chờ lưu, hoặc người dùng đang gõ dở -> xếp vào hàng chờ,
       // TUYỆT ĐỐI không bỏ đi. Dòng trên đã đánh dấu "đã thấy" nên onValue sẽ không báo
       // lại lần nữa; bỏ đi ở đây là mất hẳn thay đổi đó.
       if (saveTimer || uiIsBusy()){ pendingRemote = data; return; }
+      // Bản này mới hơn bản đang chờ (nếu có); để bản cũ lại thì lát nữa flush sẽ kéo
+      // màn hình lùi về quá khứ.
+      pendingRemote = null;
       applyRemoteData(data);
       renderAll();
     });
