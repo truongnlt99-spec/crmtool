@@ -31,7 +31,19 @@
 
   const fbApp = initializeApp(firebaseConfig);
   const db = getDatabase(fbApp);
-  const dataRef = ref(db, 'crmData');
+
+  // Kho dữ liệu tuỳ theo tài khoản đăng nhập:
+  //  - Tài khoản cũ (chủ gốc) giữ nguyên nhánh 'crmData' — KHÔNG đụng dữ liệu đang chạy,
+  //    và MCP server cũng dùng đúng nhánh này.
+  //  - Mọi tài khoản khác có kho RIÊNG ở 'crmData_users/<uid>', tách biệt hoàn toàn.
+  // Tính theo currentUser mỗi lần gọi (không chốt cứng lúc nạp trang) vì lúc này
+  // có thể chưa đăng nhập; các lệnh đọc/ghi chỉ chạy sau khi onAuthStateChanged báo có user.
+  const OLD_OWNER_UID = '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
+  function userDataRef(){
+    const uid = auth.currentUser && auth.currentUser.uid;
+    if (!uid || uid === OLD_OWNER_UID) return ref(db, 'crmData');
+    return ref(db, 'crmData_users/' + uid);
+  }
 
   // Đăng nhập thật bằng Firebase Authentication.
   // Trước đây màn khóa chỉ so chuỗi '8386' ngay trong trình duyệt — Firebase không hề
@@ -85,7 +97,7 @@
   }
 
   window.__firebase = {
-    db, dataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
+    db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -3723,7 +3735,7 @@ async function saveToCloud(){
     if (!Object.keys(thayDoi).length){ setSyncStatus('saved'); return; }
 
     thayDoi.updatedAt = new Date().toISOString();
-    await window.__firebase.update(window.__firebase.dataRef, thayDoi);
+    await window.__firebase.update(window.__firebase.userDataRef(), thayDoi);
 
     // Đoán trước trạng thái máy chủ sau lệnh ghi này. Nếu đoán sai (vì Claude vừa
     // sửa một lead khác mà app chưa nhận được), onValue sẽ thấy khác và tự đồng bộ lại
@@ -3833,7 +3845,8 @@ setInterval(flushPendingRemote, 1500);
 
 async function initCloudSync(){
   try {
-    const { dataRef, get, onValue } = window.__firebase;
+    const { userDataRef, get, onValue } = window.__firebase;
+    const dataRef = userDataRef();
     const snap = await get(dataRef);
     if (snap.exists()){
       const data = snap.val() || {};

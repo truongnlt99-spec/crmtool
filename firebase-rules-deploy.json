@@ -1,34 +1,4 @@
 {
-  "_huong_dan": [
-    "Dan phan 'rules' ben duoi vao Firebase Console > Realtime Database > Rules > Publish.",
-    "",
-    "Bo rules nay lam:",
-    "1. crmData (kho GOC): chi UID cu 7ePgCPmzxHdEAEazHo9IkyKf2rw2 moi doc/ghi.",
-    "   Day la du lieu dang chay cua tai khoan cu, KHONG bi tai khoan khac dung toi.",
-    "   MCP server cung dung dung nhanh nay.",
-    "2. crmData_users/<uid>: MOI tai khoan chu co mot kho RIENG o day, va chi",
-    "   dung chinh chu moi doc/ghi duoc kho cua minh. Tai khoan moi",
-    "   HGpKBnj7qiUvKTG8HvcI72Se4Qr2 dung crmData_users/HGpKBnj7qiUvKTG8HvcI72Se4Qr2,",
-    "   tach biet hoan toan voi du lieu cu.",
-    "3. Ghi nhat ky dang nhap vao authLog: BAT KY tai khoan nao dang nhap qua app",
-    "   deu bi ghi lai (de bat duoc ke la), nhung CHI tai khoan cu moi doc duoc.",
-    "   Nhat ky khong the sua hay xoa boi nguoi khac - chi tao moi.",
-    "",
-    "MCP server khong bi anh huong: no dung service account, quyen admin, bo qua rules.",
-    "",
-    "NHO LAM THEM: Console > Authentication > Settings > User actions >",
-    "TAT 'Enable create (sign-up)'. Neu khong, nguoi la van tu tao tai khoan duoc",
-    "(ho khong doc duoc du lieu, nhung chan ngay tu dau van hon).",
-    "",
-    "Ghi chu ky thuat:",
-    "- crmData va crmData_users/<uid> dung chung mot bo .validate cho leads/planRevenue/planLeads.",
-    "- appConfig: chua khoa ket noi MCP do app tu sinh, chi tai khoan cu doc/ghi duoc.",
-    "- authLog: ai dang nhap cung ghi duoc mot dong moi, nhung khong ai sua/xoa duoc dong da co, va chi tai khoan cu doc duoc.",
-    "",
-    "LUU Y: Firebase Console KHONG chap nhan khoa _huong_dan (bao loi 'Expected rules property').",
-    "  De dan vao Console, dung file 'firebase-rules-deploy.json' (chi co khoi rules). File nay",
-    "  chi de doc/ghi chu, giu trong repo."
-  ],
   "rules": {
     ".read": false,
     ".write": false,
@@ -105,7 +75,6 @@
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": false
     },
-
     "authLog": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       "$entry": {
