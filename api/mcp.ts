@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
 import { createSign, createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 /*
  * LƯU Ý: toàn bộ code hỗ trợ được gộp thẳng vào file này, cố ý không tách
@@ -23,6 +24,16 @@ const DB_URL = (
  * đụng dữ liệu thật.
  */
 const DATA_ROOT = process.env.FIREBASE_DATA_ROOT || 'crmData';
+
+/**
+ * Kho dữ liệu hiệu lực cho request hiện tại. Các tool MCP và loadCrm đọc qua dataRoot()
+ * thay vì hằng DATA_ROOT, nhờ đó fetch handler bơm được kho của từng tài khoản vào.
+ * Không có store (đường gọi cũ / test) -> fallback về DATA_ROOT, hành vi y như trước.
+ */
+const alsStore = new AsyncLocalStorage<{ dataRoot: string }>();
+function dataRoot(): string {
+  return alsStore.getStore()?.dataRoot ?? DATA_ROOT;
+}
 
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
@@ -145,6 +156,26 @@ async function getStoredSecret(): Promise<string | null> {
     // Đọc lỗi cũng phải cache. Nếu không, ai gõ sai khoá liên tục sẽ khiến mỗi request
     // kéo theo một lượt đọc Firebase — biến endpoint thành đòn bẩy khuếch đại tải.
     cachedSecret = { value: null, at: Date.now() };
+    return null;
+  }
+}
+
+/**
+ * Khoá MCP của một tài khoản bất kỳ, lưu tại <configPath>/mcpSecret.
+ * Cache theo từng configPath để không đọc Firebase mỗi request; lỗi đọc cũng cache
+ * để kẻ gõ sai khoá liên tục không biến endpoint thành đòn bẩy tải.
+ */
+const cachedSecrets = new Map<string, { value: string | null; at: number }>();
+async function getStoredSecretFor(configPath: string): Promise<string | null> {
+  const hit = cachedSecrets.get(configPath);
+  if (hit && Date.now() - hit.at < 60_000) return hit.value;
+  try {
+    const v = await readPath<unknown>(`${configPath}/mcpSecret`);
+    const val = typeof v === 'string' && v.length >= 32 ? v : null;
+    cachedSecrets.set(configPath, { value: val, at: Date.now() });
+    return val;
+  } catch {
+    cachedSecrets.set(configPath, { value: null, at: Date.now() });
     return null;
   }
 }
@@ -297,6 +328,30 @@ function normalizeLead(l: Lead): Lead {
  */
 const OWNER_UID = process.env.CRM_OWNER_UID || '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
 
+/**
+ * Phân giải token link chia sẻ hoặc khoá MCP về đúng kho dữ liệu.
+ * Token/khoá mới có dạng "<uid>.<random>"; token/khoá cũ là hex thuần -> chủ cũ.
+ * UID Firebase và random hex đều không chứa dấu ".", nên "." là dấu phân tách an toàn.
+ */
+export function resolveScope(chuoi: string): {
+  uid: string; dataRoot: string; configPath: string; shareLogPath: string;
+} {
+  const s = String(chuoi || '');
+  const cham = s.indexOf('.');
+  if (cham > 0) {
+    const uid = s.slice(0, cham);
+    if (uid && uid !== OWNER_UID) {
+      return {
+        uid,
+        dataRoot: `crmData_users/${uid}`,
+        configPath: `appConfig_users/${uid}`,
+        shareLogPath: `shareLog_users/${uid}`,
+      };
+    }
+  }
+  return { uid: OWNER_UID, dataRoot: DATA_ROOT, configPath: 'appConfig', shareLogPath: 'shareLog' };
+}
+
 /** Đoán tên thiết bị/trình duyệt từ User-Agent cho dễ đọc. */
 function moTaThietBi(ua: string): string {
   if (!ua) return 'Không rõ';
@@ -347,7 +402,7 @@ async function loadCrm(): Promise<CrmData> {
     dailyTodos?: Record<string, Todo>;
     planRevenue?: number;
     planLeads?: number;
-  } | null>(DATA_ROOT);
+  } | null>(dataRoot());
 
   const data = raw || {};
   return {
@@ -529,14 +584,14 @@ function resolveTodo(
 /** Ghi thêm 1 dòng vào activityLog của lead (append theo index, không ghi đè cả mảng). */
 async function logActivity(lead: Lead, text: string): Promise<void> {
   const log = lead.activityLog || [];
-  await patchPath(`${DATA_ROOT}/leads/${lead.id}/activityLog`, {
+  await patchPath(`${dataRoot()}/leads/${lead.id}/activityLog`, {
     [log.length]: { time: nowLabel(), text, isNow: true },
   });
 }
 
 /** Đánh dấu thời điểm cập nhật ở gốc, giữ parity với app web. */
 async function touch(): Promise<void> {
-  await patchPath(DATA_ROOT, { updatedAt: new Date().toISOString() });
+  await patchPath(dataRoot(), { updatedAt: new Date().toISOString() });
 }
 
 /* ===================== Định nghĩa các tool ===================== */
@@ -942,7 +997,7 @@ const mcpHandler = createMcpHandler(
         };
 
         // PATCH vào nhánh leads -> chỉ thêm key mới, không đụng các lead khác
-        await patchPath(`${DATA_ROOT}/leads`, { [id]: lead });
+        await patchPath(`${dataRoot()}/leads`, { [id]: lead });
         await touch();
 
         return say(`Đã tạo lead "${args.name}" (id: ${id}), giai đoạn Lead in, hạn liên hệ ${lead.deadline}.`);
@@ -1010,7 +1065,7 @@ const mcpHandler = createMcpHandler(
 
         if (!changed.length) return say('Không có thông tin nào được truyền vào để cập nhật.');
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}`, patch);
         await logActivity(l, `Cập nhật thông tin: ${changed.join(', ')}`);
         await touch();
 
@@ -1064,7 +1119,7 @@ const mcpHandler = createMcpHandler(
           logText = `Chuyển từ "${STAGE_NAME[l.stage]}" sang "${STAGE_NAME[args.stage]}"`;
         }
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}`, patch);
         await logActivity(l, logText);
         await touch();
 
@@ -1088,7 +1143,7 @@ const mcpHandler = createMcpHandler(
         const notes = l.notesList || [];
         const stamp = nowLabel();
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/notesList`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/notesList`, {
           [notes.length]: {
             id: 'n' + Date.now(),
             text: args.text,
@@ -1124,7 +1179,7 @@ const mcpHandler = createMcpHandler(
         const todos = l.todos || [];
         const dueDate = args.dueDate || l.deadline || null;
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos`, {
           [todos.length]: {
             id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
             text: args.text,
@@ -1136,7 +1191,7 @@ const mcpHandler = createMcpHandler(
 
         // Hạn lead phải bao trùm hạn việc
         const moved = nextLeadDeadline(l, dueDate);
-        if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+        if (moved) await patchPath(`${dataRoot()}/leads/${l.id}`, { deadline: moved });
 
         await logActivity(l, `Thêm việc cần làm: ${args.text}${dueDate ? ` (hạn ${dueDate})` : ''}`);
         await touch();
@@ -1168,7 +1223,7 @@ const mcpHandler = createMcpHandler(
 
         if (todo.done) return say(`Việc "${todo.text}" đã được đánh dấu hoàn thành từ trước.`);
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos/${idx}`, {
           done: true,
           completedAt: todayISO(),
         });
@@ -1272,14 +1327,14 @@ const mcpHandler = createMcpHandler(
         }
         if (!changed.length) return say('Không có gì để sửa — truyền dueDate hoặc newText.');
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos/${idx}`, patch);
 
         let moved: string | null = null;
         if (args.dueDate) {
           // Tính lại trên bản đã cập nhật để hạn lead bao trùm đúng
           todo.dueDate = args.dueDate;
           moved = nextLeadDeadline(l);
-          if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+          if (moved) await patchPath(`${dataRoot()}/leads/${l.id}`, { deadline: moved });
         }
 
         await logActivity(l, `Sửa việc "${todo.text}": ${changed.join(', ')}`);
@@ -1471,7 +1526,8 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   const phien = (body.session || '').trim();
   if (!token) return traLoiJson({ loi: 'Thiếu mã link' }, 400);
 
-  const cfg = (await readPath<ShareConfig | null>('appConfig/share')) || {};
+  const scope = resolveScope(token);
+  const cfg = (await readPath<ShareConfig | null>(`${scope.configPath}/share`)) || {};
 
   if (!cfg.token || !cfg.enabled) {
     return traLoiJson({ loi: 'Link chia sẻ đã bị tắt hoặc chưa được tạo.' }, 403);
@@ -1498,7 +1554,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
 
     // Ghi nhật ký cả lần đúng lẫn lần sai — lần sai mới là thứ cho biết có ai đang dò
     const logId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    await patchPath('shareLog', {
+    await patchPath(scope.shareLogPath, {
       [logId]: { at: new Date().toISOString(), ok: dung, ua },
     }).catch(() => {});
 
@@ -1509,16 +1565,16 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
         capNhat.lockedUntil = Date.now() + 15 * 60 * 1000;
         capNhat.failCount = 0;
       }
-      await patchPath('appConfig/share', capNhat).catch(() => {});
+      await patchPath(`${scope.configPath}/share`, capNhat).catch(() => {});
       return traLoiJson({ loi: 'Mật khẩu không đúng.' }, 401);
     }
 
-    if (cfg.failCount) await patchPath('appConfig/share', { failCount: 0 }).catch(() => {});
+    if (cfg.failCount) await patchPath(`${scope.configPath}/share`, { failCount: 0 }).catch(() => {});
     phienMoi = taoPhienXem(cfg.token);
   }
 
   /* ---- Dựng dữ liệu chỉ xem ---- */
-  const crm = await loadCrm();
+  const crm = await alsStore.run({ dataRoot: scope.dataRoot }, () => loadCrm());
   const homNay = todayISO();
 
   // Ưu tiên month/year nếu được gửi (giữ tương thích với cách gọi cũ), ngược lại
@@ -1720,9 +1776,16 @@ export default {
     //     lấy link và tự tạo khoá mới mà không cần đụng tới Vercel
     // Không nhúng khoá vào index.html được vì file đó công khai trên GitHub.
     const envSecret = process.env.MCP_SECRET;
+    const scope = resolveScope(provided || '');
     if (envSecret) {
       let hopLe = provided === envSecret;
-      if (!hopLe && provided) hopLe = provided === (await getStoredSecret());
+      if (!hopLe && provided) {
+        // Khoá do app sinh: chủ cũ đọc legacy appConfig/mcpSecret, tài khoản mới đọc theo scope
+        const luu = scope.uid === OWNER_UID
+          ? await getStoredSecret()
+          : await getStoredSecretFor(scope.configPath);
+        hopLe = provided === luu;
+      }
       if (!hopLe) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
@@ -1740,12 +1803,15 @@ export default {
         ? undefined
         : await request.arrayBuffer();
 
-    return mcpHandler(
-      new Request(url.toString(), {
-        method: request.method,
-        headers: request.headers,
-        body,
-      })
+    // Bơm kho của đúng tài khoản vào cho toàn bộ tool MCP đọc/ghi
+    return alsStore.run({ dataRoot: scope.dataRoot }, () =>
+      mcpHandler(
+        new Request(url.toString(), {
+          method: request.method,
+          headers: request.headers,
+          body,
+        })
+      )
     );
   },
 };

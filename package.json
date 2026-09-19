@@ -11,7 +11,9 @@
     "test": "node test/write-tools.test.ts",
     "audit": "node test/audit.ts",
     "test:share": "node test/share.test.ts",
-    "test:ky": "node test/khoang-thoi-gian.test.ts"
+    "test:ky": "node test/khoang-thoi-gian.test.ts",
+    "test:scope": "node test/scope.test.ts",
+    "test:scope-share": "node test/scope-share.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2",

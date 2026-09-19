@@ -45,6 +45,20 @@
     return ref(db, 'crmData_users/' + uid);
   }
 
+  // Cấu hình share + khoá MCP + nhật ký truy cập cũng tách theo tài khoản, giống dữ liệu CRM.
+  // Chủ cũ giữ nguyên nhánh 'appConfig'/'shareLog'; tài khoản khác dùng nhánh riêng theo uid.
+  function appConfigBase(){
+    const uid = auth.currentUser && auth.currentUser.uid;
+    return (!uid || uid === OLD_OWNER_UID) ? 'appConfig' : 'appConfig_users/' + uid;
+  }
+  function shareLogBase(){
+    const uid = auth.currentUser && auth.currentUser.uid;
+    return (!uid || uid === OLD_OWNER_UID) ? 'shareLog' : 'shareLog_users/' + uid;
+  }
+  function currentUid(){
+    return (auth.currentUser && auth.currentUser.uid) || '';
+  }
+
   // Đăng nhập thật bằng Firebase Authentication.
   // Trước đây màn khóa chỉ so chuỗi '8386' ngay trong trình duyệt — Firebase không hề
   // biết đến nó, nên database buộc phải để mở cho ai cũng đọc được. Giờ mỗi phiên làm
@@ -98,6 +112,7 @@
 
   window.__firebase = {
     db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
+    appConfigBase, shareLogBase, currentUid,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -1970,7 +1985,7 @@ function closeShareModal(){
 }
 
 async function docCauHinhChiaSe(){
-  const snap = await window.__firebase.get(window.__firebase.refAt('appConfig/share'));
+  const snap = await window.__firebase.get(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'));
   return snap.exists() ? snap.val() : null;
 }
 
@@ -1980,7 +1995,7 @@ async function renderShareModal(){
 
   let cfg = null;
   try { cfg = await docCauHinhChiaSe(); }
-  catch(e){ body.innerHTML = '<div class="mcp-empty">Không đọc được cấu hình. Kiểm tra mạng rồi thử lại.</div>'; return; }
+  catch(e){ body.innerHTML = '<div class="mcp-empty">Chưa đọc được cấu hình chia sẻ.</div>'; return; }
 
   if (!cfg || !cfg.token){
     body.innerHTML = `
@@ -2030,7 +2045,7 @@ async function renderShareLog(){
   const box = document.getElementById('shareLogList');
   if (!box) return;
   try {
-    const snap = await window.__firebase.get(window.__firebase.refAt('shareLog'));
+    const snap = await window.__firebase.get(window.__firebase.refAt(window.__firebase.shareLogBase()));
     const rows = snap.exists() ? Object.entries(snap.val()) : [];
     if (!rows.length){ box.innerHTML = '<div class="list-empty">Chưa có ai mở link.</div>'; return; }
     rows.sort((a, b) => String(b[0]).localeCompare(String(a[0])));
@@ -2080,8 +2095,8 @@ async function taoLinkChiaSe(daCo){
   body.innerHTML = '<div class="list-empty">Đang tạo...</div>';
   try {
     const salt = chuoiNgauNhien(16);
-    await window.__firebase.set(window.__firebase.refAt('appConfig/share'), {
-      token: chuoiNgauNhien(24),
+    await window.__firebase.set(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), {
+      token: window.__firebase.currentUid() + '.' + chuoiNgauNhien(24),
       salt,
       passHash: await bamMatKhau(salt, pass),
       enabled: true,
@@ -2104,7 +2119,7 @@ async function doiMatKhauChiaSe(){
   try {
     const salt = chuoiNgauNhien(16);
     // Đổi mật khẩu thì gỡ luôn khoá tạm và bộ đếm sai
-    await window.__firebase.update(window.__firebase.refAt('appConfig/share'), {
+    await window.__firebase.update(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), {
       salt,
       passHash: await bamMatKhau(salt, String(pass).trim()),
       failCount: 0,
@@ -2120,7 +2135,7 @@ async function doiMatKhauChiaSe(){
 async function batTatChiaSe(bat){
   if (!bat && !confirm('Tắt chia sẻ? Người đang giữ link sẽ không xem được nữa.')) return;
   try {
-    await window.__firebase.update(window.__firebase.refAt('appConfig/share'), { enabled: !!bat });
+    await window.__firebase.update(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), { enabled: !!bat });
   } catch(e){
     alert('Không đổi được trạng thái: ' + (e.message || e));
   }
@@ -2157,7 +2172,7 @@ function taoKhoaNgauNhien(){
 async function docKhoaMcp(){
   if (!window.__firebase) return null;
   const { db, get } = window.__firebase;
-  const snap = await get(window.__firebase.refAt('appConfig/mcpSecret'));
+  const snap = await get(window.__firebase.refAt(window.__firebase.appConfigBase() + '/mcpSecret'));
   const v = snap.exists() ? snap.val() : null;
   return (typeof v === 'string' && v.length >= 32) ? v : null;
 }
@@ -2178,7 +2193,7 @@ async function renderMcpModal(){
   try { khoa = await docKhoaMcp(); } catch(e){ loi = e; }
 
   if (loi){
-    body.innerHTML = `<div class="mcp-empty">Không đọc được khoá kết nối. Kiểm tra mạng rồi thử lại.</div>`;
+    body.innerHTML = `<div class="mcp-empty">Chưa đọc được khoá kết nối.</div>`;
     return;
   }
 
@@ -2239,7 +2254,10 @@ async function taoLinkMcp(daCo){
   const body = document.getElementById('mcpBody');
   body.innerHTML = '<div class="list-empty">Đang tạo...</div>';
   try {
-    await window.__firebase.set(window.__firebase.refAt('appConfig/mcpSecret'), taoKhoaNgauNhien());
+    await window.__firebase.set(
+      window.__firebase.refAt(window.__firebase.appConfigBase() + '/mcpSecret'),
+      window.__firebase.currentUid() + '.' + taoKhoaNgauNhien()
+    );
   } catch(e){
     console.error(e);
     body.innerHTML = `<div class="mcp-empty">Không tạo được link. Thử lại giúp nhé.</div>`;

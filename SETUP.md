@@ -165,6 +165,8 @@ Chỉ làm bước này **sau khi 2.1–2.3 đã xong và đã kiểm tra app đ
 
 > **Vì sao khoá theo UID chứ không chỉ `auth != null`?** Firebase Email/Password mặc định cho phép **bất kỳ ai** tự đăng ký tài khoản, mà cấu hình Firebase nằm công khai trong `index.html`. Rules chỉ yêu cầu "có đăng nhập" thì người lạ chỉ cần tự tạo tài khoản là đọc được sạch dữ liệu khách hàng.
 
+> **Mỗi tài khoản một kho riêng.** Rules đã bao gồm sẵn các nhánh theo từng tài khoản: `crmData_users/<uid>` (dữ liệu CRM), `appConfig_users/<uid>` (link chia sẻ + khoá MCP), `shareLog_users/<uid>` (nhật ký truy cập) — mỗi tài khoản chỉ đọc/ghi được nhánh của chính mình. Khi cập nhật rules, dán lại **toàn bộ** phần `rules` (hoặc dùng thẳng [`firebase-rules-deploy.json`](firebase-rules-deploy.json) đã bỏ sẵn `_huong_dan`) rồi **Publish** để các nhánh này có hiệu lực.
+
 ### Bước 2.5 — Kiểm chứng đã đóng
 
 ```bash
