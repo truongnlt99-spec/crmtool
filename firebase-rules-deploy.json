@@ -68,7 +68,22 @@
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       "mcpSecret": {
-        ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 128"
+        ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
+      }
+    },
+    "appConfig_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "mcpSecret": {
+          ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
+        }
+      }
+    },
+    "shareLog_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": false
       }
     },
     "shareLog": {
