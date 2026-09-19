@@ -160,6 +160,26 @@ async function getStoredSecret(): Promise<string | null> {
   }
 }
 
+/**
+ * Khoá MCP của một tài khoản bất kỳ, lưu tại <configPath>/mcpSecret.
+ * Cache theo từng configPath để không đọc Firebase mỗi request; lỗi đọc cũng cache
+ * để kẻ gõ sai khoá liên tục không biến endpoint thành đòn bẩy tải.
+ */
+const cachedSecrets = new Map<string, { value: string | null; at: number }>();
+async function getStoredSecretFor(configPath: string): Promise<string | null> {
+  const hit = cachedSecrets.get(configPath);
+  if (hit && Date.now() - hit.at < 60_000) return hit.value;
+  try {
+    const v = await readPath<unknown>(`${configPath}/mcpSecret`);
+    const val = typeof v === 'string' && v.length >= 32 ? v : null;
+    cachedSecrets.set(configPath, { value: val, at: Date.now() });
+    return val;
+  } catch {
+    cachedSecrets.set(configPath, { value: null, at: Date.now() });
+    return null;
+  }
+}
+
 /* ===================== Logic nghiệp vụ CRM ===================== */
 
 /**
@@ -1755,9 +1775,16 @@ export default {
     //     lấy link và tự tạo khoá mới mà không cần đụng tới Vercel
     // Không nhúng khoá vào index.html được vì file đó công khai trên GitHub.
     const envSecret = process.env.MCP_SECRET;
+    const scope = resolveScope(provided || '');
     if (envSecret) {
       let hopLe = provided === envSecret;
-      if (!hopLe && provided) hopLe = provided === (await getStoredSecret());
+      if (!hopLe && provided) {
+        // Khoá do app sinh: chủ cũ đọc legacy appConfig/mcpSecret, tài khoản mới đọc theo scope
+        const luu = scope.uid === OWNER_UID
+          ? await getStoredSecret()
+          : await getStoredSecretFor(scope.configPath);
+        hopLe = provided === luu;
+      }
       if (!hopLe) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
@@ -1775,12 +1802,15 @@ export default {
         ? undefined
         : await request.arrayBuffer();
 
-    return mcpHandler(
-      new Request(url.toString(), {
-        method: request.method,
-        headers: request.headers,
-        body,
-      })
+    // Bơm kho của đúng tài khoản vào cho toàn bộ tool MCP đọc/ghi
+    return alsStore.run({ dataRoot: scope.dataRoot }, () =>
+      mcpHandler(
+        new Request(url.toString(), {
+          method: request.method,
+          headers: request.headers,
+          body,
+        })
+      )
     );
   },
 };
