@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
 import { createSign, createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 /*
  * LƯU Ý: toàn bộ code hỗ trợ được gộp thẳng vào file này, cố ý không tách
@@ -23,6 +24,16 @@ const DB_URL = (
  * đụng dữ liệu thật.
  */
 const DATA_ROOT = process.env.FIREBASE_DATA_ROOT || 'crmData';
+
+/**
+ * Kho dữ liệu hiệu lực cho request hiện tại. Các tool MCP và loadCrm đọc qua dataRoot()
+ * thay vì hằng DATA_ROOT, nhờ đó fetch handler bơm được kho của từng tài khoản vào.
+ * Không có store (đường gọi cũ / test) -> fallback về DATA_ROOT, hành vi y như trước.
+ */
+const alsStore = new AsyncLocalStorage<{ dataRoot: string }>();
+function dataRoot(): string {
+  return alsStore.getStore()?.dataRoot ?? DATA_ROOT;
+}
 
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
@@ -371,7 +382,7 @@ async function loadCrm(): Promise<CrmData> {
     dailyTodos?: Record<string, Todo>;
     planRevenue?: number;
     planLeads?: number;
-  } | null>(DATA_ROOT);
+  } | null>(dataRoot());
 
   const data = raw || {};
   return {
@@ -553,14 +564,14 @@ function resolveTodo(
 /** Ghi thêm 1 dòng vào activityLog của lead (append theo index, không ghi đè cả mảng). */
 async function logActivity(lead: Lead, text: string): Promise<void> {
   const log = lead.activityLog || [];
-  await patchPath(`${DATA_ROOT}/leads/${lead.id}/activityLog`, {
+  await patchPath(`${dataRoot()}/leads/${lead.id}/activityLog`, {
     [log.length]: { time: nowLabel(), text, isNow: true },
   });
 }
 
 /** Đánh dấu thời điểm cập nhật ở gốc, giữ parity với app web. */
 async function touch(): Promise<void> {
-  await patchPath(DATA_ROOT, { updatedAt: new Date().toISOString() });
+  await patchPath(dataRoot(), { updatedAt: new Date().toISOString() });
 }
 
 /* ===================== Định nghĩa các tool ===================== */
@@ -966,7 +977,7 @@ const mcpHandler = createMcpHandler(
         };
 
         // PATCH vào nhánh leads -> chỉ thêm key mới, không đụng các lead khác
-        await patchPath(`${DATA_ROOT}/leads`, { [id]: lead });
+        await patchPath(`${dataRoot()}/leads`, { [id]: lead });
         await touch();
 
         return say(`Đã tạo lead "${args.name}" (id: ${id}), giai đoạn Lead in, hạn liên hệ ${lead.deadline}.`);
@@ -1034,7 +1045,7 @@ const mcpHandler = createMcpHandler(
 
         if (!changed.length) return say('Không có thông tin nào được truyền vào để cập nhật.');
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}`, patch);
         await logActivity(l, `Cập nhật thông tin: ${changed.join(', ')}`);
         await touch();
 
@@ -1088,7 +1099,7 @@ const mcpHandler = createMcpHandler(
           logText = `Chuyển từ "${STAGE_NAME[l.stage]}" sang "${STAGE_NAME[args.stage]}"`;
         }
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}`, patch);
         await logActivity(l, logText);
         await touch();
 
@@ -1112,7 +1123,7 @@ const mcpHandler = createMcpHandler(
         const notes = l.notesList || [];
         const stamp = nowLabel();
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/notesList`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/notesList`, {
           [notes.length]: {
             id: 'n' + Date.now(),
             text: args.text,
@@ -1148,7 +1159,7 @@ const mcpHandler = createMcpHandler(
         const todos = l.todos || [];
         const dueDate = args.dueDate || l.deadline || null;
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos`, {
           [todos.length]: {
             id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
             text: args.text,
@@ -1160,7 +1171,7 @@ const mcpHandler = createMcpHandler(
 
         // Hạn lead phải bao trùm hạn việc
         const moved = nextLeadDeadline(l, dueDate);
-        if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+        if (moved) await patchPath(`${dataRoot()}/leads/${l.id}`, { deadline: moved });
 
         await logActivity(l, `Thêm việc cần làm: ${args.text}${dueDate ? ` (hạn ${dueDate})` : ''}`);
         await touch();
@@ -1192,7 +1203,7 @@ const mcpHandler = createMcpHandler(
 
         if (todo.done) return say(`Việc "${todo.text}" đã được đánh dấu hoàn thành từ trước.`);
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, {
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos/${idx}`, {
           done: true,
           completedAt: todayISO(),
         });
@@ -1296,14 +1307,14 @@ const mcpHandler = createMcpHandler(
         }
         if (!changed.length) return say('Không có gì để sửa — truyền dueDate hoặc newText.');
 
-        await patchPath(`${DATA_ROOT}/leads/${l.id}/todos/${idx}`, patch);
+        await patchPath(`${dataRoot()}/leads/${l.id}/todos/${idx}`, patch);
 
         let moved: string | null = null;
         if (args.dueDate) {
           // Tính lại trên bản đã cập nhật để hạn lead bao trùm đúng
           todo.dueDate = args.dueDate;
           moved = nextLeadDeadline(l);
-          if (moved) await patchPath(`${DATA_ROOT}/leads/${l.id}`, { deadline: moved });
+          if (moved) await patchPath(`${dataRoot()}/leads/${l.id}`, { deadline: moved });
         }
 
         await logActivity(l, `Sửa việc "${todo.text}": ${changed.join(', ')}`);
