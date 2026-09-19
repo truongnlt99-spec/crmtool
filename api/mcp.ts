@@ -1526,7 +1526,8 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   const phien = (body.session || '').trim();
   if (!token) return traLoiJson({ loi: 'Thiếu mã link' }, 400);
 
-  const cfg = (await readPath<ShareConfig | null>('appConfig/share')) || {};
+  const scope = resolveScope(token);
+  const cfg = (await readPath<ShareConfig | null>(`${scope.configPath}/share`)) || {};
 
   if (!cfg.token || !cfg.enabled) {
     return traLoiJson({ loi: 'Link chia sẻ đã bị tắt hoặc chưa được tạo.' }, 403);
@@ -1553,7 +1554,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
 
     // Ghi nhật ký cả lần đúng lẫn lần sai — lần sai mới là thứ cho biết có ai đang dò
     const logId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    await patchPath('shareLog', {
+    await patchPath(scope.shareLogPath, {
       [logId]: { at: new Date().toISOString(), ok: dung, ua },
     }).catch(() => {});
 
@@ -1564,16 +1565,16 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
         capNhat.lockedUntil = Date.now() + 15 * 60 * 1000;
         capNhat.failCount = 0;
       }
-      await patchPath('appConfig/share', capNhat).catch(() => {});
+      await patchPath(`${scope.configPath}/share`, capNhat).catch(() => {});
       return traLoiJson({ loi: 'Mật khẩu không đúng.' }, 401);
     }
 
-    if (cfg.failCount) await patchPath('appConfig/share', { failCount: 0 }).catch(() => {});
+    if (cfg.failCount) await patchPath(`${scope.configPath}/share`, { failCount: 0 }).catch(() => {});
     phienMoi = taoPhienXem(cfg.token);
   }
 
   /* ---- Dựng dữ liệu chỉ xem ---- */
-  const crm = await loadCrm();
+  const crm = await alsStore.run({ dataRoot: scope.dataRoot }, () => loadCrm());
   const homNay = todayISO();
 
   // Ưu tiên month/year nếu được gửi (giữ tương thích với cách gọi cũ), ngược lại
