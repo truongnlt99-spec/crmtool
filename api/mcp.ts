@@ -297,6 +297,30 @@ function normalizeLead(l: Lead): Lead {
  */
 const OWNER_UID = process.env.CRM_OWNER_UID || '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
 
+/**
+ * Phân giải token link chia sẻ hoặc khoá MCP về đúng kho dữ liệu.
+ * Token/khoá mới có dạng "<uid>.<random>"; token/khoá cũ là hex thuần -> chủ cũ.
+ * UID Firebase và random hex đều không chứa dấu ".", nên "." là dấu phân tách an toàn.
+ */
+export function resolveScope(chuoi: string): {
+  uid: string; dataRoot: string; configPath: string; shareLogPath: string;
+} {
+  const s = String(chuoi || '');
+  const cham = s.indexOf('.');
+  if (cham > 0) {
+    const uid = s.slice(0, cham);
+    if (uid && uid !== OWNER_UID) {
+      return {
+        uid,
+        dataRoot: `crmData_users/${uid}`,
+        configPath: `appConfig_users/${uid}`,
+        shareLogPath: `shareLog_users/${uid}`,
+      };
+    }
+  }
+  return { uid: OWNER_UID, dataRoot: DATA_ROOT, configPath: 'appConfig', shareLogPath: 'shareLog' };
+}
+
 /** Đoán tên thiết bị/trình duyệt từ User-Agent cho dễ đọc. */
 function moTaThietBi(ua: string): string {
   if (!ua) return 'Không rõ';
