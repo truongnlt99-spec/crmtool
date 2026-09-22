@@ -199,9 +199,9 @@ Vercel biên dịch từng file trong `api/` một cách riêng lẻ và **khôn
 
 ## Hạn chế đã biết
 
-**Xung đột ghi khi dùng song song.** App web lưu bằng cách ghi đè toàn bộ khối dữ liệu. Đã bổ sung đồng bộ realtime (`onValue`) nên app sẽ nhận thay đổi do Claude ghi trong vòng dưới 1 giây. Nhưng nếu vợ bạn sửa gì đó trong app *đúng khoảnh khắc* Claude đang ghi (chênh nhau dưới ~1 giây), thay đổi của Claude vẫn có thể bị ghi đè.
+**Xung đột ghi khi dùng song song.** App chỉ ghi những lead người dùng thực sự sửa, so với bản dữ liệu mà màn hình đang dựng từ đó. Nên Claude tạo lead mới hay sửa lead *khác* trong lúc app đang mở — kể cả khi đang mở drawer hay đang gõ — đều không bị mất. Kiểm chứng: `npm run test:dongbo` (chạy đúng code đồng bộ của app và đúng tool MCP trên Firebase giả lập, không đụng dữ liệu thật).
 
-Thực tế rất hiếm gặp. Muốn chắc chắn tuyệt đối thì đừng nhờ Claude sửa dữ liệu trong lúc đang mở app. Cần triệt để hơn thì phải refactor app để ghi theo từng lead thay vì ghi cả khối — việc này lớn hơn, để sau.
+Còn một trường hợp: app và Claude cùng sửa **chính một lead** trước khi app kịp nhận bản của Claude (ví dụ đang mở drawer lead đó rồi nhờ Claude thêm ghi chú cho lead đó). Khi app lưu, bản trong app đè lên cả lead, thay đổi của Claude trên lead ấy bị mất. Tránh bằng cách đóng drawer lead đó trước khi nhờ Claude sửa nó.
 
 ---
 
