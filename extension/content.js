@@ -15,18 +15,58 @@
   const reqP = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   const isLead = (convId) => links[convId] && links[convId].status === 'lead';
 
-  async function openDb() {
-    const dbs = await indexedDB.databases();
-    const name = (dbs.find((d) => /^zdb_\d+$/.test(d.name || '')) || {}).name;
-    if (!name) return null;
-    const handle = await new Promise((res, rej) => {
+  function openByName(name) {
+    return new Promise((res, rej) => {
       const r = indexedDB.open(name); // không truyền version -> không bao giờ tự nâng cấp DB của Zalo
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
     });
+  }
+
+  // Chấm điểm một DB: bao nhiêu tin đang hiện trên màn hình tìm thấy trong nó, và tin mới nhất lúc nào
+  async function scoreDb(h, cliIds) {
+    let domHits = 0, latestAt = 0;
+    try {
+      const idx = h.transaction('message', 'readonly').objectStore('message').index('cliMsgIdIndex');
+      for (const cli of cliIds) if (await reqP(idx.get(cli)).catch(() => null)) domHits++;
+    } catch { /* DB không có store message -> 0 điểm */ }
+    try {
+      const pm = h.transaction('preview_message', 'readonly').objectStore('preview_message').index('messageTime');
+      const cur = await reqP(pm.openCursor(null, 'prev'));
+      latestAt = cur ? Number(cur.value.messageTime) || 0 : 0;
+    } catch { /* không có preview_message -> 0 */ }
+    return { domHits, latestAt };
+  }
+
+  // Trình duyệt từng đăng nhập nhiều tài khoản Zalo sẽ có nhiều zdb_<uid>: phải chọn đúng DB của
+  // tài khoản đang dùng, không thì không khớp được tin nào trên màn hình.
+  async function openDb() {
+    const names = (await indexedDB.databases()).map((d) => d.name || '').filter((n) => /^zdb_\d+$/.test(n));
+    if (!names.length) return null;
+    const cliIds = [...document.querySelectorAll('[id^="bb_msg_id_"]')].slice(-30).map((el) => el.id.slice('bb_msg_id_'.length));
+    const cands = [];
+    for (const name of names) {
+      try {
+        const h = await openByName(name);
+        cands.push({ name, h, ...(names.length > 1 ? await scoreDb(h, cliIds) : { domHits: 0, latestAt: 0 }) });
+      } catch { /* bỏ qua DB mở lỗi */ }
+    }
+    const chosen = M.pickZaloDb(cands);
+    for (const c of cands) if (c.name !== chosen) c.h.close();
+    const handle = (cands.find((c) => c.name === chosen) || {}).h || null;
+    if (!handle) return null;
     // Zalo nâng cấp DB -> đóng ngay để không chặn Zalo, lần quét sau mở lại
     handle.onversionchange = () => { handle.close(); db = null; };
     return handle;
+  }
+
+  // Đang dùng một DB mà không khớp được tin nào trên màn hình (vd vừa đổi tài khoản Zalo)
+  // -> bỏ DB đó để lần quét sau chọn lại. Giãn cách 30 giây để không mở DB liên tục.
+  let lanChonLai = 0;
+  function chonLaiDbNeuSai(soTinTrenManHinh, soTinKhop) {
+    if (soTinTrenManHinh < 3 || soTinKhop > 0 || Date.now() - lanChonLai < 30_000) return;
+    lanChonLai = Date.now();
+    if (db) { db.close(); db = null; }
   }
 
   function checkHealth(h) {
@@ -121,6 +161,7 @@
       const res = await send({ type: 'messages', convId, messages: msgs });
       if (!res || !res.ok) msgs.forEach((m) => doneDom.delete(m.cliMsgId));
     }
+    chonLaiDbNeuSai(els.length, Object.values(count).reduce((s, n) => s + n, 0));
     const active = Object.entries(count).sort((a, b) => b[1] - a[1])[0];
     const conv = active ? { convId: active[0], name: headerName(), isGroup: M.isGroupConv(active[0]) } : null;
     const key = JSON.stringify(conv);
