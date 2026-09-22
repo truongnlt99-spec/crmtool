@@ -60,6 +60,18 @@ export function looksEncrypted(s) {
   return t.length >= 16 && t.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(t);
 }
 
+/**
+ * Trình duyệt từng đăng nhập nhiều tài khoản Zalo thì có nhiều DB `zdb_<uid>`.
+ * Chọn DB của tài khoản ĐANG dùng: khớp nhiều tin đang hiện trên màn hình nhất; chưa mở
+ * hội thoại nào thì lấy DB có tin mới nhất (tài khoản đang đăng nhập mới còn nhận tin).
+ * candidates: [{ name, domHits, latestAt }].
+ */
+export function pickZaloDb(candidates) {
+  const ds = (candidates || []).filter((c) => c && c.name);
+  if (!ds.length) return null;
+  return ds.slice().sort((a, b) => (b.domHits || 0) - (a.domHits || 0) || (b.latestAt || 0) - (a.latestAt || 0))[0].name;
+}
+
 /** Bản ghi store `message` trong IndexedDB của Zalo web → tin chuẩn (chưa có chữ). */
 export function fromIdbRecord(rec, friendName = '') {
   const me = String(rec.fromUid) === '0';

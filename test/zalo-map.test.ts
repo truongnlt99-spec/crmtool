@@ -131,6 +131,22 @@ check('nhom + ten ma hoa -> rong', M.displaySender({ fromMe: false, senderName: 
 check('tin cua minh -> rong', M.displaySender({ fromMe: true, senderName: 'x' }, conv11) === '');
 check('khong biet hoi thoai -> loc ma hoa', M.displaySender({ fromMe: false, senderName: MA_HOA }, null) === '');
 
+console.log('\n>> pickZaloDb (nhieu tai khoan Zalo tren cung trinh duyet)');
+check('khong co bo du lieu -> null', M.pickZaloDb([]) === null && M.pickZaloDb(null) === null);
+check('chi mot bo -> chon luon', M.pickZaloDb([{ name: 'zdb_1', domHits: 0, latestAt: 0 }]) === 'zdb_1');
+check('khop tin tren man hinh thang tat ca', M.pickZaloDb([
+  { name: 'zdb_cu', domHits: 0, latestAt: 9_999_999_999_999 },
+  { name: 'zdb_dang_dung', domHits: 12, latestAt: 1 },
+]) === 'zdb_dang_dung');
+check('chua mo hoi thoai nao -> chon bo co tin moi nhat', M.pickZaloDb([
+  { name: 'zdb_cu', domHits: 0, latestAt: 1_700_000_000_000 },
+  { name: 'zdb_moi', domHits: 0, latestAt: 1_760_000_000_000 },
+]) === 'zdb_moi');
+check('cung so tin khop -> bo moi hon', M.pickZaloDb([
+  { name: 'zdb_a', domHits: 3, latestAt: 5 },
+  { name: 'zdb_b', domHits: 3, latestAt: 9 },
+]) === 'zdb_b');
+
 console.log('\n>> conversationList (tab Hoi thoai)');
 {
   const NOW = 1_760_000_000_000;
