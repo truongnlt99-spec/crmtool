@@ -352,6 +352,41 @@ export function resolveScope(chuoi: string): {
   return { uid: OWNER_UID, dataRoot: DATA_ROOT, configPath: 'appConfig', shareLogPath: 'shareLog' };
 }
 
+/** Kho dữ liệu extension Zalo tương ứng kho CRM: crmData -> zalo, crmData_users/<uid> -> zalo_users/<uid>, crmDataTest -> zaloTest. */
+export function zaloRootFromDataRoot(dataRoot: string): string {
+  return dataRoot.replace(/^crmData/, 'zalo');
+}
+
+type ZaloLink = { status?: string; leadId?: string | null; name?: string };
+type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; quote?: { title?: string; text?: string } | null };
+
+/** Hội thoại Zalo của một lead cho trang chỉ xem. Chỉ hội thoại status 'lead', chỉ trường cần hiển thị. */
+async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boolean): Promise<Response> {
+  if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(leadId)) return traLoiJson({ loi: 'Mã lead không hợp lệ' }, 400);
+  const zroot = zaloRootFromDataRoot(dataRootCuaKho);
+  const links = (await readPath<Record<string, ZaloLink> | null>(`${zroot}/links`)) || {};
+  const convs = Object.entries(links).filter(([, l]) => l && l.status === 'lead' && l.leadId === leadId);
+  const hoiThoai = await Promise.all(convs.map(async ([convId, l]) => {
+    const msgs = (await readPath<Record<string, ZaloMsg> | null>(`${zroot}/msgs/${convId}`)) || {};
+    return {
+      convId,
+      name: l.name || '',
+      messages: Object.values(msgs)
+        .map((m) => ({
+          at: Number(m.at) || 0,
+          fromMe: !!m.fromMe,
+          senderName: m.senderName || '',
+          kind: m.kind || 'other',
+          text: typeof m.text === 'string' ? m.text : null,
+          quote: m.quote ? { title: m.quote.title || '', text: m.quote.text || '' } : null,
+        }))
+        .sort((a, b) => a.at - b.at),
+    };
+  }));
+  return traLoiJson({ ok: true, hoiThoai });
+}
+
 /** Đoán tên thiết bị/trình duyệt từ User-Agent cho dễ đọc. */
 function moTaThietBi(ua: string): string {
   if (!ua) return 'Không rõ';
@@ -1514,6 +1549,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
     token?: string; passcode?: string; session?: string;
     month?: number; year?: number; leadType?: string;
     don?: string; lui?: number; tu?: string; den?: string;
+    loai?: string; leadId?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -1541,6 +1577,10 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   // Đang trong phiên xem hợp lệ -> khỏi hỏi lại mật khẩu, và KHÔNG ghi nhật ký
   // (đổi tháng hay mở chi tiết vẫn là cùng một lượt xem, ghi hết sẽ ngập log).
   const dungPhien = !!phien && phienConHieuLuc(cfg.token, phien);
+
+  // Hội thoại Zalo tải riêng từng deal (response tổng chứa mọi lead, nhét chat vào sẽ phình).
+  // Bắt buộc có phiên xem hợp lệ: không nhận mật khẩu ở đây, không ghi nhật ký thêm.
+  if (body.loai === 'chat') return traLoiChat(scope.dataRoot, String(body.leadId || ''), dungPhien);
 
   let phienMoi: string | undefined;
   if (!dungPhien) {
@@ -1575,6 +1615,8 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
 
   /* ---- Dựng dữ liệu chỉ xem ---- */
   const crm = await alsStore.run({ dataRoot: scope.dataRoot }, () => loadCrm());
+  const zaloLinks = (await readPath<Record<string, ZaloLink> | null>(`${zaloRootFromDataRoot(scope.dataRoot)}/links`).catch(() => null)) || {};
+  const leadCoZalo = new Set(Object.values(zaloLinks).filter((z) => z && z.status === 'lead' && z.leadId).map((z) => z.leadId as string));
   const homNay = todayISO();
 
   // Ưu tiên month/year nếu được gửi (giữ tương thích với cách gọi cũ), ngược lại
@@ -1699,6 +1741,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
       taoTrongKy: trongKhoang(l.createdAt, ky.tu, ky.den),
       wonTrongKy: l.stage === 'won' && trongKhoang(l.wonAt, ky.tu, ky.den),
       lostTrongKy: l.stage === 'lost' && trongKhoang(l.lostAt, ky.tu, ky.den),
+      coHoiThoaiZalo: leadCoZalo.has(l.id),
     };
   };
 
