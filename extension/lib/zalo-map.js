@@ -226,6 +226,44 @@ function boDau(s) {
 }
 const chuSo = (s) => String(s || '').replace(/\D/g, '');
 
+/**
+ * Danh sách cho tab "Hội thoại" của CRM: mọi hội thoại đã gắn lead (bỏ "không phải khách"
+ * và hội thoại trỏ tới lead đã xoá), mới nhắn lên đầu, kèm chip chờ trả lời / khách im.
+ * counts đếm sau khi tìm nhưng trước khi lọc, để số trên nút lọc không đổi khi bấm lọc.
+ */
+export function conversationList({ links, meta, leads, now, filter = 'all', query = '' }) {
+  const leadById = new Map((leads || []).map((l) => [l.id, l]));
+  const q = boDau(query);
+  const all = Object.entries(links || {})
+    .filter(([, l]) => l && l.status === 'lead' && leadById.has(l.leadId))
+    .map(([convId, l]) => {
+      const lead = leadById.get(l.leadId);
+      const m = (meta || {})[convId] || null;
+      const closed = lead.stage === 'won' || lead.stage === 'lost';
+      return {
+        convId,
+        name: l.name || '',
+        isGroup: isGroupConv(convId),
+        leadId: lead.id,
+        leadName: lead.name || '',
+        stage: lead.stage,
+        stageName: STAGE_NAME[lead.stage] || lead.stage,
+        pkg: lead.package || '',
+        lastAt: (m && m.lastAt) || null,
+        state: !m || closed ? null : waitingState([m], now),
+      };
+    })
+    .filter((x) => !q || boDau(x.name).includes(q) || boDau(x.leadName).includes(q))
+    .sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+  const counts = {
+    all: all.length,
+    waiting: all.filter((x) => x.state && x.state.type === 'waiting').length,
+    silent: all.filter((x) => x.state && x.state.type === 'silent').length,
+  };
+  const items = filter === 'all' ? all : all.filter((x) => x.state && x.state.type === filter);
+  return { items, counts };
+}
+
 export function searchLeads(leads, query, limit = 8) {
   const q = boDau(query), qs = chuSo(query);
   if (!q) return [];

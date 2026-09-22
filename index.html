@@ -764,6 +764,41 @@
   .zalo-chip{display:inline-block; margin-top:6px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;}
   .zalo-chip.waiting{background:var(--red-soft); color:var(--red);}
   .zalo-chip.silent{background:var(--amber-soft); color:var(--amber);}
+  /* ---------- Tab Hội thoại ---------- */
+  .nav-badge{margin-left:auto; background:var(--red); color:#fff; border-radius:999px; font-size:10.5px; font-weight:800; padding:1px 7px; min-width:18px; text-align:center;}
+  .nav-item.active .nav-badge{background:#fff; color:var(--green-700);}
+  .conv-wrap{flex:1; min-height:0; display:grid; grid-template-columns:minmax(260px,340px) minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:16px; padding:18px 22px 22px;}
+  .conv-listcol, .conv-chatcol{background:var(--card); border:1px solid var(--border); border-radius:var(--radius-lg); min-height:0; min-width:0; display:flex; flex-direction:column; overflow:hidden;}
+  .conv-search{margin:12px 12px 8px; width:auto;}
+  .conv-filters{display:flex; gap:6px; flex-wrap:wrap; padding:0 12px 10px;}
+  .conv-filter{font:inherit; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--bg); color:var(--ink-soft); cursor:pointer;}
+  .conv-filter.on{background:var(--green-50); color:var(--green-700); border-color:var(--green-100);}
+  .conv-items{overflow-y:auto; flex:1; min-height:0;}
+  .conv-item{padding:10px 14px; border-top:1px solid var(--border-soft); cursor:pointer; display:flex; flex-direction:column; gap:2px; min-width:0;}
+  .conv-item:hover{background:var(--bg);}
+  .conv-item.on{background:var(--green-50);}
+  .conv-item-top{display:flex; justify-content:space-between; gap:8px; align-items:baseline; min-width:0;}
+  .conv-item-name{font-weight:700; font-size:13.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .conv-item-time{font-size:11px; color:var(--ink-faint); flex:none;}
+  .conv-item-sub{font-size:11.5px; color:var(--ink-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .conv-item .zalo-chip{align-self:flex-start; margin-top:4px;}
+  .conv-chat-head{display:flex; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border-soft);}
+  .conv-chat-title{flex:1; min-width:0;}
+  .conv-back{display:none; flex:none;}
+  .conv-msg-search{margin:10px 14px 0; width:auto;}
+  .conv-msg-list{max-height:none; flex:1; min-height:0; padding:6px 14px 14px;}
+  .conv-empty{margin:auto; padding:24px;}
+  /* Ô tìm + lọc gói/trạng thái chỉ tác động lên Pipeline -> ẩn ở tab Hội thoại (tab này có ô tìm riêng) */
+  body[data-view="conversations"] .topbar-search,
+  body[data-view="conversations"] #filterPackage,
+  body[data-view="conversations"] #filterStatus{display:none;}
+  @media (max-width:820px){
+    .conv-wrap{grid-template-columns:minmax(0,1fr); padding:12px;}
+    .conv-wrap .conv-chatcol{display:none;}
+    .conv-wrap.has-active .conv-listcol{display:none;}
+    .conv-wrap.has-active .conv-chatcol{display:flex;}
+    .conv-back{display:inline-flex;}
+  }
 
   @media (max-width:820px){
     .detail-grid{grid-template-columns:1fr;}
@@ -1144,6 +1179,11 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
         <span>Dashboard</span>
       </button>
+      <button class="nav-item" id="navConversations" onclick="setView('conversations')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Hội thoại</span>
+        <span class="nav-badge" id="navConvBadge" hidden>0</span>
+      </button>
     </nav>
 
     <div class="sidebar-divider"></div>
@@ -1242,6 +1282,18 @@
         <div class="board" id="board">
           <div class="list-empty" style="padding:40px;">Đang tải dữ liệu từ cloud...</div>
         </div>
+      </div>
+    </section>
+
+    <!-- ============ HỘI THOẠI VIEW (tất cả hội thoại Zalo đã gắn lead) ============ -->
+    <section class="view" id="viewConversations">
+      <div class="conv-wrap" id="convWrap">
+        <div class="conv-listcol">
+          <input class="field-input conv-search" id="convSearch" placeholder="Tìm tên khách, tên Zalo…" oninput="convTabQuery=this.value; renderConversations()">
+          <div class="conv-filters" id="convFilters"></div>
+          <div class="conv-items" id="convItems"></div>
+        </div>
+        <div class="conv-chatcol" id="convChat"></div>
       </div>
     </section>
 
@@ -2304,15 +2356,20 @@ async function taoLinkMcp(daCo){
 function toggleSidebar(){
   document.body.classList.toggle('sidebar-collapsed');
 }
+const VIEWS = {
+  pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Pipeline',  sub:'Theo dõi lead theo từng giai đoạn' },
+  dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Dashboard', sub:'Báo cáo tổng quan theo tháng' },
+  conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tất cả hội thoại Zalo đã gắn lead' },
+};
 function setView(view){
-  document.getElementById('viewPipeline').classList.toggle('active', view === 'pipeline');
-  document.getElementById('viewDashboard').classList.toggle('active', view === 'dashboard');
-  document.getElementById('navPipeline').classList.toggle('active', view === 'pipeline');
-  document.getElementById('navDashboard').classList.toggle('active', view === 'dashboard');
-  document.getElementById('pageTitle').textContent = view === 'pipeline' ? 'Pipeline' : 'Dashboard';
-  document.getElementById('pageTitleSub').textContent = view === 'pipeline'
-    ? 'Theo dõi lead theo từng giai đoạn'
-    : 'Báo cáo tổng quan theo tháng';
+  if (!VIEWS[view]) view = 'pipeline';
+  document.body.dataset.view = view;   // CSS dựa vào đây để ẩn bộ lọc Pipeline ở tab Hội thoại
+  Object.entries(VIEWS).forEach(([k, v]) => {
+    document.getElementById(v.el).classList.toggle('active', k === view);
+    document.getElementById(v.nav).classList.toggle('active', k === view);
+  });
+  document.getElementById('pageTitle').textContent = VIEWS[view].title;
+  document.getElementById('pageTitleSub').textContent = VIEWS[view].sub;
   renderAll();
 }
 
@@ -2937,11 +2994,13 @@ function initZalo(){
   f.onValue(f.refAt(base + '/links'), s => {
     zaloLinks = s.val() || {};
     if (!uiIsBusy()) renderPipeline();
+    renderConversations();
     if (currentLeadId && zaloKey(currentLeadId) !== zaloOpenFor) openZaloChat(currentLeadId);
   }, e => console.warn('Không đọc được zalo/links:', e));
   f.onValue(f.refAt(base + '/meta'), s => {
     zaloMeta = s.val() || {};
     if (!uiIsBusy()) renderPipeline();
+    renderConversations();
   }, e => console.warn('Không đọc được zalo/meta:', e));
 }
 
@@ -3019,16 +3078,21 @@ function renderZaloList(){
     box.innerHTML = '<div class="list-empty">Chưa gắn hội thoại Zalo nào. Mở hội thoại của khách trên Zalo web rồi bấm "Gắn vào lead có sẵn" ở thanh bên extension.</div>';
     return;
   }
-  const data = zaloMsgs[zaloActiveConv];
+  const link = zaloLinks[zaloActiveConv];
+  const hoiThoai = link ? { name: link.name || '', isGroup: String(zaloActiveConv).startsWith('g') } : null;
+  renderZaloMessages(box, zaloMsgs[zaloActiveConv], hoiThoai, zaloQuery);
+}
+
+// Vẽ bong bóng chat — dùng chung cho drawer lead và tab Hội thoại.
+// hoiThoai = { name, isGroup }: chat 1-1 thì tên người gửi = tên cuộc hội thoại trên Zalo
+// (tên lưu trong tin có thể bị Zalo mã hoá).
+function renderZaloMessages(box, data, hoiThoai, query){
   if (!data){ box.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
   if (data.error){ box.innerHTML = '<div class="list-empty">Không tải được hội thoại (có thể chưa cập nhật Security Rules).</div>'; return; }
   const labels = (window.ZaloMap && window.ZaloMap.KIND_LABEL) || {};
-  const q = zaloQuery.trim().toLowerCase();
+  const q = (query || '').trim().toLowerCase();
   const items = q ? data.filter(m => (m.text || '').toLowerCase().includes(q)) : data;
   const thieuChu = data.filter(m => m.kind === 'text' && typeof m.text !== 'string').length;
-  // Chat 1-1: tên người gửi = tên cuộc hội thoại trên Zalo (tên lưu trong tin có thể bị Zalo mã hoá)
-  const link = zaloLinks[zaloActiveConv];
-  const hoiThoai = link ? { name: link.name || '', isGroup: String(zaloActiveConv).startsWith('g') } : null;
   const tenNguoiGui = m => window.ZaloMap ? window.ZaloMap.displaySender(m, hoiThoai) : '';
   let html = '', ngayTruoc = '';
   items.forEach(m => {
@@ -3049,6 +3113,132 @@ function renderZaloList(){
   box.innerHTML = (thieuChu ? `<div class="zalo-note">${thieuChu} tin chưa có nội dung — mở hội thoại trên Zalo web để đồng bộ</div>` : '')
     + (html || '<div class="list-empty">' + (q ? 'Không có tin nào khớp.' : 'Chưa có tin nhắn nào.') + '</div>');
   if (!q) box.scrollTop = box.scrollHeight;
+}
+
+/* ======================= TAB HỘI THOẠI ======================= */
+let convTabActive = null;     // convId đang mở ở tab Hội thoại
+let convTabFilter = 'all';    // all | waiting | silent
+let convTabQuery = '';        // ô tìm danh sách
+let convTabMsgQuery = '';     // ô tìm trong hội thoại đang mở
+let convTabUnsub = null;      // huỷ nghe tin của hội thoại đang mở
+let convTabMsgs = null;       // [tin] | { error:true } | null (đang tải)
+
+function convTabList(query){
+  if (!window.ZaloMap) return { items: [], counts: { all: 0, waiting: 0, silent: 0 } };
+  return window.ZaloMap.conversationList({ links: zaloLinks, meta: zaloMeta, leads, now: Date.now(), filter: convTabFilter, query });
+}
+
+function convTime(ms){
+  if (!ms) return '';
+  const d = new Date(ms), now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
+  const homQua = new Date(now); homQua.setDate(now.getDate() - 1);
+  if (d.toDateString() === homQua.toDateString()) return 'Hôm qua';
+  return d.toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit' });
+}
+
+function stopConvTabListen(){
+  if (convTabUnsub){ try { convTabUnsub(); } catch(e){} }
+  convTabUnsub = null;
+}
+
+function renderConversations(){
+  // Số trên thanh bên: khách đang chờ trả lời, không phụ thuộc ô tìm
+  const badge = document.getElementById('navConvBadge');
+  if (badge){
+    const n = convTabList('').counts.waiting;
+    badge.textContent = n;
+    badge.hidden = !n;
+  }
+  const listBox = document.getElementById('convItems');
+  if (!listBox) return;
+  const { items, counts } = convTabList(convTabQuery);
+  const locs = [['all', 'Tất cả', counts.all], ['waiting', 'Chờ trả lời', counts.waiting], ['silent', 'Khách im', counts.silent]];
+  document.getElementById('convFilters').innerHTML = locs
+    .map(([k, t, n]) => `<button class="conv-filter ${convTabFilter === k ? 'on' : ''}" onclick="setConvFilter('${k}')">${t} ${n}</button>`).join('');
+  listBox.innerHTML = items.length
+    ? items.map(x => `<div class="conv-item ${x.convId === convTabActive ? 'on' : ''}" onclick="openConversation('${x.convId}')">
+        <div class="conv-item-top"><span class="conv-item-name">${esc(x.name || x.leadName)}</span><span class="conv-item-time">${convTime(x.lastAt)}</span></div>
+        <div class="conv-item-sub">${x.isGroup || (x.name && x.name !== x.leadName) ? 'Lead: ' + esc(x.leadName) + ' · ' : ''}${esc(x.stageName)}${x.pkg ? ' · ' + esc(x.pkg) : ''}</div>
+        ${x.state ? `<span class="zalo-chip ${x.state.type}">${esc(x.state.label)}</span>` : ''}
+      </div>`).join('')
+    : `<div class="list-empty">${counts.all || convTabQuery ? 'Không có hội thoại nào khớp.' : 'Chưa có hội thoại nào. Gắn hội thoại với lead từ thanh bên của extension trên Zalo web.'}</div>`;
+
+  // Hội thoại đang mở vừa bị bỏ gắn / lead bị xoá -> đóng khung chat
+  const conHieuLuc = convTabActive && items.concat(convTabList('').items).some(x => x.convId === convTabActive);
+  if (convTabActive && !conHieuLuc){
+    stopConvTabListen();
+    convTabActive = null;
+    document.getElementById('convWrap').classList.remove('has-active');
+  }
+  if (!convTabActive || !document.getElementById('convChatHead')) renderConvChat();
+  else updateConvChatHead();   // chỉ cập nhật tiêu đề, giữ nguyên ô tìm đang gõ
+}
+
+function setConvFilter(k){
+  convTabFilter = k;
+  renderConversations();
+}
+
+function openConversation(convId){
+  stopConvTabListen();
+  convTabActive = convId;
+  convTabMsgs = null;
+  convTabMsgQuery = '';
+  document.getElementById('convWrap').classList.add('has-active');
+  renderConvChat();
+  const f = window.__firebase;
+  convTabUnsub = f.onValue(f.query(f.refAt(`${f.zaloBase()}/msgs/${convId}`), f.limitToLast(500)), s => {
+    if (convTabActive !== convId) return;
+    convTabMsgs = Object.entries(s.val() || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.at || 0) - (b.at || 0));
+    renderConvMessages();
+  }, e => {
+    console.warn('Không tải được hội thoại Zalo:', e);
+    if (convTabActive !== convId) return;
+    convTabMsgs = { error: true };
+    renderConvMessages();
+  });
+  renderConversations();
+}
+
+function closeConversationMobile(){
+  document.getElementById('convWrap').classList.remove('has-active');
+}
+
+function renderConvChat(){
+  const box = document.getElementById('convChat');
+  if (!box) return;
+  if (!convTabActive){
+    box.innerHTML = '<div class="list-empty conv-empty">Chọn một hội thoại ở bên trái để xem.</div>';
+    return;
+  }
+  box.innerHTML = `<div class="conv-chat-head" id="convChatHead"></div>
+    <input class="field-input zalo-search conv-msg-search" placeholder="Tìm trong hội thoại…" oninput="convTabMsgQuery=this.value; renderConvMessages()">
+    <div class="zalo-list conv-msg-list" id="convMsgList"></div>`;
+  updateConvChatHead();
+  renderConvMessages();
+}
+
+function updateConvChatHead(){
+  const h = document.getElementById('convChatHead');
+  if (!h) return;
+  const link = zaloLinks[convTabActive];
+  const lead = link && leads.find(l => l.id === link.leadId);
+  const giaiDoan = lead ? (STAGE_MAP[lead.stage] ? STAGE_MAP[lead.stage].name : lead.stage) : '';
+  h.innerHTML = `<button class="icon-btn-mini conv-back" onclick="closeConversationMobile()" title="Quay lại danh sách">←</button>
+    <div class="conv-chat-title">
+      <div class="conv-item-name">${esc((link && link.name) || 'Hội thoại')}</div>
+      <div class="conv-item-sub">${lead ? 'Lead: ' + esc(lead.name) + ' · ' + esc(giaiDoan) + (lead.weddingDate ? ' · cưới ' + formatDate(lead.weddingDate) : '') : 'Lead không còn tồn tại'}</div>
+    </div>
+    ${lead ? `<button class="btn btn-secondary" onclick="openLead('${lead.id}')">Mở lead ↗</button>` : ''}`;
+}
+
+function renderConvMessages(){
+  const box = document.getElementById('convMsgList');
+  if (!box) return;
+  const link = zaloLinks[convTabActive];
+  const hoiThoai = link ? { name: link.name || '', isGroup: String(convTabActive).startsWith('g') } : null;
+  renderZaloMessages(box, convTabMsgs, hoiThoai, convTabMsgQuery);
 }
 
 /* ======================= LOST REASON MODAL ======================= */
@@ -3844,6 +4034,7 @@ function renderAll(){
   renderPipeline();
   renderDashboard();
   renderSidebarStats();
+  renderConversations();
 }
 
 /* ======================= CLOUD SYNC (Firebase Realtime Database) ======================= */
