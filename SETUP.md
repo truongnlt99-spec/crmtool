@@ -210,3 +210,36 @@ Thực tế rất hiếm gặp. Muốn chắc chắn tuyệt đối thì đừng
 **Đọc:** `list_leads`, `get_lead`, `dashboard_summary`, `upcoming_deadlines`, `list_todos`
 
 **Ghi:** `create_lead`, `update_lead`, `move_stage`, `add_note`, `add_todo`, `complete_todo`
+
+---
+
+## Giai đoạn 3 — Extension Zalo web
+
+Extension đọc tin nhắn trên **chat.zalo.me** (không phải Zalo PC) và đưa hội thoại **đã gắn lead** vào CRM.
+
+> Zalo chỉ cho **một** phiên máy tính: đăng nhập Zalo web sẽ đăng xuất Zalo PC. Máy dùng extension phải chat bằng Zalo web.
+
+### Bước 3.1 — Dán Security Rules mới
+Dán `firebase-rules-deploy.json` vào Firebase Console → Realtime Database → Rules → **Publish** (thêm nhánh `zalo`, `zalo_users`).
+Kiểm chứng: `curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/zalo.json?shallow=true"` → `Permission denied`.
+
+### Bước 3.2 — Cài extension (dạng unpacked)
+1. Tải repo về máy (hoặc `git pull` nếu đã có).
+2. Chrome → `chrome://extensions` → bật **Developer mode** (góc phải trên).
+3. **Load unpacked** → chọn thư mục `extension/` trong repo.
+4. Ghim icon "HayDay CRM – Zalo" lên thanh công cụ.
+
+### Bước 3.3 — Dùng lần đầu
+1. Mở `https://chat.zalo.me`, quét QR đăng nhập Zalo.
+2. Bấm icon extension → thanh bên mở → đăng nhập **tài khoản CRM** (một lần).
+3. Mở hội thoại của khách → chọn **Tạo lead mới** / **Gắn vào lead có sẵn** / **Không phải khách**.
+
+Từ đó tin nhắn của hội thoại đã gắn tự vào CRM (mục "💬 Hội thoại Zalo" trong lead). Hội thoại chưa gắn hoặc "không phải khách" **không** được gửi đi đâu.
+
+### Cập nhật extension
+`git pull` rồi vào `chrome://extensions` bấm nút tải lại (↻) của extension.
+
+### Giới hạn
+- Chữ của tin chỉ lấy được khi hội thoại được **mở trên Zalo web**; tin chỉ đọc trên điện thoại hiện "Chưa có nội dung" cho tới khi mở hội thoại đó trên web. Extension **không** tự mở hội thoại (sẽ báo "đã xem" cho khách).
+- Tab Zalo web phải đang mở thì mới đồng bộ; mở lại sẽ tự bù (trong phạm vi lịch sử Zalo web giữ, khoảng 2 tuần).
+- Zalo đổi giao diện có thể làm extension tạm ngưng; thanh bên sẽ báo "Tạm ngưng đồng bộ".
