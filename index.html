@@ -788,6 +788,10 @@
   .conv-msg-search{margin:10px 14px 0; width:auto;}
   .conv-msg-list{max-height:none; flex:1; min-height:0; padding:6px 14px 14px;}
   .conv-empty{margin:auto; padding:24px;}
+  /* Ô tìm + lọc gói/trạng thái chỉ tác động lên Pipeline -> ẩn ở tab Hội thoại (tab này có ô tìm riêng) */
+  body[data-view="conversations"] .topbar-search,
+  body[data-view="conversations"] #filterPackage,
+  body[data-view="conversations"] #filterStatus{display:none;}
   @media (max-width:820px){
     .conv-wrap{grid-template-columns:minmax(0,1fr); padding:12px;}
     .conv-wrap .conv-chatcol{display:none;}
@@ -2359,6 +2363,7 @@ const VIEWS = {
 };
 function setView(view){
   if (!VIEWS[view]) view = 'pipeline';
+  document.body.dataset.view = view;   // CSS dựa vào đây để ẩn bộ lọc Pipeline ở tab Hội thoại
   Object.entries(VIEWS).forEach(([k, v]) => {
     document.getElementById(v.el).classList.toggle('active', k === view);
     document.getElementById(v.nav).classList.toggle('active', k === view);
