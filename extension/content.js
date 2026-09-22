@@ -58,7 +58,7 @@
     try { return await reqP(store('message').index('cliMsgIdIndex').get(cli)); } catch { return null; }
   }
   async function convSince(convId, since) {
-    const range = IDBKeyRange.bound([convId, String(since)], [convId, '￿']);
+    const range = IDBKeyRange.bound([convId, String(since)], [convId, '\uffff']);
     return reqP(store('message').index('userId_sendDttm_msgId').getAll(range));
   }
 
