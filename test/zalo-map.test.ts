@@ -112,5 +112,20 @@ check('gop toi da 3 khoa', JSON.stringify(b1) === JSON.stringify({ a: 1, b: 2, c
 const [b2, n2] = M.takeBatch([{ a: 1, b: 2, c: 3, d: 4 }, { e: 5 }], 3);
 check('lo qua lon van lay 1', Object.keys(b2).length === 4 && n2 === 1);
 
+console.log('\n>> Ten nguoi gui bi Zalo ma hoa (dName base64)');
+const MA_HOA = 'lDWqNsuflkEXdcRVtAc6QXLvzLNX6Ux1sM1b53pxss0=';
+check('nhan ra chuoi ma hoa', M.looksEncrypted(MA_HOA));
+check('ten that khong bi coi la ma hoa', !M.looksEncrypted('Lan Nguyễn') && !M.looksEncrypted('Chloe') && !M.looksEncrypted('') && !M.looksEncrypted('AnhKhoaBase'));
+check('fromIdbRecord bo dName ma hoa, dung ten danh ba', M.fromIdbRecord({ ...recKh, dName: MA_HOA }, 'Lan ban be').senderName === 'Lan ban be');
+check('fromIdbRecord bo dName ma hoa, khong co danh ba -> rong', M.fromIdbRecord({ ...recKh, dName: MA_HOA }).senderName === '');
+const conv11 = { convId: '123', name: 'Vợ yêu', isGroup: false };
+const convNhom = { convId: 'g9', name: 'Nhóm cưới', isGroup: true };
+check('chat 1-1 -> ten cuoc hoi thoai', M.displaySender({ fromMe: false, senderName: MA_HOA }, conv11) === 'Vợ yêu');
+check('chat 1-1 du lieu cu khong co ten -> van la ten hoi thoai', M.displaySender({ fromMe: false }, conv11) === 'Vợ yêu');
+check('nhom + ten that -> giu ten', M.displaySender({ fromMe: false, senderName: 'Minh Tuấn' }, convNhom) === 'Minh Tuấn');
+check('nhom + ten ma hoa -> rong', M.displaySender({ fromMe: false, senderName: MA_HOA }, convNhom) === '');
+check('tin cua minh -> rong', M.displaySender({ fromMe: true, senderName: 'x' }, conv11) === '');
+check('khong biet hoi thoai -> loc ma hoa', M.displaySender({ fromMe: false, senderName: MA_HOA }, null) === '');
+
 console.log(`\n${'='.repeat(50)}\nKET QUA: ${pass} PASS / ${fail} FAIL\n${'='.repeat(50)}`);
 if (fail) process.exitCode = 1;

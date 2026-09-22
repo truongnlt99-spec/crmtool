@@ -51,9 +51,19 @@ export function isGroupConv(convId) {
   return String(convId).startsWith('g');
 }
 
+/**
+ * Zalo web mã hoá cả tên người gửi (`dName`) trong IndexedDB: chuỗi base64 dài, không dấu cách,
+ * độ dài chia hết cho 4. Tên thật gần như luôn có dấu cách/dấu tiếng Việt hoặc ngắn hơn nhiều.
+ */
+export function looksEncrypted(s) {
+  const t = String(s || '');
+  return t.length >= 16 && t.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(t);
+}
+
 /** Bản ghi store `message` trong IndexedDB của Zalo web → tin chuẩn (chưa có chữ). */
 export function fromIdbRecord(rec, friendName = '') {
   const me = String(rec.fromUid) === '0';
+  const dName = looksEncrypted(rec.dName) ? '' : rec.dName;
   return {
     msgId: String(rec.msgId),
     cliMsgId: String(rec.cliMsgId || ''),
@@ -61,9 +71,20 @@ export function fromIdbRecord(rec, friendName = '') {
     at: Number(rec.sendDttm),
     fromMe: me,
     senderUid: me ? '' : String(rec.fromUid),
-    senderName: me ? '' : String(rec.dName || friendName || ''),
+    senderName: me ? '' : String(dName || friendName || ''),
     kind: kindOf(rec.originMsgType),
   };
+}
+
+/**
+ * Tên hiển thị trên bong bóng tin của khách.
+ * Chat 1-1: luôn là tên cuộc hội thoại trên Zalo (lưu lúc gắn lead) — sửa được cả dữ liệu cũ
+ * đã lỡ lưu tên mã hoá. Nhóm: tên người gửi nếu là tên thật, không thì bỏ trống.
+ */
+export function displaySender(msg, conv) {
+  if (!msg || msg.fromMe) return '';
+  if (conv && !conv.isGroup) return conv.name || '';
+  return looksEncrypted(msg.senderName) ? '' : msg.senderName || '';
 }
 
 /**
