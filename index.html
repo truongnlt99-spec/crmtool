@@ -13,7 +13,7 @@
 <!-- ============ FIREBASE (Realtime Database) ============ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-  import { getDatabase, ref, get, set, update, onValue } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+  import { getDatabase, ref, get, set, update, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
   import {
     getAuth, setPersistence, browserLocalPersistence,
     signInWithEmailAndPassword, onAuthStateChanged, signOut
@@ -54,6 +54,11 @@
   function shareLogBase(){
     const uid = auth.currentUser && auth.currentUser.uid;
     return (!uid || uid === OLD_OWNER_UID) ? 'shareLog' : 'shareLog_users/' + uid;
+  }
+  // Dữ liệu extension Zalo, tách theo tài khoản giống crmData.
+  function zaloBase(){
+    const uid = auth.currentUser && auth.currentUser.uid;
+    return (!uid || uid === OLD_OWNER_UID) ? 'zalo' : 'zalo_users/' + uid;
   }
   function currentUid(){
     return (auth.currentUser && auth.currentUser.uid) || '';
@@ -112,7 +117,7 @@
 
   window.__firebase = {
     db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
-    appConfigBase, shareLogBase, currentUid,
+    appConfigBase, shareLogBase, currentUid, zaloBase, query, limitToLast,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -127,6 +132,11 @@
   });
 </script>
 
+<script type="module">
+  // Dùng chung logic với extension Zalo (chip chờ trả lời, nhãn loại tin).
+  import * as ZaloMap from './extension/lib/zalo-map.js';
+  window.ZaloMap = ZaloMap;
+</script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
    màu sáng một nhịp rồi mới đổi sang tối — rất chói mắt khi mở app ban đêm. */
@@ -730,6 +740,30 @@
   .block-log{background:var(--amber-soft); border:1px solid var(--amber-line);}
   .block-log .drawer-section-title{color:var(--amber);}
   .block-notes{background:var(--card); border:1px solid var(--border);}
+  .block-zalo{background:var(--card); border:1px solid var(--border);}
+  .block-zalo .drawer-section-title{color:var(--green-700);}
+  .zalo-tabs{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;}
+  .zalo-tab{font:inherit; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid var(--border); background:var(--bg); color:var(--ink-soft); cursor:pointer;}
+  .zalo-tab.on{background:var(--green-50); color:var(--green-700); border-color:var(--green-100);}
+  .zalo-search{margin-bottom:8px;}
+  .zalo-list{max-height:420px; overflow-y:auto; display:flex; flex-direction:column; padding-right:4px; min-width:0;}
+  .zalo-day{text-align:center; font-size:10.5px; font-weight:700; color:var(--ink-faint); margin:10px 0 4px;}
+  .zalo-row{display:flex; flex-direction:column; max-width:82%; margin:3px 0; min-width:0;}
+  .zalo-row.kh{align-self:flex-start; align-items:flex-start;}
+  .zalo-row.me{align-self:flex-end; align-items:flex-end;}
+  .zalo-who{font-size:10.5px; font-weight:700; color:var(--ink-soft); margin-bottom:2px;}
+  .zalo-bubble{font-size:12.5px; line-height:1.5; padding:7px 11px; border-radius:12px; white-space:pre-wrap; overflow-wrap:anywhere; word-break:break-word; min-width:0;}
+  .zalo-row.kh .zalo-bubble{background:var(--bg); border:1px solid var(--border-soft);}
+  .zalo-row.me .zalo-bubble{background:var(--green-50);}
+  .zalo-time{font-size:10px; color:var(--ink-faint); margin-top:2px;}
+  .zalo-att{display:inline-block; font-size:11px; font-weight:700; color:var(--ink-soft); background:var(--gray-tag-soft); border-radius:999px; padding:1px 8px;}
+  .zalo-quote{font-size:11px; color:var(--ink-soft); border-left:2px solid var(--green-500); padding-left:6px; margin-bottom:4px;}
+  .zalo-missing{font-style:italic; color:var(--ink-faint);}
+  .zalo-note{font-size:11px; color:var(--amber); font-weight:700; margin-bottom:6px;}
+  .zalo-list mark{background:var(--amber-soft); color:inherit; border-radius:2px;}
+  .zalo-chip{display:inline-block; margin-top:6px; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;}
+  .zalo-chip.waiting{background:var(--red-soft); color:var(--red);}
+  .zalo-chip.silent{background:var(--amber-soft); color:var(--amber);}
 
   @media (max-width:820px){
     .detail-grid{grid-template-columns:1fr;}
@@ -2344,6 +2378,7 @@ function cardHtml(lead){
         <span class="badge-pkg badge-leadtype" style="background:${lt.bg}; color:${lt.fg}">${esc(leadTypeOf(lead))}</span>
       </div>
       <div class="card-revenue">${formatMoney(lead.stage==='won' ? lead.revenueActual : lead.revenueExpected)}</div>
+      ${zaloChipHtml(lead)}
       <div class="card-footer">
         <div class="status-indicator">
           <span class="status-circle ${status.type}">${statusIconSvg(status.type)}</span>
@@ -2569,6 +2604,8 @@ function openLead(id){
           </div>
         </div>
 
+        <div class="detail-block block-zalo" id="zaloBlock"></div>
+
         <div class="detail-block block-notes">
           <div class="drawer-section-title">📝 Ghi chú</div>
           <textarea class="field-input" id="noteInput" style="min-height:64px" placeholder="Viết ghi chú mới..."></textarea>
@@ -2625,6 +2662,7 @@ function openLead(id){
   `;
 
   renderDrawerTodos(lead);
+  openZaloChat(id);
   initAutoGrowTextareas();
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
@@ -2864,14 +2902,148 @@ function closeDrawer(){
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('drawer').classList.remove('open');
   currentLeadId = null;
+  closeZaloChat();
 }
 function deleteCurrentLead(){
   if (!currentLeadId) return;
   if (!confirm('Xóa lead này khỏi pipeline?')) return;
-  leads = leads.filter(l => l.id !== currentLeadId);
+  const id = currentLeadId;
+  // Gỡ luôn hội thoại Zalo đã gắn với lead này, kẻo chat mồ côi nằm lại trên database.
+  const goZalo = {};
+  zaloConvsOf(id).forEach(c => { goZalo['links/' + c.convId] = null; goZalo['meta/' + c.convId] = null; goZalo['msgs/' + c.convId] = null; });
+  if (Object.keys(goZalo).length){
+    const f = window.__firebase;
+    f.update(f.refAt(f.zaloBase()), goZalo).catch(e => console.warn('Không gỡ được hội thoại Zalo của lead đã xoá:', e));
+  }
+  leads = leads.filter(l => l.id !== id);
   closeDrawer();
   renderAll();
   scheduleSave();
+}
+
+/* ======================= HỘI THOẠI ZALO (dữ liệu do extension ghi) ======================= */
+let zaloLinks = {};          // convId -> { status, leadId, name, isGroup }
+let zaloMeta = {};           // convId -> { lastCustomerAt, lastMeAt, ... }
+let zaloUnsubs = [];         // huỷ nghe tin nhắn khi đóng drawer
+let zaloMsgs = {};           // convId -> [tin] | { error:true }
+let zaloActiveConv = null;
+let zaloQuery = '';
+let zaloOpenFor = '';        // "<leadId>:<convIds>" để biết khi nào cần nghe lại
+
+function initZalo(){
+  const f = window.__firebase;
+  const base = f.zaloBase();
+  // Rules chưa dán -> lỗi quyền: app vẫn chạy bình thường, chỉ không có chip/hội thoại.
+  f.onValue(f.refAt(base + '/links'), s => {
+    zaloLinks = s.val() || {};
+    if (!uiIsBusy()) renderPipeline();
+    if (currentLeadId && zaloKey(currentLeadId) !== zaloOpenFor) openZaloChat(currentLeadId);
+  }, e => console.warn('Không đọc được zalo/links:', e));
+  f.onValue(f.refAt(base + '/meta'), s => {
+    zaloMeta = s.val() || {};
+    if (!uiIsBusy()) renderPipeline();
+  }, e => console.warn('Không đọc được zalo/meta:', e));
+}
+
+function zaloConvsOf(leadId){
+  return Object.entries(zaloLinks)
+    .filter(([, l]) => l && l.status === 'lead' && l.leadId === leadId)
+    .map(([convId, l]) => ({ convId, name: l.name || '', isGroup: !!l.isGroup }));
+}
+function zaloKey(leadId){ return leadId + ':' + zaloConvsOf(leadId).map(c => c.convId).join(','); }
+
+function zaloChipHtml(lead){
+  if (!window.ZaloMap || lead.stage === 'won' || lead.stage === 'lost') return '';
+  const metas = zaloConvsOf(lead.id).map(c => zaloMeta[c.convId]).filter(Boolean);
+  if (!metas.length) return '';
+  const s = window.ZaloMap.waitingState(metas, Date.now());
+  return s ? `<div class="zalo-chip ${s.type}">${esc(s.label)}</div>` : '';
+}
+
+function closeZaloChat(){
+  zaloUnsubs.forEach(u => { try { u(); } catch(e){} });
+  zaloUnsubs = []; zaloMsgs = {}; zaloOpenFor = '';
+}
+
+function openZaloChat(leadId){
+  closeZaloChat();
+  const convs = zaloConvsOf(leadId);
+  zaloOpenFor = zaloKey(leadId);
+  if (!convs.some(c => c.convId === zaloActiveConv)) zaloActiveConv = convs.length ? convs[0].convId : null;
+  zaloQuery = '';
+  const f = window.__firebase;
+  const base = f.zaloBase();
+  convs.forEach(c => {
+    const q = f.query(f.refAt(`${base}/msgs/${c.convId}`), f.limitToLast(500));
+    const un = f.onValue(q, s => {
+      zaloMsgs[c.convId] = Object.entries(s.val() || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.at || 0) - (b.at || 0));
+      if (currentLeadId === leadId) renderZaloList();
+    }, e => {
+      console.warn('Không tải được hội thoại Zalo:', e);
+      zaloMsgs[c.convId] = { error: true };
+      if (currentLeadId === leadId) renderZaloList();
+    });
+    zaloUnsubs.push(un);
+  });
+  renderZaloBlock(leadId);
+}
+
+function renderZaloBlock(leadId){
+  const box = document.getElementById('zaloBlock');
+  if (!box) return;
+  const convs = zaloConvsOf(leadId);
+  const tabs = convs.length > 1
+    ? `<div class="zalo-tabs">${convs.map(c => `<button class="zalo-tab ${c.convId === zaloActiveConv ? 'on' : ''}" onclick="pickZaloConv('${leadId}','${c.convId}')">${esc(c.name || (c.isGroup ? 'Nhóm' : 'Hội thoại'))}</button>`).join('')}</div>`
+    : '';
+  const search = convs.length ? `<input class="field-input zalo-search" placeholder="Tìm trong hội thoại…" value="${esc(zaloQuery)}" oninput="zaloQuery=this.value; renderZaloList()">` : '';
+  box.innerHTML = `<div class="drawer-section-title">💬 Hội thoại Zalo</div>${tabs}${search}<div class="zalo-list" id="zaloList"></div>`;
+  renderZaloList();
+}
+
+function pickZaloConv(leadId, convId){
+  zaloActiveConv = convId;
+  zaloQuery = '';
+  renderZaloBlock(leadId);
+}
+
+function zaloHighlight(escaped, q){
+  if (!q || /[&<>]/.test(q)) return escaped;
+  const re = new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  return escaped.replace(re, m => `<mark>${m}</mark>`);
+}
+
+function renderZaloList(){
+  const box = document.getElementById('zaloList');
+  if (!box) return;
+  if (!zaloActiveConv){
+    box.innerHTML = '<div class="list-empty">Chưa gắn hội thoại Zalo nào. Mở hội thoại của khách trên Zalo web rồi bấm "Gắn vào lead có sẵn" ở thanh bên extension.</div>';
+    return;
+  }
+  const data = zaloMsgs[zaloActiveConv];
+  if (!data){ box.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
+  if (data.error){ box.innerHTML = '<div class="list-empty">Không tải được hội thoại (có thể chưa cập nhật Security Rules).</div>'; return; }
+  const labels = (window.ZaloMap && window.ZaloMap.KIND_LABEL) || {};
+  const q = zaloQuery.trim().toLowerCase();
+  const items = q ? data.filter(m => (m.text || '').toLowerCase().includes(q)) : data;
+  const thieuChu = data.filter(m => m.kind === 'text' && typeof m.text !== 'string').length;
+  let html = '', ngayTruoc = '';
+  items.forEach(m => {
+    const d = new Date(m.at);
+    const ngay = d.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit' });
+    if (!q && ngay !== ngayTruoc){ html += `<div class="zalo-day">${esc(ngay)}</div>`; ngayTruoc = ngay; }
+    const chu = typeof m.text === 'string' ? zaloHighlight(esc(m.text), q) : '';
+    const body = m.kind === 'text'
+      ? (typeof m.text === 'string' ? chu : '<span class="zalo-missing">Chưa có nội dung — mở hội thoại này trên Zalo web</span>')
+      : `<span class="zalo-att">${esc(labels[m.kind] || 'Tin nhắn')}</span>${chu ? ' ' + chu : ''}`;
+    const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
+    html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
+      + (!m.fromMe && m.senderName ? `<div class="zalo-who">${esc(m.senderName)}</div>` : '')
+      + `<div class="zalo-bubble">${quote}${body}</div>`
+      + `<div class="zalo-time">${d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}</div></div>`;
+  });
+  box.innerHTML = (thieuChu ? `<div class="zalo-note">${thieuChu} tin chưa có nội dung — mở hội thoại trên Zalo web để đồng bộ</div>` : '')
+    + (html || '<div class="list-empty">' + (q ? 'Không có tin nào khớp.' : 'Chưa có tin nhắn nào.') + '</div>');
+  if (!q) box.scrollTop = box.scrollHeight;
 }
 
 /* ======================= LOST REASON MODAL ======================= */
@@ -3910,6 +4082,7 @@ async function initCloudSync(){
       applyRemoteData(data);
       renderAll();
     });
+    initZalo();
   } catch(e){
     console.error('Firebase init error:', e);
     // cloudLoaded vẫn là false -> chốt an toàn trong saveToCloud sẽ chặn mọi lệnh ghi,
