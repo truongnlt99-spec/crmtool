@@ -400,6 +400,98 @@ async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boo
   return traLoiJson({ ok: true, hoiThoai });
 }
 
+/* ===================== Hội thoại Zalo cho tool MCP (chỉ đọc) ===================== */
+// Cùng quy tắc với conversationList()/waitingState() trong extension/lib/zalo-map.js
+// (chép lại vì Vercel không đóng gói file ngoài api/). Sửa một bên thì sửa cả hai.
+
+type ZaloMeta = { lastAt?: number | null; lastCustomerAt?: number | null; lastMeAt?: number | null };
+type ZaloStore = { links: Record<string, ZaloLink>; meta: Record<string, ZaloMeta> };
+
+const ZALO_SILENT_DAYS = 3;
+const NHAN_LOAI_ZALO: Record<string, string> = {
+  image: 'Hình ảnh', sticker: 'Sticker', file: 'File', video: 'Video',
+  link: 'Liên kết', card: 'Danh thiếp', other: 'Tin nhắn đặc biệt',
+};
+
+/** Kho Zalo của request hiện tại (theo tài khoản của khoá MCP). */
+function zaloRoot(): string {
+  return zaloRootFromDataRoot(dataRoot());
+}
+
+async function loadZalo(): Promise<ZaloStore> {
+  const r = zaloRoot();
+  const [links, meta] = await Promise.all([
+    readPath<Record<string, ZaloLink> | null>(`${r}/links`),
+    readPath<Record<string, ZaloMeta> | null>(`${r}/meta`),
+  ]);
+  return { links: links || {}, meta: meta || {} };
+}
+
+/** Hội thoại đã gắn với một lead ("không phải khách" không bao giờ lọt vào đây). */
+function zaloConvsOfLead(z: ZaloStore, leadId: string): Array<[string, ZaloLink]> {
+  return Object.entries(z.links).filter(([, l]) => l && l.status === 'lead' && l.leadId === leadId);
+}
+
+function boDauZalo(s: unknown): string {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+}
+
+function khoangZalo(ms: number): string {
+  if (ms < 3600_000) return `${Math.max(1, Math.floor(ms / 60_000))} phút`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3600_000)} giờ`;
+  return `${Math.floor(ms / 86_400_000)} ngày`;
+}
+
+/** Chip giống trên CRM: 'Khách chờ trả lời · 2 giờ' | 'Khách im 4 ngày' | null. */
+function trangThaiZalo(metas: Array<ZaloMeta | null | undefined>, now: number): { type: 'waiting' | 'silent'; label: string } | null {
+  // Đang chờ nếu BẤT KỲ hội thoại nào khách nhắn sau mình; thời gian = hội thoại chờ lâu nhất
+  let lastMe = 0, choLauNhat = 0;
+  for (const m of metas) {
+    if (!m) continue;
+    const c = m.lastCustomerAt || 0, me = m.lastMeAt || 0;
+    lastMe = Math.max(lastMe, me);
+    if (c && c > me) choLauNhat = choLauNhat ? Math.min(choLauNhat, c) : c;
+  }
+  if (choLauNhat) return { type: 'waiting', label: `Khách chờ trả lời · ${khoangZalo(now - choLauNhat)}` };
+  if (lastMe && now - lastMe >= ZALO_SILENT_DAYS * 86_400_000) {
+    return { type: 'silent', label: `Khách im ${Math.floor((now - lastMe) / 86_400_000)} ngày` };
+  }
+  return null;
+}
+
+/** 'DD/MM/YYYY HH:mm' giờ Việt Nam. */
+function gioVN(ms: number): string {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(new Date(ms)).map((x) => [x.type, x.value])
+  );
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
+}
+
+/** 'YYYY-MM-DD' theo ngày Việt Nam — để lọc from/to. */
+function ngayVN(ms: number): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+}
+
+/** Tóm tắt Zalo gắn vào get_lead — nhẹ, không kèm tin nhắn. */
+async function zaloTomTatLead(leadId: string, stage: string) {
+  let z: ZaloStore;
+  try { z = await loadZalo(); } catch { return null; }
+  const convs = zaloConvsOfLead(z, leadId);
+  if (!convs.length) return null;
+  const metas = convs.map(([c]) => z.meta[c]);
+  const lastAt = Math.max(0, ...metas.map((m) => (m && m.lastAt) || 0));
+  const closed = stage === 'won' || stage === 'lost';
+  const st = closed ? null : trangThaiZalo(metas, Date.now());
+  return {
+    conversations: convs.length,
+    names: convs.map(([, l]) => l.name || ''),
+    lastMessageAt: lastAt ? gioVN(lastAt) : null,
+    state: st ? st.label : null,
+    hint: 'Gọi get_conversation để đọc tin nhắn.',
+  };
+}
+
 /** Đoán tên thiết bị/trình duyệt từ User-Agent cho dễ đọc. */
 function moTaThietBi(ua: string): string {
   if (!ua) return 'Không rõ';
@@ -720,7 +812,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Chi tiết lead',
         description:
-          'Xem đầy đủ thông tin một lead: thông tin khách, ghi chú, việc cần làm, lịch sử hoạt động. Truyền leadId hoặc tên khách.',
+          'Xem đầy đủ thông tin một lead: thông tin khách, ghi chú, việc cần làm, lịch sử hoạt động, và tóm tắt hội thoại Zalo (số hội thoại, lần nhắn cuối, khách có đang chờ trả lời không). Truyền leadId hoặc tên khách. Muốn đọc tin nhắn thì gọi get_conversation.',
         inputSchema: z.object({
           lead: z.string().describe('leadId (vd L1730000000000) hoặc tên khách hàng'),
         }),
@@ -740,6 +832,147 @@ const mcpHandler = createMcpHandler(
             status: todoStatus(t).label,
             daysUntilDue: daysDiff(t.dueDate),
           })),
+          zalo: await zaloTomTatLead(l.id, l.stage),
+        });
+      }
+    );
+
+    server.registerTool(
+      'list_conversations',
+      {
+        title: 'Danh sách hội thoại Zalo',
+        description:
+          'Liệt kê các hội thoại Zalo đã gắn với lead (giống tab "Hội thoại" trên CRM), mới nhắn lên đầu. Mỗi hội thoại có tên trên Zalo, lead + giai đoạn, lần nhắn cuối, trạng thái "Khách chờ trả lời" / "Khách im N ngày". Dùng để trả lời các câu như "khách nào đang chờ mình trả lời?". Hội thoại không phải khách không bao giờ có ở đây.',
+        inputSchema: z.object({
+          filter: z
+            .enum(['all', 'waiting', 'silent'])
+            .optional()
+            .describe('all = tất cả (mặc định), waiting = khách đang chờ mình trả lời, silent = mình nhắn nhưng khách im từ 3 ngày'),
+          search: z.string().optional().describe('Tìm theo tên hội thoại Zalo hoặc tên lead (không cần dấu)'),
+          limit: z.number().int().min(1).max(200).optional().describe('Số hội thoại tối đa, mặc định 50'),
+        }),
+      },
+      async (args) => {
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+        const leadById = new Map(crm.leads.map((l) => [l.id, l]));
+        const now = Date.now();
+        const q = boDauZalo(args.search);
+        const all = Object.entries(z.links)
+          .filter(([, l]) => l && l.status === 'lead' && !!l.leadId && leadById.has(l.leadId))
+          .map(([convId, l]) => {
+            const lead = leadById.get(l.leadId as string) as Lead;
+            const m = z.meta[convId] || null;
+            const closed = lead.stage === 'won' || lead.stage === 'lost';
+            const st = !m || closed ? null : trangThaiZalo([m], now);
+            return {
+              convId,
+              name: l.name || '',
+              isGroup: convId.startsWith('g'),
+              leadId: lead.id,
+              leadName: lead.name,
+              stageName: STAGE_NAME[lead.stage] || lead.stage,
+              package: lead.package || null,
+              lastAt: (m && m.lastAt) || 0,
+              stateType: st ? st.type : null,
+              state: st ? st.label : null,
+            };
+          })
+          .filter((x) => !q || boDauZalo(x.name).includes(q) || boDauZalo(x.leadName).includes(q))
+          .sort((a, b) => b.lastAt - a.lastAt);
+        const counts = {
+          all: all.length,
+          waiting: all.filter((x) => x.stateType === 'waiting').length,
+          silent: all.filter((x) => x.stateType === 'silent').length,
+        };
+        const filter = args.filter || 'all';
+        const list = filter === 'all' ? all : all.filter((x) => x.stateType === filter);
+        const limit = args.limit ?? 50;
+        return ok({
+          total: list.length,
+          shown: Math.min(limit, list.length),
+          counts,
+          conversations: list.slice(0, limit).map(({ lastAt, stateType, ...x }) => ({
+            ...x,
+            lastMessageAt: lastAt ? gioVN(lastAt) : null,
+          })),
+        });
+      }
+    );
+
+    server.registerTool(
+      'get_conversation',
+      {
+        title: 'Đọc hội thoại Zalo',
+        description:
+          'Đọc tin nhắn Zalo của một lead (mọi hội thoại đã gắn với lead đó, kể cả nhóm) hoặc của một hội thoại cụ thể (convId lấy từ list_conversations). Tin xếp từ cũ đến mới; mặc định trả 200 tin gần nhất mỗi hội thoại. Dùng để tóm tắt nhu cầu, băn khoăn của khách, những gì đã hứa. Tin chỉ đọc trên điện thoại có thể chưa có nội dung.',
+        inputSchema: z.object({
+          lead: z.string().optional().describe('leadId hoặc tên khách hàng'),
+          convId: z.string().optional().describe('Mã hội thoại từ list_conversations (dùng khi lead có nhiều hội thoại)'),
+          from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Chỉ lấy tin từ ngày này (YYYY-MM-DD, giờ Việt Nam)'),
+          to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Chỉ lấy tin đến hết ngày này (YYYY-MM-DD)'),
+          limit: z.number().int().min(1).max(1000).optional().describe('Số tin MỚI NHẤT tối đa mỗi hội thoại, mặc định 200'),
+        }),
+      },
+      async (args) => {
+        if (!args.lead && !args.convId) throw new Error('Cần truyền lead (leadId hoặc tên khách) hoặc convId.');
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+
+        let lead: Lead;
+        let convs: Array<[string, ZaloLink]>;
+        if (args.convId) {
+          const link = z.links[args.convId];
+          if (!link || link.status !== 'lead' || !link.leadId) {
+            throw new Error(`Không có hội thoại "${args.convId}" nào đã gắn với lead.`);
+          }
+          const found = crm.leads.find((l) => l.id === link.leadId);
+          if (!found) throw new Error(`Hội thoại "${args.convId}" đang gắn với lead đã bị xoá.`);
+          lead = found;
+          convs = [[args.convId, link]];
+        } else {
+          lead = findLead(crm, args.lead as string);
+          convs = zaloConvsOfLead(z, lead.id);
+          if (!convs.length) {
+            return say(`Lead "${lead.name}" chưa gắn hội thoại Zalo nào. Gắn từ thanh bên của extension trên Zalo web.`);
+          }
+        }
+
+        const limit = args.limit ?? 200;
+        const conversations = await Promise.all(convs.map(async ([convId, link]) => {
+          const raw = (await readPath<Record<string, ZaloMsg> | null>(`${zaloRoot()}/msgs/${convId}`)) || {};
+          const msgs = Object.values(raw)
+            .filter((m) => Number.isFinite(Number(m.at)))
+            .filter((m) => {
+              const d = ngayVN(Number(m.at));
+              return (!args.from || d >= args.from) && (!args.to || d <= args.to);
+            })
+            .sort((a, b) => Number(a.at) - Number(b.at));
+          const shown = msgs.slice(-limit);
+          return {
+            convId,
+            name: link.name || '',
+            isGroup: convId.startsWith('g'),
+            total: msgs.length,
+            shown: shown.length,
+            missingText: msgs.filter((m) => (m.kind || 'text') === 'text' && typeof m.text !== 'string').length,
+            messages: shown.map((m) => {
+              const kind = m.kind || 'other';
+              const chu = typeof m.text === 'string' ? m.text : '';
+              const text = kind === 'text'
+                ? (chu || '(chưa có nội dung — tin chưa được mở trên Zalo web)')
+                : `[${NHAN_LOAI_ZALO[kind] || 'Tin nhắn'}]${chu ? ' ' + chu : ''}`;
+              return {
+                time: gioVN(Number(m.at)),
+                from: m.fromMe ? 'Mình' : (tenNguoiGuiZalo(m, convId, link.name || '') || 'Khách'),
+                text,
+                ...(m.quote ? { quote: `${m.quote.title ? m.quote.title + ': ' : ''}${m.quote.text || ''}` } : {}),
+              };
+            }),
+          };
+        }));
+
+        return ok({
+          lead: { id: lead.id, name: lead.name, stageName: STAGE_NAME[lead.stage] || lead.stage },
+          conversations,
         });
       }
     );

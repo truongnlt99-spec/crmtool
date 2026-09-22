@@ -64,6 +64,10 @@ check('minh nhan sau cung, qua 3 ngay -> im lang', w2?.type === 'silent' && w2.l
 check('vua tra loi -> khong chip', M.waitingState([{ lastCustomerAt: now - 5 * HOUR, lastMeAt: now - 1 * HOUR }], now) === null);
 check('nhieu hoi thoai lay moi nhat', M.waitingState([{ lastCustomerAt: now - 9 * DAY, lastMeAt: now - 8 * DAY }, { lastCustomerAt: now - 10 * 60_000, lastMeAt: 0 }], now)?.label === 'Khách chờ trả lời · 10 phút');
 check('khong co du lieu -> null', M.waitingState([], now) === null && M.waitingState([null], now) === null);
+// Lead có 2 hội thoại: cô dâu nhắn 2 giờ trước chưa ai trả lời, mình vừa nhắn chú rể 1 giờ trước.
+// Cô dâu VẪN đang chờ — không được để tin gửi chú rể che mất.
+check('co mot hoi thoai dang cho -> lead dang cho', M.waitingState([{ lastCustomerAt: now - 2 * HOUR, lastMeAt: now - 5 * HOUR }, { lastCustomerAt: now - 3 * HOUR, lastMeAt: now - 1 * HOUR }], now)?.label === 'Khách chờ trả lời · 2 giờ');
+check('nhieu hoi thoai cung cho -> lay cai cho lau nhat', M.waitingState([{ lastCustomerAt: now - 2 * HOUR, lastMeAt: 0 }, { lastCustomerAt: now - 6 * HOUR, lastMeAt: now - 7 * HOUR }], now)?.label === 'Khách chờ trả lời · 6 giờ');
 
 console.log('\n>> nhan thoi gian giong app');
 const d = new Date(2026, 8, 22, 14, 5);

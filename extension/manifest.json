@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "HayDay CRM – Zalo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Đồng bộ hội thoại Zalo web đã gắn lead vào HayDay CRM (dùng nội bộ).",
   "permissions": ["storage", "sidePanel", "alarms"],
   "host_permissions": [
