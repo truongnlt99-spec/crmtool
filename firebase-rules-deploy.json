@@ -64,6 +64,16 @@
         }
       }
     },
+    "zalo": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'"
+    },
+    "zalo_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
     "appConfig": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
