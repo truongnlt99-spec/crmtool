@@ -207,7 +207,7 @@ Còn một trường hợp: app và Claude cùng sửa **chính một lead** tr�
 
 ## Danh sách tool MCP
 
-**Đọc:** `list_leads`, `get_lead`, `dashboard_summary`, `upcoming_deadlines`, `list_todos`
+**Đọc:** `list_leads`, `get_lead` (kèm tóm tắt Zalo), `dashboard_summary`, `upcoming_deadlines`, `list_todos`, `list_conversations`, `get_conversation`
 
 **Ghi:** `create_lead`, `update_lead`, `move_stage`, `add_note`, `add_todo`, `complete_todo`
 

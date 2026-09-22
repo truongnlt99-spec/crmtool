@@ -126,16 +126,21 @@ function khoang(ms) {
   return `${Math.floor(ms / DAY)} ngày`;
 }
 
-/** Chip trên card/thanh bên: khách đang chờ mình, hoặc mình nhắn mà khách im lâu. */
+/**
+ * Chip trên card/thanh bên: khách đang chờ mình, hoặc mình nhắn mà khách im lâu.
+ * Lead có nhiều hội thoại (cô dâu, chú rể, nhóm): đang chờ nếu BẤT KỲ hội thoại nào khách
+ * nhắn sau mình — tin gửi ở hội thoại khác không được che mất. Thời gian = hội thoại chờ lâu nhất.
+ */
 export function waitingState(metas, nowMs, silentDays = SILENT_DAYS) {
-  let lastC = 0, lastMe = 0;
+  let lastMe = 0, choLauNhat = 0;
   for (const m of metas || []) {
     if (!m) continue;
-    lastC = Math.max(lastC, m.lastCustomerAt || 0);
-    lastMe = Math.max(lastMe, m.lastMeAt || 0);
+    const c = m.lastCustomerAt || 0, me = m.lastMeAt || 0;
+    lastMe = Math.max(lastMe, me);
+    if (c && c > me) choLauNhat = choLauNhat ? Math.min(choLauNhat, c) : c;
   }
-  if (lastC && lastC > lastMe) {
-    return { type: 'waiting', label: `Khách chờ trả lời · ${khoang(nowMs - lastC)}` };
+  if (choLauNhat) {
+    return { type: 'waiting', label: `Khách chờ trả lời · ${khoang(nowMs - choLauNhat)}` };
   }
   if (lastMe && nowMs - lastMe >= silentDays * DAY) {
     return { type: 'silent', label: `Khách im ${Math.floor((nowMs - lastMe) / DAY)} ngày` };

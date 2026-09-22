@@ -16,6 +16,7 @@
     "test:scope-share": "node test/scope-share.test.ts",
     "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
     "test:zalo-db": "node test/zalo-rtdb.test.ts",
+    "test:mcp-zalo": "node test/mcp-hoi-thoai.test.ts",
     "test:dongbo": "node test/dong-bo.test.ts"
   },
   "dependencies": {
