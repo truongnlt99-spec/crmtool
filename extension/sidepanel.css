@@ -1,0 +1,44 @@
+:root{
+  --green-50:#EAF7F0; --green-100:#CFEEDD; --green-500:#1FAE6F; --green-700:#0F6E45;
+  --ink:#1C2622; --ink-soft:#5B6B64; --ink-faint:#8B9992; --bg:#F5F7F4; --card:#FFFFFF;
+  --border:#E4E8E2; --red:#DD525C; --red-soft:#FCEBEC; --amber:#C98A2E; --amber-soft:#FBF1DF;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --green-50:#15291F; --green-100:#1E3B2C; --green-500:#35C98A; --green-700:#86EBBE;
+    --ink:#E7EEE9; --ink-soft:#A6B5AC; --ink-faint:#7C8B83; --bg:#101613; --card:#18201C;
+    --border:#2B352E; --red:#FF7078; --red-soft:#331C1F; --amber:#E2B468; --amber-soft:#2E2719;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; font:13px/1.5 "Be Vietnam Pro", system-ui, sans-serif; background:var(--bg); color:var(--ink);}
+main{padding:14px; display:flex; flex-direction:column; gap:10px;}
+main.busy{opacity:.6; pointer-events:none;}
+h1{font-size:15px; margin:0;}
+.muted{color:var(--ink-soft); margin:0;}
+.tiny{font-size:11px; color:var(--ink-faint); margin:0;}
+.err{color:var(--red); margin:0; font-weight:600;}
+.conv{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
+.conv-name{font-weight:700; font-size:14px;}
+label{display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:700; color:var(--ink-soft);}
+input,select,textarea{font:inherit; font-size:13px; color:var(--ink); background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 9px; width:100%;}
+textarea{resize:vertical;}
+button{font:inherit; font-weight:600; border:1px solid var(--border); background:var(--card); color:var(--ink); border-radius:8px; padding:8px 12px; cursor:pointer; text-align:left;}
+button:hover{border-color:var(--green-500);}
+button.primary{background:var(--green-500); color:#fff; border-color:var(--green-500);}
+button.block{width:100%;}
+form{display:flex; flex-direction:column; gap:10px;}
+.row{display:flex; justify-content:space-between; gap:8px; align-items:center;}
+.results{display:flex; flex-direction:column; gap:6px;}
+.result{display:flex; flex-direction:column; gap:2px;}
+.kv{display:flex; justify-content:space-between; gap:8px; font-size:12px;}
+.kv span{color:var(--ink-faint);}
+.val{font-weight:700; color:var(--ink); font-size:13px;}
+.chip{align-self:flex-start; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px;}
+.chip.waiting{background:var(--red-soft); color:var(--red);}
+.chip.silent{background:var(--amber-soft); color:var(--amber);}
+a{color:var(--green-700); font-weight:600;}
+a.danger{color:var(--red);}
+.status{position:sticky; bottom:0; padding:8px 14px; font-size:11px; color:var(--ink-faint); border-top:1px solid var(--border); background:var(--bg); min-height:32px;}
+.status .ok{color:var(--green-700); font-weight:700;}
+.status .err{display:inline;}
