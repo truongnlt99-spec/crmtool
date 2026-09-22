@@ -3026,8 +3026,13 @@ function renderZaloList(){
   const q = zaloQuery.trim().toLowerCase();
   const items = q ? data.filter(m => (m.text || '').toLowerCase().includes(q)) : data;
   const thieuChu = data.filter(m => m.kind === 'text' && typeof m.text !== 'string').length;
+  // Chat 1-1: tên người gửi = tên cuộc hội thoại trên Zalo (tên lưu trong tin có thể bị Zalo mã hoá)
+  const link = zaloLinks[zaloActiveConv];
+  const hoiThoai = link ? { name: link.name || '', isGroup: String(zaloActiveConv).startsWith('g') } : null;
+  const tenNguoiGui = m => window.ZaloMap ? window.ZaloMap.displaySender(m, hoiThoai) : '';
   let html = '', ngayTruoc = '';
   items.forEach(m => {
+    const ten = tenNguoiGui(m);
     const d = new Date(m.at);
     const ngay = d.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit' });
     if (!q && ngay !== ngayTruoc){ html += `<div class="zalo-day">${esc(ngay)}</div>`; ngayTruoc = ngay; }
@@ -3037,7 +3042,7 @@ function renderZaloList(){
       : `<span class="zalo-att">${esc(labels[m.kind] || 'Tin nhắn')}</span>${chu ? ' ' + chu : ''}`;
     const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
     html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
-      + (!m.fromMe && m.senderName ? `<div class="zalo-who">${esc(m.senderName)}</div>` : '')
+      + (ten ? `<div class="zalo-who">${esc(ten)}</div>` : '')
       + `<div class="zalo-bubble">${quote}${body}</div>`
       + `<div class="zalo-time">${d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}</div></div>`;
   });

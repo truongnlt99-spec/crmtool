@@ -84,7 +84,7 @@ try {
   await db('zaloTest', { method:'PUT', body: JSON.stringify({
     links: { c1: { status:'lead', leadId:'L1', name:'Khach Zalo', isGroup:false, linkedAt: 1 },
              c2: { status:'ignored', leadId:null, name:'Gia dinh', isGroup:false, linkedAt: 1 } },
-    msgs: { c1: { '7001': { at: 2000, fromMe:false, senderUid:'55', senderName:'Khach', kind:'text', text:'CHAT BI MAT', cliMsgId:'1' },
+    msgs: { c1: { '7001': { at: 2000, fromMe:false, senderUid:'55', senderName:'lDWqNsuflkEXdcRVtAc6QXLvzLNX6Ux1sM1b53pxss0=', kind:'text', text:'CHAT BI MAT', cliMsgId:'1' },
                   '7000': { at: 1000, fromMe:true, senderUid:'', kind:'image', cliMsgId:'0' } },
             c2: { '9': { at: 1, fromMe:false, kind:'text', text:'TIN GIA DINH', cliMsgId:'9' } } },
   }) });
@@ -254,6 +254,8 @@ try {
   check('sap theo thoi gian', tin.length === 2 && tin[0].at === 1000 && tin[1].text === 'CHAT BI MAT');
   check('KHONG lo hoi thoai "khong phai khach"', !JSON.stringify(c3.data).includes('TIN GIA DINH'));
   check('khong gui senderUid/cliMsgId', !('senderUid' in tin[1]) && !('cliMsgId' in tin[1]));
+  check('chat 1-1: ten = ten cuoc hoi thoai Zalo', tin[1]?.senderName === 'Khach Zalo', tin[1]?.senderName);
+  check('ten bi Zalo ma hoa khong lot ra', !JSON.stringify(c3.data).includes('lDWqNsuflkEXdcRVtAc6QXLvzLNX6Ux1sM1b53pxss0='));
   console.log('\n>> 12. Khoa tam sau 10 lan sai');
   for (let i = 0; i < 10; i++) await goiShare({ token: TOKEN, passcode: 'sai' + i });
   const r8 = await goiShare({ token: TOKEN, passcode: MAT_KHAU });

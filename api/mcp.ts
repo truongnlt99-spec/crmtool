@@ -360,6 +360,19 @@ export function zaloRootFromDataRoot(dataRoot: string): string {
 type ZaloLink = { status?: string; leadId?: string | null; name?: string };
 type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; quote?: { title?: string; text?: string } | null };
 
+/**
+ * Tên hiển thị của người gửi — cùng quy tắc displaySender() trong extension/lib/zalo-map.js
+ * (không import được vì Vercel không đóng gói file ngoài api/). Zalo web mã hoá cả tên người gửi,
+ * nên chat 1-1 dùng tên cuộc hội thoại; nhóm thì bỏ tên nếu trông như chuỗi mã hoá.
+ */
+function tenNguoiGuiZalo(m: ZaloMsg, convId: string, tenHoiThoai: string): string {
+  if (m.fromMe) return '';
+  if (!convId.startsWith('g')) return tenHoiThoai;
+  const t = String(m.senderName || '');
+  const maHoa = t.length >= 16 && t.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(t);
+  return maHoa ? '' : t;
+}
+
 /** Hội thoại Zalo của một lead cho trang chỉ xem. Chỉ hội thoại status 'lead', chỉ trường cần hiển thị. */
 async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boolean): Promise<Response> {
   if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
@@ -376,7 +389,7 @@ async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boo
         .map((m) => ({
           at: Number(m.at) || 0,
           fromMe: !!m.fromMe,
-          senderName: m.senderName || '',
+          senderName: tenNguoiGuiZalo(m, convId, l.name || ''),
           kind: m.kind || 'other',
           text: typeof m.text === 'string' ? m.text : null,
           quote: m.quote ? { title: m.quote.title || '', text: m.quote.text || '' } : null,
