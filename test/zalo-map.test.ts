@@ -127,5 +127,46 @@ check('nhom + ten ma hoa -> rong', M.displaySender({ fromMe: false, senderName: 
 check('tin cua minh -> rong', M.displaySender({ fromMe: true, senderName: 'x' }, conv11) === '');
 check('khong biet hoi thoai -> loc ma hoa', M.displaySender({ fromMe: false, senderName: MA_HOA }, null) === '');
 
+console.log('\n>> conversationList (tab Hoi thoai)');
+{
+  const NOW = 1_760_000_000_000;
+  const links = {
+    c1: { status: 'lead', leadId: 'L1', name: 'Lan Nguyễn' },
+    g2: { status: 'lead', leadId: 'L2', name: 'Nhóm cưới Hân & Tú' },
+    c3: { status: 'lead', leadId: 'L3', name: 'Thảo Vy' },
+    c4: { status: 'ignored', leadId: null, name: 'Mẹ' },
+    c5: { status: 'lead', leadId: 'LXOA', name: 'Lead đã xoá' },
+    c6: { status: 'lead', leadId: 'L6', name: 'Khách đã chốt' },
+  };
+  const meta = {
+    c1: { lastAt: NOW - 2 * HOUR, lastCustomerAt: NOW - 2 * HOUR, lastMeAt: NOW - 5 * HOUR },
+    g2: { lastAt: NOW - 4 * HOUR, lastCustomerAt: NOW - 4 * HOUR, lastMeAt: 0 },
+    c3: { lastAt: NOW - 4 * DAY, lastCustomerAt: NOW - 6 * DAY, lastMeAt: NOW - 4 * DAY },
+    c6: { lastAt: NOW - 1 * HOUR, lastCustomerAt: NOW - 1 * HOUR, lastMeAt: 0 },
+  };
+  const leads = [
+    { id: 'L1', name: 'Lan Nguyễn', stage: 'baogia', package: 'Signature' },
+    { id: 'L2', name: 'Ngọc Hân', stage: 'follow1', package: 'Unique' },
+    { id: 'L3', name: 'Thảo Vy', stage: 'follow2', package: 'Standard' },
+    { id: 'L6', name: 'Khách đã chốt', stage: 'won', package: 'Standard' },
+  ];
+  const r = M.conversationList({ links, meta, leads, now: NOW });
+  check('bo hoi thoai "khong phai khach" va lead da xoa', r.items.map((x: any) => x.convId).join() === 'c6,c1,g2,c3', r.items.map((x: any) => x.convId).join());
+  check('moi nhat len dau', r.items[0].convId === 'c6');
+  check('co ten lead + giai doan', r.items[2].leadName === 'Ngọc Hân' && r.items[2].stageName === 'Follow up lần 1' && r.items[2].isGroup === true);
+  check('chip cho tra loi', r.items[1].state?.type === 'waiting');
+  check('chip khach im', r.items[3].state?.type === 'silent');
+  check('lead Won/Lost khong co chip', r.items[0].state === null);
+  check('dem theo bo loc', r.counts.all === 4 && r.counts.waiting === 2 && r.counts.silent === 1, JSON.stringify(r.counts));
+  const rw = M.conversationList({ links, meta, leads, now: NOW, filter: 'waiting' });
+  check('loc cho tra loi', rw.items.map((x: any) => x.convId).join() === 'c1,g2');
+  check('loc van giu so dem tong', rw.counts.all === 4);
+  check('tim khong dau theo ten hoi thoai', M.conversationList({ links, meta, leads, now: NOW, query: 'thao vy' }).items.map((x: any) => x.convId).join() === 'c3');
+  check('tim theo ten lead (nhom)', M.conversationList({ links, meta, leads, now: NOW, query: 'ngoc han' }).items.map((x: any) => x.convId).join() === 'g2');
+  const khongMeta = M.conversationList({ links: { c9: { status: 'lead', leadId: 'L1', name: 'Mới gắn' } }, meta: {}, leads, now: NOW });
+  check('chua co meta van hien, khong loi', khongMeta.items.length === 1 && khongMeta.items[0].lastAt === null && khongMeta.items[0].state === null);
+  check('du lieu rong', M.conversationList({ links: null, meta: null, leads: [], now: NOW }).items.length === 0);
+}
+
 console.log(`\n${'='.repeat(50)}\nKET QUA: ${pass} PASS / ${fail} FAIL\n${'='.repeat(50)}`);
 if (fail) process.exitCode = 1;
