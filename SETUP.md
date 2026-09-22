@@ -199,9 +199,9 @@ Vercel biên dịch từng file trong `api/` một cách riêng lẻ và **khôn
 
 ## Hạn chế đã biết
 
-**Xung đột ghi khi dùng song song.** App web lưu bằng cách ghi đè toàn bộ khối dữ liệu. Đã bổ sung đồng bộ realtime (`onValue`) nên app sẽ nhận thay đổi do Claude ghi trong vòng dưới 1 giây. Nhưng nếu vợ bạn sửa gì đó trong app *đúng khoảnh khắc* Claude đang ghi (chênh nhau dưới ~1 giây), thay đổi của Claude vẫn có thể bị ghi đè.
+**Xung đột ghi khi dùng song song.** App chỉ ghi những lead người dùng thực sự sửa, so với bản dữ liệu mà màn hình đang dựng từ đó. Nên Claude tạo lead mới hay sửa lead *khác* trong lúc app đang mở — kể cả khi đang mở drawer hay đang gõ — đều không bị mất. Kiểm chứng: `npm run test:dongbo` (chạy đúng code đồng bộ của app và đúng tool MCP trên Firebase giả lập, không đụng dữ liệu thật).
 
-Thực tế rất hiếm gặp. Muốn chắc chắn tuyệt đối thì đừng nhờ Claude sửa dữ liệu trong lúc đang mở app. Cần triệt để hơn thì phải refactor app để ghi theo từng lead thay vì ghi cả khối — việc này lớn hơn, để sau.
+Còn một trường hợp: app và Claude cùng sửa **chính một lead** trước khi app kịp nhận bản của Claude (ví dụ đang mở drawer lead đó rồi nhờ Claude thêm ghi chú cho lead đó). Khi app lưu, bản trong app đè lên cả lead, thay đổi của Claude trên lead ấy bị mất. Tránh bằng cách đóng drawer lead đó trước khi nhờ Claude sửa nó.
 
 ---
 
@@ -210,3 +210,36 @@ Thực tế rất hiếm gặp. Muốn chắc chắn tuyệt đối thì đừng
 **Đọc:** `list_leads`, `get_lead`, `dashboard_summary`, `upcoming_deadlines`, `list_todos`
 
 **Ghi:** `create_lead`, `update_lead`, `move_stage`, `add_note`, `add_todo`, `complete_todo`
+
+---
+
+## Giai đoạn 3 — Extension Zalo web
+
+Extension đọc tin nhắn trên **chat.zalo.me** (không phải Zalo PC) và đưa hội thoại **đã gắn lead** vào CRM.
+
+> Zalo chỉ cho **một** phiên máy tính: đăng nhập Zalo web sẽ đăng xuất Zalo PC. Máy dùng extension phải chat bằng Zalo web.
+
+### Bước 3.1 — Dán Security Rules mới
+Dán `firebase-rules-deploy.json` vào Firebase Console → Realtime Database → Rules → **Publish** (thêm nhánh `zalo`, `zalo_users`).
+Kiểm chứng: `curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/zalo.json?shallow=true"` → `Permission denied`.
+
+### Bước 3.2 — Cài extension (dạng unpacked)
+1. Tải repo về máy (hoặc `git pull` nếu đã có).
+2. Chrome → `chrome://extensions` → bật **Developer mode** (góc phải trên).
+3. **Load unpacked** → chọn thư mục `extension/` trong repo.
+4. Ghim icon "HayDay CRM – Zalo" lên thanh công cụ.
+
+### Bước 3.3 — Dùng lần đầu
+1. Mở `https://chat.zalo.me`, quét QR đăng nhập Zalo.
+2. Bấm icon extension → thanh bên mở → đăng nhập **tài khoản CRM** (một lần).
+3. Mở hội thoại của khách → chọn **Tạo lead mới** / **Gắn vào lead có sẵn** / **Không phải khách**.
+
+Từ đó tin nhắn của hội thoại đã gắn tự vào CRM (mục "💬 Hội thoại Zalo" trong lead). Hội thoại chưa gắn hoặc "không phải khách" **không** được gửi đi đâu.
+
+### Cập nhật extension
+`git pull` rồi vào `chrome://extensions` bấm nút tải lại (↻) của extension.
+
+### Giới hạn
+- Chữ của tin chỉ lấy được khi hội thoại được **mở trên Zalo web**; tin chỉ đọc trên điện thoại hiện "Chưa có nội dung" cho tới khi mở hội thoại đó trên web. Extension **không** tự mở hội thoại (sẽ báo "đã xem" cho khách).
+- Tab Zalo web phải đang mở thì mới đồng bộ; mở lại sẽ tự bù (trong phạm vi lịch sử Zalo web giữ, khoảng 2 tuần).
+- Zalo đổi giao diện có thể làm extension tạm ngưng; thanh bên sẽ báo "Tạm ngưng đồng bộ".

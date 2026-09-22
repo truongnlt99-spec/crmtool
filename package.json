@@ -13,7 +13,10 @@
     "test:share": "node test/share.test.ts",
     "test:ky": "node test/khoang-thoi-gian.test.ts",
     "test:scope": "node test/scope.test.ts",
-    "test:scope-share": "node test/scope-share.test.ts"
+    "test:scope-share": "node test/scope-share.test.ts",
+    "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
+    "test:zalo-db": "node test/zalo-rtdb.test.ts",
+    "test:dongbo": "node test/dong-bo.test.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2",

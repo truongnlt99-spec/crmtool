@@ -81,6 +81,13 @@ try {
     token: TOKEN, salt: SALT, passHash: createHash('sha256').update(`${SALT}:${MAT_KHAU}`).digest('hex'),
     enabled: true, createdAt: new Date().toISOString(), failCount: 0, lockedUntil: 0 }) });
   console.log('   seed OK');
+  await db('zaloTest', { method:'PUT', body: JSON.stringify({
+    links: { c1: { status:'lead', leadId:'L1', name:'Khach Zalo', isGroup:false, linkedAt: 1 },
+             c2: { status:'ignored', leadId:null, name:'Gia dinh', isGroup:false, linkedAt: 1 } },
+    msgs: { c1: { '7001': { at: 2000, fromMe:false, senderUid:'55', senderName:'Khach', kind:'text', text:'CHAT BI MAT', cliMsgId:'1' },
+                  '7000': { at: 1000, fromMe:true, senderUid:'', kind:'image', cliMsgId:'0' } },
+            c2: { '9': { at: 1, fromMe:false, kind:'text', text:'TIN GIA DINH', cliMsgId:'9' } } },
+  }) });
 
   console.log('\n>> 1. Token sai -> phai bi tu choi');
   const r1 = await goiShare({ token: 'token-bay-ba', passcode: MAT_KHAU });
@@ -231,6 +238,22 @@ try {
   check('loc duoc, lead cong ty bi loai', rL.status === 200 && rL.data.leads.length === 0,
         'so lead: ' + (rL.data.leads || []).length);
 
+  console.log('\n>> 13. Hoi thoai Zalo cho sep');
+  check('zaloRootFromDataRoot', mod.zaloRootFromDataRoot('crmData') === 'zalo'
+    && mod.zaloRootFromDataRoot('crmData_users/U1') === 'zalo_users/U1'
+    && mod.zaloRootFromDataRoot('crmDataTest') === 'zaloTest');
+  check('co co coHoiThoaiZalo', r3.data.leads[0].coHoiThoaiZalo === true);
+  const c1 = await goiShare({ token: TOKEN, loai: 'chat', leadId: 'L1' });
+  check('khong co phien -> 401', c1.status === 401, String(c1.status));
+  const c2 = await goiShare({ token: TOKEN, session: r3.data.session, loai: 'chat', leadId: '../x' });
+  check('leadId la -> 400', c2.status === 400, String(c2.status));
+  const c3 = await goiShare({ token: TOKEN, session: r3.data.session, loai: 'chat', leadId: 'L1' });
+  check('co phien -> 200', c3.status === 200, JSON.stringify(c3.data).slice(0, 150));
+  check('dung 1 hoi thoai', Array.isArray(c3.data.hoiThoai) && c3.data.hoiThoai.length === 1);
+  const tin = c3.data.hoiThoai?.[0]?.messages || [];
+  check('sap theo thoi gian', tin.length === 2 && tin[0].at === 1000 && tin[1].text === 'CHAT BI MAT');
+  check('KHONG lo hoi thoai "khong phai khach"', !JSON.stringify(c3.data).includes('TIN GIA DINH'));
+  check('khong gui senderUid/cliMsgId', !('senderUid' in tin[1]) && !('cliMsgId' in tin[1]));
   console.log('\n>> 12. Khoa tam sau 10 lan sai');
   for (let i = 0; i < 10; i++) await goiShare({ token: TOKEN, passcode: 'sai' + i });
   const r8 = await goiShare({ token: TOKEN, passcode: MAT_KHAU });
@@ -240,6 +263,7 @@ try {
 } finally {
   // Don sach: sandbox + cau hinh chia se + cac dong log do test tao ra
   await db('crmDataTest', { method:'DELETE' });
+  await db('zaloTest', { method:'DELETE' });
   if (cfgThat && !cfgThat.error) {
     await db('appConfig/share', { method:'PUT', body: JSON.stringify(cfgThat) });
   } else {

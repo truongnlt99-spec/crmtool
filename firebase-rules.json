@@ -28,7 +28,8 @@
     "",
     "LUU Y: Firebase Console KHONG chap nhan khoa _huong_dan (bao loi 'Expected rules property').",
     "  De dan vao Console, dung file 'firebase-rules-deploy.json' (chi co khoi rules). File nay",
-    "  chi de doc/ghi chu, giu trong repo."
+    "  chi de doc/ghi chu, giu trong repo.",
+    "- zalo / zalo_users: du lieu extension Zalo (hoi thoai da gan lead). Chu cu dung 'zalo', tai khoan khac dung 'zalo_users/<uid>'."
   ],
   "rules": {
     ".read": false,
@@ -95,6 +96,16 @@
         }
       }
     },
+    "zalo": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'"
+    },
+    "zalo_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
     "appConfig": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
@@ -121,7 +132,6 @@
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": false
     },
-
     "authLog": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       "$entry": {
