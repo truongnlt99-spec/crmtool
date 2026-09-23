@@ -1,44 +1,116 @@
+/* Thanh bên Zalo — theo bản vẽ CRM-05, token lấy từ tokens.css của bộ thiết kế (hướng "Mềm") */
 :root{
-  --green-50:#EAF7F0; --green-100:#CFEEDD; --green-500:#1FAE6F; --green-700:#0F6E45;
-  --ink:#1C2622; --ink-soft:#5B6B64; --ink-faint:#8B9992; --bg:#F5F7F4; --card:#FFFFFF;
-  --border:#E4E8E2; --red:#DD525C; --red-soft:#FCEBEC; --amber:#C98A2E; --amber-soft:#FBF1DF;
+  --bg:#F8F4F2; --surface:#FFFFFF; --surface-2:#FCF9F9; --well:#F1EAEA; --border:#E7DEDC; --border-strong:#D8CCCB;
+  --text:#201B1E; --text-2:#61565B; --text-3:#8A7D83; --on-fill:#FFFFFF;
+  --primary:#17795C; --primary-hover:#125E48; --primary-ink:#0F5F48; --primary-soft:#E2F0EA;
+  --accent-soft:#FBEAEE; --accent-ink:#A23A54;
+  --danger:#C22E44; --danger-soft:#FBE7E9; --danger-border:#F0C3C8; --danger-ink:#8C1F2A;
+  --warn:#8A5F12; --warn-soft:#FBEFD6; --warn-border:#E8D5A8; --warn-ink:#5F420A;
+  --ok:#17795C; --ok-border:#BFDFD1;
+  --font-head:'Quicksand','Be Vietnam Pro',system-ui,sans-serif;
+  --sh-sm:0 2px 8px rgba(32,27,30,.07);
+  --focus:0 0 0 3px rgba(23,121,92,.24);
 }
 @media (prefers-color-scheme: dark){
   :root{
-    --green-50:#15291F; --green-100:#1E3B2C; --green-500:#35C98A; --green-700:#86EBBE;
-    --ink:#E7EEE9; --ink-soft:#A6B5AC; --ink-faint:#7C8B83; --bg:#101613; --card:#18201C;
-    --border:#2B352E; --red:#FF7078; --red-soft:#331C1F; --amber:#E2B468; --amber-soft:#2E2719;
+    --bg:#15131A; --surface:#1E1B23; --surface-2:#241F2B; --well:#1A1720; --border:#302B38; --border-strong:#3E3748;
+    --text:#F2EEF4; --text-2:#A79EB0; --text-3:#8C8398; --on-fill:#141118;
+    --primary:#3FC191; --primary-hover:#55D2A3; --primary-ink:#8FE0C0; --primary-soft:#17332B;
+    --accent-soft:#3A2330; --accent-ink:#F7C3CD;
+    --danger:#F77E92; --danger-soft:#48202B; --danger-border:#6E3040; --danger-ink:#FFDCE2;
+    --warn:#E0AE4E; --warn-soft:#403218; --warn-border:#655026; --warn-ink:#F9E5BD;
+    --ok:#3FC191; --ok-border:#2C5C49;
+    --sh-sm:0 2px 8px rgba(0,0,0,.40);
+    --focus:0 0 0 3px rgba(63,193,145,.36);
+    color-scheme:dark;
   }
 }
 *{box-sizing:border-box}
-body{margin:0; font:13px/1.5 "Be Vietnam Pro", system-ui, sans-serif; background:var(--bg); color:var(--ink);}
-main{padding:14px; display:flex; flex-direction:column; gap:10px;}
+html,body{height:100%;}
+body{margin:0; font:14px/1.5 "Be Vietnam Pro", system-ui, sans-serif; background:var(--bg); color:var(--text); display:flex; flex-direction:column;}
+:focus{outline:none;}
+:focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
+
+/* Đầu trang cố định: logo + tên */
+.top{display:flex; align-items:center; gap:9px; padding:12px 14px; background:var(--surface); border-bottom:1px solid var(--border); flex:none;}
+.top-mark{width:28px; height:28px; border-radius:10px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none;}
+.top-name{flex:1; font:700 15px/1.1 var(--font-head);}
+
+main{flex:1; min-height:0; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:12px;}
 main.busy{opacity:.6; pointer-events:none;}
-h1{font-size:15px; margin:0;}
-.muted{color:var(--ink-soft); margin:0;}
-.tiny{font-size:11px; color:var(--ink-faint); margin:0;}
-.err{color:var(--red); margin:0; font-weight:600;}
-.conv{background:var(--card); border:1px solid var(--border); border-radius:10px; padding:10px 12px;}
-.conv-name{font-weight:700; font-size:14px;}
-label{display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:700; color:var(--ink-soft);}
-input,select,textarea{font:inherit; font-size:13px; color:var(--ink); background:var(--card); border:1px solid var(--border); border-radius:8px; padding:7px 9px; width:100%;}
-textarea{resize:vertical;}
-button{font:inherit; font-weight:600; border:1px solid var(--border); background:var(--card); color:var(--ink); border-radius:8px; padding:8px 12px; cursor:pointer; text-align:left;}
-button:hover{border-color:var(--green-500);}
-button.primary{background:var(--green-500); color:#fff; border-color:var(--green-500);}
+h1{font:600 16px/1.35 "Be Vietnam Pro", system-ui, sans-serif; margin:0;}
+.muted{color:var(--text-2); margin:0; font-size:13px;}
+.tiny{font-size:12px; color:var(--text-3); margin:0;}
+.err{color:var(--danger-ink); margin:0; font-weight:500;}
+p.err{background:var(--danger-soft); border:1px solid var(--danger-border); border-radius:12px; padding:10px 12px; font-size:13px;}
+
+/* Trạng thái "rỗng" (chưa đăng nhập, chưa mở hội thoại, không phải khách): căn giữa */
+.hero{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; padding:0 8px;}
+.hero-icon{font-size:26px; line-height:1;}
+.hero .muted{line-height:1.55;}
+.hero form{width:100%; text-align:left;}
+
+/* Thẻ hội thoại: ảnh đại diện chữ cái + tên + mô tả */
+.conv{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; align-items:center; gap:10px;}
+.avatar{width:38px; height:38px; flex:none; border-radius:50%; background:var(--well); color:var(--text-2); display:flex; align-items:center; justify-content:center; font:600 13px/1 var(--font-head);}
+.conv-text{flex:1; min-width:0;}
+.conv-name{font-weight:600; font-size:14px; line-height:1.3; overflow-wrap:anywhere;}
+.conv .muted{font-size:12px;}
+
+label{display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3);}
+input,select,textarea{font:inherit; font-size:14px; letter-spacing:normal; text-transform:none; color:var(--text); background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:0 12px; min-height:42px; width:100%;}
+textarea{resize:vertical; padding:10px 12px; min-height:64px; background:var(--surface-2); font-size:13px;}
+input:focus,select:focus,textarea:focus{border-color:var(--primary); box-shadow:var(--focus);}
+
+button{font:inherit; font-weight:600; font-size:14px; border:1px solid var(--border); background:var(--surface); color:var(--text); border-radius:12px;
+  min-height:44px; padding:0 16px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:6px;}
+button:hover{border-color:var(--border-strong); background:var(--surface-2);}
+button.primary{background:var(--primary); color:var(--on-fill); border-color:var(--primary);}
+button.primary:hover{background:var(--primary-hover); border-color:var(--primary-hover);}
+button.soft{background:var(--well); border-color:transparent; color:var(--text-2);}
+button.tint{background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); min-height:40px; font-size:13px;}
 button.block{width:100%;}
+a.btn{display:flex; align-items:center; justify-content:center; min-height:44px; border-radius:12px; text-decoration:none; font-weight:600;
+  background:var(--primary); color:var(--on-fill);}
+a.btn:hover{background:var(--primary-hover);}
 form{display:flex; flex-direction:column; gap:10px;}
 .row{display:flex; justify-content:space-between; gap:8px; align-items:center;}
-.results{display:flex; flex-direction:column; gap:6px;}
-.result{display:flex; flex-direction:column; gap:2px;}
-.kv{display:flex; justify-content:space-between; gap:8px; font-size:12px;}
-.kv span{color:var(--ink-faint);}
-.val{font-weight:700; color:var(--ink); font-size:13px;}
-.chip{align-self:flex-start; font-size:11px; font-weight:700; padding:3px 10px; border-radius:999px;}
-.chip.waiting{background:var(--red-soft); color:var(--red);}
-.chip.silent{background:var(--amber-soft); color:var(--amber);}
-a{color:var(--green-700); font-weight:600;}
-a.danger{color:var(--red);}
-.status{position:sticky; bottom:0; padding:8px 14px; font-size:11px; color:var(--ink-faint); border-top:1px solid var(--border); background:var(--bg); min-height:32px;}
-.status .ok{color:var(--green-700); font-weight:700;}
-.status .err{display:inline;}
+.row button.primary{flex:1;}
+.actions{display:flex; flex-direction:column; gap:8px;}
+
+/* Kết quả tìm lead để gắn */
+.results{display:flex; flex-direction:column; gap:8px;}
+.result{justify-content:space-between; text-align:left; padding:10px 12px; min-height:52px; border-radius:12px;}
+.result-text{display:flex; flex-direction:column; gap:2px; min-width:0;}
+.result-text b{font-weight:600;}
+.result-go{flex:none; font-size:12px; color:var(--primary-ink); background:var(--primary-soft); border-radius:10px; padding:8px 12px;}
+
+/* Thẻ lead đã gắn: 4 ô thông tin chia 2 cột */
+.card{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:13px; display:flex; flex-direction:column; gap:10px; box-shadow:var(--sh-sm);}
+.card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:6px 8px; flex-wrap:wrap;}
+.card-title{font-weight:600; font-size:16px; line-height:1.25; overflow-wrap:anywhere;}
+.facts{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px 8px;}
+.fact{display:flex; flex-direction:column; gap:3px; min-width:0;}
+.fact span{font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3);}
+.fact b{font-size:13px; font-weight:600; overflow-wrap:anywhere;}
+.fact b.money{font:700 14px/1.2 var(--font-head);}
+.fact b.err{color:var(--danger-ink);}
+.card label{text-transform:none; letter-spacing:0; font-size:12px; color:var(--text-3);}
+.card-sub{font-size:13px; font-weight:600; margin:0;}
+
+.chip{flex:none; align-self:flex-start; font-size:12px; font-weight:600; padding:3px 7px; border-radius:8px; border:1px solid transparent; line-height:1.3;}
+.chip.waiting{background:var(--danger-soft); border-color:var(--danger-border); color:var(--danger-ink);}
+.chip.silent{background:var(--warn-soft); border-color:var(--warn-border); color:var(--warn-ink);}
+a{color:var(--primary-ink); font-weight:600;}
+a.danger{color:var(--danger-ink);}
+
+/* Dòng đồng bộ ở đáy: chấm + chữ; đỏ khi có lỗi */
+.status{flex:none; display:flex; align-items:center; gap:7px; padding:10px 14px; font-size:12px; color:var(--text-2);
+  border-top:1px solid var(--border); background:var(--surface); min-height:40px;}
+.status::before{content:''; width:7px; height:7px; border-radius:99px; background:var(--ok); flex:none;}
+.status:empty::before{background:var(--border-strong);}
+.status:has(.err){background:var(--danger-soft); border-top-color:var(--danger-border); color:var(--danger-ink);}
+.status:has(.err)::before{background:var(--danger);}
+.status .ok{color:var(--primary-ink); font-weight:600;}
+.status .err{display:inline; background:none; border:0; padding:0; font-weight:600;}

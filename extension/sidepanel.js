@@ -36,13 +36,23 @@ chrome.storage.onChanged.addListener((ch, area) => {
 
 const show = (html) => { app.innerHTML = html; };
 const userLine = () => `<p class="tiny">Đăng nhập: ${esc(st.user.email)} · <a href="#" data-act="signout">Đăng xuất</a></p>`;
-const convHead = (sub) => `<div class="conv"><div class="conv-name">${esc((st.conv && st.conv.name) || 'Hội thoại')}</div><div class="muted">${esc(sub)}</div></div>`;
+// Chữ cái đầu cho ảnh đại diện: "Gia Hân" -> "GH"
+const initials = (name) => {
+  const w = String(name || '').replace(/[^\p{L}\s]/gu, ' ').trim().split(/\s+/).filter(Boolean);
+  return ((w[0] || '?')[0] + (w[1] ? w[1][0] : '')).toUpperCase();
+};
+const convHead = (sub) => {
+  const name = (st.conv && st.conv.name) || 'Hội thoại';
+  return `<div class="conv"><span class="avatar" aria-hidden="true">${esc(initials(name))}</span><div class="conv-text"><div class="conv-name">${esc(name)}</div><div class="muted">${esc(sub)}</div></div></div>`;
+};
+// Trạng thái rỗng: biểu tượng + tiêu đề + một câu giải thích, căn giữa
+const hero = (icon, title, text, extra = '') => `<div class="hero"><span class="hero-icon" aria-hidden="true">${icon}</span><h1>${esc(title)}</h1><p class="muted">${esc(text)}</p>${extra}</div>`;
 const errLine = () => (st.error ? `<p class="err">${esc(st.error)}</p>` : '');
 const linkOf = () => (st.conv ? st.links[st.conv.convId] : null);
 
 function render() {
   if (!st.user) return renderLogin();
-  if (!st.conv) return show(`<h1>HayDay CRM</h1><p class="muted">Mở một hội thoại trên Zalo web để xem lead tương ứng.</p>${errLine()}${userLine()}`);
+  if (!st.conv) return show(`${hero('💬', 'Chưa mở hội thoại nào', 'Mở một hội thoại trong Zalo web, thông tin lead sẽ hiện ở đây.')}${errLine()}${userLine()}`);
   if (st.view === 'create') return renderCreate();
   if (st.view === 'attach') return renderAttach();
   const link = linkOf();
@@ -52,29 +62,30 @@ function render() {
 }
 
 function renderLogin() {
-  show(`<h1>HayDay CRM</h1><p class="muted">Đăng nhập bằng tài khoản CRM (chỉ cần một lần trên máy này).</p>
+  show(`${hero('🌷', 'Đăng nhập để dùng thanh bên', 'Thanh bên cần tài khoản CRM để đọc và gắn hội thoại Zalo vào lead. Chỉ cần đăng nhập một lần trên máy này.')}
   <form data-form="login">
     <label>Email<input name="email" type="email" required autocomplete="username"></label>
     <label>Mật khẩu<input name="password" type="password" required autocomplete="current-password"></label>
     ${errLine()}
-    <button class="primary" type="submit">Đăng nhập</button>
+    <button class="primary block" type="submit">Đăng nhập CRM</button>
   </form>`);
 }
 
 function renderUnlinked() {
   show(`${convHead((st.conv.isGroup ? 'Nhóm · ' : '') + 'Chưa gắn với lead nào')}
-  <button class="primary block" data-act="create">＋ Tạo lead mới</button>
-  <button class="block" data-act="attach">Gắn vào lead có sẵn…</button>
-  <button class="block" data-act="ignore">Không phải khách</button>
+  <div class="actions">
+    <button class="primary block" data-act="create">Tạo lead mới</button>
+    <button class="block" data-act="attach">Gắn vào lead có sẵn</button>
+    <button class="soft block" data-act="ignore">Không phải khách</button>
+  </div>
   ${errLine()}
-  <p class="tiny">Chọn một lần. Từ đó mọi tin của hội thoại này tự vào CRM.</p>
+  <p class="tiny">Chọn một lần. Từ đó mọi tin của hội thoại này tự vào CRM. “Không phải khách” hoàn tác được bất cứ lúc nào.</p>
   ${userLine()}`);
 }
 
 function renderIgnored() {
   show(`${convHead('Đã đánh dấu: không phải khách')}
-  <p class="muted">Tin nhắn của hội thoại này không được gửi lên CRM.</p>
-  <button class="block" data-act="undo-ignore">Hoàn tác</button>
+  ${hero('🚫', 'Hội thoại này không phải khách', 'Tin nhắn của hội thoại này không được gửi lên CRM. Bạn có thể hoàn tác.', '<button class="primary" data-act="undo-ignore">Hoàn tác</button>')}
   ${errLine()}${userLine()}`);
 }
 
@@ -87,7 +98,7 @@ function renderCreate() {
     <label>Gói dịch vụ<select name="package">${PACKAGES.map((p) => `<option>${esc(p)}</option>`).join('')}</select></label>
     <label>Loại lead<select name="leadType">${LEAD_TYPES.map((p) => `<option>${esc(p)}</option>`).join('')}</select></label>
     ${errLine()}
-    <div class="row"><button type="button" data-act="back">Hủy</button><button class="primary" type="submit">Tạo và gắn</button></div>
+    <div class="row"><button class="primary" type="submit">Tạo lead</button><button type="button" data-act="back">Huỷ</button></div>
   </form>`);
 }
 
@@ -102,12 +113,12 @@ async function renderAttach() {
   <input id="q" placeholder="Tìm theo tên hoặc SĐT" autocomplete="off">
   <div id="results" class="results"></div>
   ${errLine()}
-  <button class="block" data-act="back">Hủy</button>`);
+  <button class="soft block" data-act="back">← Quay lại</button>`);
   const q = document.getElementById('q');
   const draw = () => {
     const items = searchLeads(st.leads, q.value);
     document.getElementById('results').innerHTML = items.length
-      ? items.map((l) => `<button class="result" data-act="pick" data-id="${esc(l.id)}"><b>${esc(l.name)}</b><span class="tiny">${esc(STAGE_NAME[l.stage] || l.stage)}${l.phone ? ' · ' + esc(l.phone) : ''}</span></button>`).join('')
+      ? items.map((l) => `<button class="result" data-act="pick" data-id="${esc(l.id)}"><span class="result-text"><b>${esc(l.name)}</b><span class="tiny">${esc(STAGE_NAME[l.stage] || l.stage)}${l.package ? ' · ' + esc(l.package) : ''}${l.phone ? ' · ' + esc(l.phone) : ''}</span></span><span class="result-go">Gắn</span></button>`).join('')
       : `<p class="muted">${q.value.trim() ? 'Không thấy lead nào.' : 'Gõ tên hoặc số điện thoại để tìm.'}</p>`;
   };
   q.addEventListener('input', draw);
@@ -136,18 +147,28 @@ async function renderLinked(link) {
     ? `<div class="val">${esc(STAGE_NAME[l.stage])}</div>`
     : `<select data-change="stage">${OPEN_STAGES.map((s) => `<option value="${s.id}" ${s.id === l.stage ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
        <span class="tiny">Won/Lost: đổi trong CRM (cần doanh thu hoặc lý do).</span>`;
-  show(`<div class="conv"><div class="conv-name">${esc(l.name)}</div><div class="muted">Zalo: ${esc(st.conv.name || '')}</div></div>
-  ${w ? `<div class="chip ${w.type}">${esc(w.label)}</div>` : ''}
-  <label>Giai đoạn${stageCtl}</label>
-  <div class="kv"><span>Gói · dự kiến</span><b>${esc(l.package || '—')} · ${money(l.revenueExpected)}</b></div>
-  <div class="kv"><span>Ngày cưới</span><b>${dateVN(l.weddingDate)}</b></div>
-  <div class="kv"><span>Hạn liên hệ</span><b class="${overdue ? 'err' : ''}">${dateVN(l.deadline)}</b></div>
-  <form data-form="note">
-    <textarea name="text" rows="2" placeholder="Thêm ghi chú nhanh…"></textarea>
-    <button type="submit">Lưu ghi chú</button>
+  const hot = (l.tags || []).includes('Tiềm năng') ? ' 🔥' : '';
+  show(`<div class="card">
+    <div class="card-head">
+      <div><div class="card-title">${esc(l.name)}${hot}</div><div class="tiny">Đã gắn hội thoại “${esc(st.conv.name || '')}”</div></div>
+      ${w ? `<span class="chip ${w.type}">${esc(w.label)}</span>` : ''}
+    </div>
+    <div class="facts">
+      <div class="fact"><span>Gói</span><b>${esc(l.package || '—')}</b></div>
+      <div class="fact"><span>Ngày cưới</span><b>${dateVN(l.weddingDate)}</b></div>
+      <div class="fact"><span>Doanh thu</span><b class="money">${money(l.revenueExpected)}</b></div>
+      <div class="fact"><span>Hạn liên hệ</span><b class="${overdue ? 'err' : ''}">${dateVN(l.deadline)}${overdue ? ' · trễ' : ''}</b></div>
+    </div>
+    <label>Giai đoạn${stageCtl}</label>
+  </div>
+  <form data-form="note" class="card">
+    <p class="card-sub">Ghi chú nhanh</p>
+    <textarea name="text" rows="2" placeholder="Khách hỏi gì, hẹn gì…" aria-label="Ghi chú nhanh"></textarea>
+    <button type="submit" class="tint" style="align-self:flex-start">Lưu ghi chú</button>
   </form>
   ${errLine()}
-  <div class="row"><a href="${CRM_URL}" target="_blank" rel="noopener">Mở trong CRM ↗</a><a href="#" data-act="unlink" class="danger">Bỏ gắn</a></div>
+  <a class="btn" href="${CRM_URL}" target="_blank" rel="noopener">Mở trong CRM</a>
+  <div class="row"><span></span><a href="#" data-act="unlink" class="danger">Bỏ gắn hội thoại</a></div>
   ${userLine()}`);
 }
 
