@@ -2,7 +2,7 @@ import { FIREBASE, OWNER_UID } from './lib/config.js';
 import { createFb, FbError } from './lib/fb.js';
 import {
   rootsFor, messagePatch, mergeMeta, linkPatch, purgeConvPatch, newLeadFromZalo,
-  stageChangePatch, notePatch, takeBatch, isGroupConv,
+  stageChangePatch, notePatch, takeBatch, isGroupConv, metaPatch, khoaHopLe,
 } from './lib/zalo-map.js';
 
 const local = {
@@ -75,7 +75,19 @@ async function flush() {
     let q = (await local.get('queue')) || [];
     while (q.length) {
       const [batch, used] = takeBatch(q, MAX_KEYS);
-      await fb.patch('', batch);
+      try {
+        await fb.patch('', batch);
+      } catch (e) {
+        // Firebase từ chối vì DỮ LIỆU (400), không phải vì mạng/quyền: thử lại bao nhiêu lần
+        // cũng hỏng và sẽ chặn toàn bộ hàng đợi -> bỏ lô này, ghi lại số lượng rồi đi tiếp.
+        if (e && e.code === 'HTTP' && e.status === 400) {
+          const cu = (await chrome.storage.session.get('status')).status || {};
+          await setStatus({ boQuaLo: (cu.boQuaLo || 0) + used, loiLoGanNhat: String(e.message).slice(0, 120) });
+          console.warn('Bỏ lô ghi bị Firebase từ chối:', e.message, Object.keys(batch).slice(0, 5));
+        } else {
+          throw e;
+        }
+      }
       q = ((await local.get('queue')) || []).slice(used);
       await local.set('queue', q);
       await setStatus({ queued: q.length, lastSyncAt: Date.now(), error: null });
@@ -97,7 +109,7 @@ async function metaPatchFor(r, convId, msgs, link) {
   const m = mergeMeta(old, msgs, { leadId: link.leadId, name: link.name || '', isGroup: isGroupConv(convId), updatedAt: Date.now() });
   cache[convId] = m;
   await local.set('meta', cache);
-  return { [`${r.zalo}/meta/${convId}`]: m };
+  return metaPatch(r.zalo, convId, m);
 }
 
 async function onMessages(convId, messages) {
@@ -105,8 +117,19 @@ async function onMessages(convId, messages) {
   if (!link || link.status !== 'lead') return { ok: true, skipped: true };
   const r = await mustRoots();
   const patch = {};
-  for (const m of messages) Object.assign(patch, messagePatch(r.zalo, m));
+  let boQua = 0;
+  for (const m of messages) {
+    const p = messagePatch(r.zalo, m);
+    if (!Object.keys(p).length) {
+      boQua++;
+      // Mã hội thoại/tin chứa ký tự Firebase cấm (. # $ [ ]) hoặc rỗng -> gửi kèm là hỏng cả lô
+      console.warn('Bỏ qua tin có mã không hợp lệ:', { convId: String(m.convId).replace(/d/g, '9'), msgId: String(m.msgId).replace(/d/g, '9'), at: m.at });
+    } else Object.assign(patch, p);
+  }
+  if (boQua) await setStatus({ boQuaTin: ((await chrome.storage.session.get('status')).status || {}).boQuaTin + boQua || boQua });
+  if (!khoaHopLe(convId)) return { ok: true, skipped: true };
   Object.assign(patch, await metaPatchFor(r, convId, messages, link));
+  if (!Object.keys(patch).length) return { ok: true, skipped: true };
   await enqueue(patch);
   flush();
   return { ok: true };

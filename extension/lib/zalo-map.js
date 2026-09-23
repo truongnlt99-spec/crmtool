@@ -103,8 +103,26 @@ export function displaySender(msg, conv) {
  * Patch nhiều đường dẫn cho một tin. Ghi TỪNG TRƯỜNG để lần ghi chỉ có siêu dữ liệu
  * không xoá chữ đã ghi trước đó (chữ chỉ có khi hội thoại được mở trên Zalo web).
  */
+/**
+ * Firebase cấm các ký tự . # $ [ ] / trong tên khoá và không nhận khoá rỗng. Gửi kèm một khoá
+ * hỏng là Firebase từ chối NGUYÊN CẢ LÔ ("Invalid data; couldn't parse JSON object"), nên phải
+ * loại tin hỏng ngay từ lúc dựng lệnh ghi.
+ */
+/**
+ * Bỏ nửa cặp ký tự Unicode bị đứt (lone surrogate) — thường gặp khi chữ bị cắt giữa một emoji.
+ * Để lọt vào JSON là Firebase báo "Invalid data; couldn't parse JSON object" và từ chối cả lô.
+ */
+export function sachUnicode(s) {
+  return String(s == null ? '' : s).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '');
+}
+
+export function khoaHopLe(s) {
+  return typeof s === 'string' && s.length > 0 && !/[.#$[\]/]/.test(s) && !/[\u0000-\u001F\u007F]/.test(s);
+}
+
 export function messagePatch(zroot, msg) {
   if (!Number.isFinite(msg.at)) return {};
+  if (!khoaHopLe(msg.convId) || !khoaHopLe(msg.msgId)) return {};
   const b = `${zroot}/msgs/${msg.convId}/${msg.msgId}`;
   const p = {
     [`${b}/at`]: msg.at,
@@ -113,10 +131,16 @@ export function messagePatch(zroot, msg) {
     [`${b}/cliMsgId`]: msg.cliMsgId,
     [`${b}/senderUid`]: msg.senderUid || '',
   };
-  if (msg.senderName) p[`${b}/senderName`] = msg.senderName;
-  if (typeof msg.text === 'string') p[`${b}/text`] = msg.text;
-  if (msg.quote) p[`${b}/quote`] = msg.quote;
+  if (msg.senderName) p[`${b}/senderName`] = sachUnicode(msg.senderName);
+  if (typeof msg.text === 'string') p[`${b}/text`] = sachUnicode(msg.text);
+  if (msg.quote) p[`${b}/quote`] = { title: sachUnicode(msg.quote.title || ''), text: sachUnicode(msg.quote.text || '') };
   return p;
+}
+
+/** Lệnh ghi số liệu tóm tắt của một hội thoại (bỏ qua nếu mã hội thoại không hợp lệ). */
+export function metaPatch(zroot, convId, meta) {
+  if (!khoaHopLe(convId)) return {};
+  return { [`${zroot}/meta/${convId}`]: meta };
 }
 
 /** Gộp mốc thời gian theo kiểu lấy max/min — tin cũ đến sau không kéo lùi. */
