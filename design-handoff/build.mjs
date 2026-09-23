@@ -231,6 +231,8 @@ fs.writeFileSync(path.join(TB, 'index.html'), tb);
 console.log('✓ zalo-thanh-ben/');
 
 /* ============ 5. Chụp màn hình bằng Chrome chạy ngầm ============ */
+// KHONG_CHUP=1: chỉ dựng file demo, bỏ qua bước chụp (dùng khi đang sửa giao diện)
+if (process.env.KHONG_CHUP) { console.log('- bỏ qua chụp màn hình (KHONG_CHUP)'); process.exit(0); }
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png' };
 const server = http.createServer((req, res) => {
   const p = path.join(DIST, decodeURIComponent(new URL(req.url, 'http://x').pathname));
