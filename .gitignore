@@ -6,3 +6,6 @@ node_modules/
 
 # File rules tach ra de dan, sinh tu firebase-rules.json — khong commit de tranh lech nhau
 rules-de-dan.json
+
+# Bo ban giao thiet ke: sinh bang node design-handoff/build.mjs
+design-handoff/dist/
