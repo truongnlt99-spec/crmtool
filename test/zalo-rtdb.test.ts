@@ -66,7 +66,15 @@ try {
   check('meta ghi dung', meta.lastCustomerAt === msg.at && meta.leadId === 'L1', JSON.stringify(meta));
   check('link ghi dung', (await db(`${Z}/links/${C}/leadId`)) === 'L1');
 
-  console.log('\n>> 5. Bo gan -> go sach');
+  console.log('\n>> 4b. Khoa co ky tu Firebase cam -> may chu tu choi CA LO (loi chi Tran gap)');
+  const resXau = await fetch(`${DB}/.json`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tk.access_token}` },
+    body: JSON.stringify({ [`${Z}/msgs/${C}/70.02/at`]: 1, [`${Z}/msgs/${C}/7003/at`]: 2 }),
+  });
+  const chuXau = await resXau.text();
+  check('Firebase tra 400 + dung cau loi', resXau.status === 400 && /couldn't parse JSON object/i.test(chuXau), resXau.status + ' ' + chuXau.slice(0, 80));
+  check('ca tin HOP LE trong lo cung khong duoc ghi', (await db(`${Z}/msgs/${C}/7003`)) === null);
+  check('messagePatch chan tu dau, khong con gui len', Object.keys(M.messagePatch(Z, { ...msg, msgId: '70.02' })).length === 0);
   await patchRoot(M.purgeConvPatch(Z, C));
   check('links/meta/msgs deu mat', (await db(`${Z}/links/${C}`)) === null && (await db(`${Z}/meta/${C}`)) === null && (await db(`${Z}/msgs/${C}`)) === null);
 } catch (e: any) {

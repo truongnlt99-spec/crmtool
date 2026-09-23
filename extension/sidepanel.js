@@ -197,6 +197,8 @@ function renderStatus() {
   else if (s.error === 'offline') parts.push('<span class="err">Mất mạng — sẽ tự gửi lại</span>');
   else if (s.error === 'http') parts.push(`<span class="err">Lỗi máy chủ: ${esc(s.errorMsg || '')}</span>`);
   if (s.queued) parts.push(`${s.queued} lô đang chờ gửi`);
+  if (s.boQuaTin) parts.push(`<span class="err">bỏ qua ${s.boQuaTin} tin mã lạ</span>`);
+  if (s.boQuaLo) parts.push(`<span class="err">bỏ ${s.boQuaLo} lô máy chủ từ chối</span>`);
   if (s.lastSyncAt) parts.push(`Đồng bộ lúc ${new Date(s.lastSyncAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`);
   statusEl.innerHTML = parts.join(' · ');
 }

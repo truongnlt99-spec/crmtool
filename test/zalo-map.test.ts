@@ -44,6 +44,21 @@ check('co chu -> co khoa text', pText[`${base}/text`] === 'Chào em');
 check('co trich dan', pText[`${base}/quote`].text === 'hỏi giá');
 check('at khong hop le -> patch rong', Object.keys(M.messagePatch('zalo', { ...mMe, at: NaN })).length === 0);
 
+console.log('\n>> khoa Firebase hop le (loi "couldn\'t parse JSON object")');
+check('ma binh thuong', M.khoaHopLe('123456789012345678') && M.khoaHopLe('g123') && M.khoaHopLe('7000000000001'));
+check('rong -> khong hop le', !M.khoaHopLe('') && !M.khoaHopLe(null) && !M.khoaHopLe(undefined));
+check('ky tu Firebase cam', !M.khoaHopLe('12.34') && !M.khoaHopLe('a#b') && !M.khoaHopLe('a$b') && !M.khoaHopLe('a[b') && !M.khoaHopLe('a]b') && !M.khoaHopLe('a/b'));
+check('messagePatch bo tin co convId la', Object.keys(M.messagePatch('zalo', { ...mMe, convId: '12.34' })).length === 0);
+check('messagePatch bo tin co msgId rong', Object.keys(M.messagePatch('zalo', { ...mMe, msgId: '' })).length === 0);
+check('metaPatch bo hoi thoai co ma la', Object.keys(M.metaPatch('zalo', 'a#b', {})).length === 0 && Object.keys(M.metaPatch('zalo', 'c1', { lastAt: 1 })).length === 1);
+// Nua cap Unicode bi dut (vd chu bi cat giua mot emoji) cung lam Firebase tu choi ca lo
+const LE = 'Chào chị ' + String.fromCharCode(0xD83D);          // thiếu nửa sau của emoji
+check('bo nua cap Unicode bi dut', M.sachUnicode(LE) === 'Chào chị ' && M.sachUnicode('Bình thường 🎉') === 'Bình thường 🎉');
+check('sachUnicode chiu duoc null', M.sachUnicode(null) === '' && M.sachUnicode(undefined) === '');
+const pLe = M.messagePatch('zalo', { ...mMe, text: LE, quote: { title: LE, text: 'ok' } });
+check('messagePatch lam sach text + quote', pLe[`${base}/text`] === 'Chào chị ' && pLe[`${base}/quote`].title === 'Chào chị ');
+check('JSON goi len luon hop le', !/[\uD800-\uDFFF]/.test(JSON.stringify(pLe)));
+
 console.log('\n>> mergeMeta');
 const msgs = [
   { ...mMe, at: 1000, fromMe: false }, { ...mMe, at: 3000, fromMe: true }, { ...mMe, at: 2000, fromMe: false },
