@@ -1699,6 +1699,30 @@
     .lock-card{justify-content:flex-start; padding:26px 22px 30px;}
     .lock-greeting{font-size:24px; margin-bottom:18px;}
   }
+
+  /* ================= MÀU HẠN LIÊN HỆ =================
+     Hôm nay = xanh lá (đến lượt làm) · Trễ = đỏ/hồng nhạt · Còn N ngày (tương lai) = xám.
+     Luôn kèm chữ "Hôm nay" / "Trễ N ngày" / "Còn N ngày", không chỉ dựa vào màu. */
+  .card.status-red .status-indicator, .card.status-green .status-indicator, .card.status-gray .status-indicator{
+    border-radius:var(--r-sm); padding:2px 7px; border:1px solid transparent;
+  }
+  .card.status-red .status-indicator{background:var(--danger-soft); border-color:var(--danger-border);}
+  .card.status-red .status-indicator .status-text, .card.status-red .status-indicator .status-circle{color:var(--danger-ink); background:none;}
+  .card.status-green .status-indicator{background:var(--ok-soft); border-color:var(--ok-border);}
+  .card.status-green .status-indicator .status-text, .card.status-green .status-indicator .status-circle{color:var(--ok-ink); background:none;}
+  .card.status-gray .status-indicator{background:var(--well);}
+  .card.status-gray .status-indicator .status-text, .card.status-gray .status-indicator .status-circle{color:var(--text-2); background:none;}
+  .card.status-red .card-dot{background:var(--danger);}
+  .card.status-green .card-dot{background:var(--ok);}
+  .card.status-gray .card-dot{background:var(--border-strong);}
+  @media (max-width:760px){ .column-urgent .card.status-green{border-left-color:var(--ok);} }
+
+  .state-chip.st-red, .list-item-tag.red, .today-todo-tag.red{background:var(--danger-soft); border:1px solid var(--danger-border); color:var(--danger-ink);}
+  .state-chip.st-green, .list-item-tag.green, .today-todo-tag.green{background:var(--ok-soft); border:1px solid var(--ok-border); color:var(--ok-ink);}
+  .state-chip.st-gray, .today-todo-tag.gray{background:var(--well); border:1px solid transparent; color:var(--text-2);}
+  .todo-due.red{color:var(--danger-ink); border-color:var(--danger-border); background:var(--danger-soft);}
+  .todo-due.green{color:var(--ok-ink); border-color:var(--ok-border); background:var(--ok-soft);}
+  .quick-chip.chip-green:not(.active){background:var(--ok-soft); border-color:var(--ok-border); color:var(--ok-ink); font-weight:600;}
 </style>
 </head>
 <body>
