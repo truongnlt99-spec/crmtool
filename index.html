@@ -1600,6 +1600,100 @@
     .trio{flex-wrap:wrap; gap:12px 18px;}
     .trio-item{flex:1 1 40%;}
   }
+
+  /* ----- Modal (CRM-07): thẻ bo 20px, tiêu đề — thân — hàng nút, nút chính bên phải ----- */
+  .modal-overlay{background:var(--overlay);}
+  .modal{background:var(--surface); border:1px solid var(--border); border-radius:20px; box-shadow:0 24px 60px rgba(32,27,30,.18); width:420px; overflow:hidden;}
+  .modal.wide{width:680px;}
+  .modal.modal-form{width:560px;}
+  .modal-header{position:relative; padding:20px 60px 8px 20px; border-bottom:none;}
+  .modal-header h3{font:700 19px/1.2 var(--font-head); color:var(--text);}
+  .modal-header p{font-size:13px; font-weight:400; line-height:1.45; color:var(--text-2); margin-top:4px;}
+  .modal-close{
+    position:absolute; top:16px; right:16px; width:36px; height:36px; border:none; border-radius:10px;
+    background:var(--well); color:var(--text-2); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{color:var(--text); background:var(--border);}
+  .modal-body{padding:12px 20px 16px;}
+  .modal-footer{border-top:none; padding:4px 20px 20px; gap:8px;}
+  .modal-footer .btn{min-height:44px; padding:0 18px; font-size:14px;}
+  .modal-body .field-input{background:var(--surface-2); min-height:44px;}
+  .modal.modal-form .modal-body .field-row{gap:12px;}
+  /* Lựa chọn (lý do Lost, chuyển giai đoạn): hàng cao 44px, viền mảnh */
+  .reason-option{min-height:44px; padding:0 13px; border:1px solid var(--border); border-radius:var(--r-md); font-weight:500; font-size:14px; color:var(--text); margin-bottom:7px;}
+  .reason-option:hover{border-color:var(--danger-border); background:var(--danger-soft); color:var(--danger-ink);}
+  #quickMoveOverlay .reason-option:hover{border-color:var(--ok-border); background:var(--ok-soft); color:var(--ok-ink);}
+  /* Won: dải ảnh tulip thật trên đầu */
+  .modal-won .won-tulip{display:block; width:100%; height:120px; object-fit:cover;}
+  .won-lead{font-size:13px; color:var(--text-2); margin-bottom:12px;}
+  .modal-won #wonRevenueInput{font:700 18px/1 var(--font-head); color:var(--text); min-height:48px;}
+  .menu-khac .modal-header{padding-bottom:4px;}
+
+  @media (max-width:760px){
+    /* Tấm trượt từ đáy: bo trên 20px, có tay cầm, nút chính chiếm hết chiều ngang và nằm trên nút Huỷ */
+    .modal-overlay{align-items:flex-end;}
+    .modal, .modal.wide, .modal.modal-form{
+      width:100%; max-width:100%; max-height:88vh; border-radius:20px 20px 0 0; border-bottom:none;
+      transform:translateY(24px); padding-bottom:env(safe-area-inset-bottom);
+    }
+    .modal-overlay.show .modal{transform:translateY(0);}
+    .modal::before{content:''; display:block; width:44px; height:4px; border-radius:99px; background:var(--border-strong); margin:10px auto 0; flex:none;}
+    .modal-won::before{position:absolute; left:50%; margin-left:-22px; z-index:1; background:rgba(255,255,255,.8);}
+    .modal-won{position:relative;}
+    .modal-header{padding:12px 56px 6px 16px;}
+    .modal-close{top:8px; right:12px;}
+    .modal-body{padding:10px 16px 14px;}
+    .modal-footer{flex-direction:column-reverse; padding:4px 16px 16px;}
+    .modal-footer .btn{width:100%; justify-content:center; min-height:50px;}
+    .modal-footer .btn-secondary{border:none; background:none; color:var(--text-2); min-height:46px;}
+    .modal.modal-form .modal-body .field-row{flex-direction:column; gap:0;}
+  }
+
+  /* ----- Đăng nhập (CRM-08): ảnh tulip thật bên trái, form bên phải ----- */
+  .lock-screen{display:grid; grid-template-columns:1.1fr 1fr; grid-template-rows:minmax(0,1fr); align-items:stretch; justify-content:stretch; padding:0; background:var(--surface);}
+  .lock-visual{position:relative; overflow:hidden; background:var(--well); min-height:0;}
+  .lock-photos{position:absolute; inset:0;}
+  .lock-photos img{animation:none; opacity:0; transition:opacity 1.4s ease;}
+  .lock-photos img.on{opacity:1;}
+  .lock-photos::after{background:linear-gradient(180deg, rgba(32,27,30,.42) 0%, rgba(32,27,30,.10) 34%, rgba(32,27,30,.74) 88%, rgba(32,27,30,.34) 100%);}
+  html[data-theme="dark"] .lock-photos::after{background:linear-gradient(180deg, rgba(10,8,14,.58) 0%, rgba(10,8,14,.16) 36%, rgba(10,8,14,.84) 88%, rgba(10,8,14,.40) 100%);}
+  @media (prefers-reduced-motion: reduce){ .lock-photos img{transition:none;} }
+  .lock-hero{position:absolute; inset:0; z-index:1; padding:40px; display:flex; flex-direction:column; justify-content:space-between; color:#fff;}
+  .lock-hero-brand{display:flex; align-items:center; gap:11px; font:700 19px/1.1 var(--font-head); color:#fff;}
+  .lock-hero-mark{width:36px; height:36px; border-radius:13px; background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center; font-size:18px;}
+  html[data-theme="dark"] .lock-hero-mark{background:rgba(58,35,48,.85);}
+  .lock-hero-bottom{display:flex; flex-direction:column; gap:12px; max-width:440px;}
+  .lock-hero .lock-quote{font:500 26px/1.3 var(--font-head); font-style:normal; color:#fff; margin:0; padding:0; text-wrap:pretty; text-shadow:0 1px 12px rgba(0,0,0,.25);}
+  .lock-credit{position:static; font-size:11px; font-weight:400; line-height:1.5; color:rgba(255,255,255,.88);}
+  .lock-credit a{color:inherit; text-decoration:underline; text-underline-offset:2px;}
+
+  .lock-card{
+    position:static; width:auto; max-width:none; border:none; border-radius:0; box-shadow:none; background:var(--surface);
+    display:flex; flex-direction:column; justify-content:center; padding:40px max(40px, calc((100% - 380px) / 2)); text-align:left;
+  }
+  .lock-date{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); margin-bottom:8px;}
+  .lock-greeting{font:700 30px/1.18 var(--font-head); color:var(--text); margin-bottom:22px;}
+  .lock-divider, .lock-brand-row{display:none;}
+  .lock-label{display:block; font-size:12px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--text-3); margin:0 0 6px;}
+  .lock-input{
+    min-height:50px; border-radius:var(--r-md); border-color:var(--border); background:var(--surface-2); color:var(--text);
+    font-size:15px; font-weight:400; padding:0 14px; margin-bottom:16px;
+  }
+  .lock-input:focus{border-color:var(--primary); box-shadow:var(--focus);}
+  .lock-btn{min-height:52px; border-radius:14px; font:700 16px/1 var(--font-head); margin-top:4px;}
+  .lock-checking{justify-content:flex-start;}
+  .lock-error:not(:empty){
+    margin-top:12px; padding:11px 12px; border-radius:var(--r-md); background:var(--danger-soft); border:1px solid var(--danger-border);
+    color:var(--danger-ink); font-size:13px; font-weight:500; line-height:1.5;
+  }
+
+  @media (max-width:860px){
+    .lock-screen{grid-template-columns:1fr; grid-template-rows:minmax(300px, 42vh) 1fr; overflow-y:auto;}
+    .lock-hero{padding:22px;}
+    .lock-hero .lock-quote{font-size:20px;}
+    .lock-card{justify-content:flex-start; padding:26px 22px 30px;}
+    .lock-greeting{font-size:24px; margin-bottom:18px;}
+  }
 </style>
 </head>
 <body>
@@ -1706,18 +1800,20 @@
     <span class="lock-dot" style="bottom:14%; right:22%; background:#F3C969;"></span>
     <span class="lock-dot" style="top:50%; left:5%; background:#EF9AAE;"></span>
   </div>
-  <div class="lock-photos" aria-hidden="true">
-    <img src="https://images.unsplash.com/photo-1778074631493-5bdb54f8ada6?fm=jpg&q=70&w=1600&auto=format&fit=crop" alt="">
-    <img src="https://images.unsplash.com/photo-1687710071600-2c338cea1592?fm=jpg&q=70&w=1600&auto=format&fit=crop" alt="">
-    <img src="https://images.unsplash.com/photo-1561181226-e8a7edd504c6?fm=jpg&q=70&w=1600&auto=format&fit=crop" alt="">
-    <img src="https://images.unsplash.com/photo-1554199150-22eb3cfe888d?fm=jpg&q=70&w=1600&auto=format&fit=crop" alt="">
+  <!-- Nửa trái: ảnh tulip thật (Unsplash), mỗi lần mở chọn ngẫu nhiên 1 ảnh, tự chuyển mềm sau 7 giây -->
+  <div class="lock-visual">
+    <div class="lock-photos" id="lockPhotos" aria-hidden="true"></div>
+    <div class="lock-hero">
+      <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true">🌷</span>CRM của Huyền Trân</div>
+      <div class="lock-hero-bottom">
+        <div class="lock-quote" id="lockQuote"></div>
+        <div class="lock-credit" id="lockCredit">Ảnh trên <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a></div>
+      </div>
+    </div>
   </div>
-  <div class="lock-credit">Ảnh: Sixteen Miles Out · snap shoot · Uljana Borodina · Lisette Verwoerd trên <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a></div>
   <div class="lock-card">
-    <div class="lock-emoji" id="lockEmoji">☀️</div>
-    <div class="lock-date" id="lockDate"></div>
+    <div class="lock-date"><span id="lockDate"></span> · <span id="lockEmoji">☀️</span></div>
     <div class="lock-greeting" id="lockGreeting">Chào buổi sáng, em Trân Phóng sự cưới</div>
-    <div class="lock-quote" id="lockQuote"></div>
     <div class="lock-divider"></div>
     <div class="lock-brand-row">
       <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1732,9 +1828,11 @@
     </div>
 
     <div class="lock-form" id="lockForm">
+      <label class="lock-label" for="lockEmailInput">Email</label>
       <input class="lock-input" id="lockEmailInput" type="email" autocomplete="username" placeholder="Email" onkeydown="if(event.key==='Enter') document.getElementById('lockPasswordInput').focus()">
+      <label class="lock-label" for="lockPasswordInput">Mật khẩu</label>
       <input class="lock-input" id="lockPasswordInput" type="password" autocomplete="current-password" placeholder="Mật khẩu" onkeydown="if(event.key==='Enter') doLogin()">
-      <button class="btn btn-primary lock-btn" id="lockBtn" onclick="doLogin()">Mở khóa</button>
+      <button class="btn btn-primary lock-btn" id="lockBtn" onclick="doLogin()">Vào CRM</button>
     </div>
 
     <div class="lock-error" id="lockError"></div>
@@ -1991,7 +2089,7 @@
 
 <!-- ============ MODAL: Add lead ============ -->
 <div class="modal-overlay" id="addLeadOverlay">
-  <div class="modal">
+  <div class="modal modal-form">
     <div class="modal-header">
       <h3>Thêm lead mới</h3>
       <p>Lead mới sẽ vào giai đoạn "Lead in"</p>
@@ -2020,7 +2118,8 @@
 
 <!-- ============ MODAL: Won confirm ============ -->
 <div class="modal-overlay" id="wonConfirmOverlay">
-  <div class="modal">
+  <div class="modal modal-won">
+    <img class="won-tulip" src="https://images.unsplash.com/photo-1561181226-e8a7edd504c6?fm=jpg&q=70&w=900&auto=format&fit=crop" alt="" loading="lazy">
     <div class="modal-header">
       <h3>Chốt deal thành công 🎉</h3>
       <p>Xác nhận doanh thu thực tế của lead này</p>
@@ -2028,7 +2127,7 @@
     <div class="modal-body" id="wonConfirmBody"></div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeWonConfirm()">Hủy</button>
-      <button class="btn btn-primary" onclick="submitWonConfirm()">Xác nhận Won</button>
+      <button class="btn btn-primary" onclick="submitWonConfirm()">Chốt Won</button>
     </div>
   </div>
 </div>
@@ -2515,7 +2614,48 @@ const LOCK_LOVE_MESSAGES = [
   "Lịch follow up hôm nay tới đâu rồi, vào check coi còn sót ai không 🗒️"
 ];
 
+/* Ảnh tulip màn đăng nhập: 4 ảnh bình hoa + 4 ảnh cánh đồng (Unsplash, ghi công tác giả) */
+const ANH_DANG_NHAP = [
+  ['photo-1778074631493-5bdb54f8ada6', 'Sixteen Miles Out', 'https://unsplash.com/@sixteenmilesout'],
+  ['photo-1561181226-e8a7edd504c6',    'Uljana Borodina',   'https://unsplash.com/@anajlu'],
+  ['photo-1495218411647-6754f46370a9', 'Kelly Sikkema',     'https://unsplash.com/@kellysikkema'],
+  ['photo-1587316830126-132eec62d06e', 'Zoe Richardson',    'https://unsplash.com/@farmsteadphoto'],
+  ['photo-1687710071600-2c338cea1592', 'snap shoot',        'https://unsplash.com/@s_napshoot'],
+  ['photo-1554199150-22eb3cfe888d',    'Lisette Verwoerd',  'https://unsplash.com/@lkverwoerd'],
+  ['photo-1620917286728-06cf79161524', 'Carter Rubio',      'https://unsplash.com/@loganrube'],
+  ['photo-1486608766848-9b9fe0c37b9d', 'Aaron Burden',      'https://unsplash.com/@aaronburden'],
+];
+let anhDangNhapTimer = null;
+function initLockPhotos(){
+  const box = document.getElementById('lockPhotos');
+  if (!box || box.childElementCount) return;
+  const url = (id) => `https://images.unsplash.com/${id}?fm=jpg&q=70&w=1400&auto=format&fit=crop`;
+  let i = Math.floor(Math.random() * ANH_DANG_NHAP.length);
+  const imgs = ANH_DANG_NHAP.map(([id], k) => {
+    const img = document.createElement('img');
+    img.alt = ''; img.decoding = 'async';
+    if (k === i) img.src = url(id);            // ảnh đầu tải ngay, các ảnh sau tải dần khi tới lượt
+    box.appendChild(img);
+    return img;
+  });
+  const hien = () => {
+    const [id, tacGia, link] = ANH_DANG_NHAP[i];
+    if (!imgs[i].src) imgs[i].src = url(id);
+    imgs.forEach((im, k) => im.classList.toggle('on', k === i));
+    const c = document.getElementById('lockCredit');
+    if (c) c.innerHTML = `Ảnh: <a href="${link}" target="_blank" rel="noopener">${esc(tacGia)}</a> trên <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a>`;
+  };
+  hien();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  anhDangNhapTimer = setInterval(() => {
+    if (document.getElementById('lockScreen') && document.getElementById('lockScreen').classList.contains('unlocked')) return;
+    i = (i + 1) % ANH_DANG_NHAP.length;
+    hien();
+  }, 7000);
+}
+
 function initLockGreeting(){
+  initLockPhotos();
   const now = new Date();
   const hour = now.getHours();
 
@@ -2590,7 +2730,7 @@ async function doLogin(){
     passEl.focus();
   } finally {
     btn.disabled = false; emailEl.disabled = false; passEl.disabled = false;
-    btn.textContent = 'Mở khóa';
+    btn.textContent = 'Vào CRM';
   }
 }
 
@@ -3175,6 +3315,34 @@ function cardHtml(lead){
     </div>
   `;
 }
+
+/* ======================= MODAL: nút ✕, phím Esc, tấm trượt trên điện thoại ======================= */
+const DONG_MODAL = {
+  addLeadOverlay: () => closeAddLead(),        lostReasonOverlay: () => closeLostReason(),
+  wonConfirmOverlay: () => closeWonConfirm(),  remindersOverlay: () => closeRemindersModal(),
+  shareOverlay: () => closeShareModal(),       mcpOverlay: () => closeMcpModal(),
+  revenueListOverlay: () => closeRevenueListModal(), todoCompletedOverlay: () => closeTodoCompletedModal(),
+  quickMoveOverlay: () => closeQuickMove(),    menuKhacOverlay: () => dongMenuKhac(),
+};
+function ganNutDongModal(){
+  Object.keys(DONG_MODAL).forEach(id => {
+    const ov = document.getElementById(id);
+    const head = ov && ov.querySelector('.modal-header');
+    if (!head || head.querySelector('.modal-close')) return;
+    const m = ov.querySelector('.modal');
+    m.setAttribute('role', 'dialog'); m.setAttribute('aria-modal', 'true');
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'modal-close'; b.setAttribute('aria-label', 'Đóng'); b.textContent = '✕';
+    b.addEventListener('click', DONG_MODAL[id]);
+    head.appendChild(b);
+  });
+}
+ganNutDongModal();
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const dangMo = [...document.querySelectorAll('.modal-overlay.show')].pop();
+  if (dangMo && DONG_MODAL[dangMo.id]){ DONG_MODAL[dangMo.id](); e.preventDefault(); }
+});
 
 /* ======================= TẤM TRƯỢT "Khác" (điện thoại) ======================= */
 function veMenuKhac(){
@@ -4100,11 +4268,9 @@ function openWonConfirm(id){
   pendingDropId = id;
   const lead = leads.find(l => l.id === id);
   document.getElementById('wonConfirmBody').innerHTML = `
+    <div class="won-lead">${esc(lead.name)} · ${esc(lead.package || '')} · dự kiến ${formatMoney(lead.revenueExpected)}</div>
     <div class="field-group">
-      <label class="field-label">${esc(lead.name)}</label>
-    </div>
-    <div class="field-group">
-      <label class="field-label">Doanh thu thực tế</label>
+      <label class="field-label" for="wonRevenueInput">Doanh thu thực tế</label>
       <input class="field-input" id="wonRevenueInput" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" oninput="formatMoneyInput(this)">
     </div>
   `;
