@@ -165,8 +165,10 @@
   .grp{padding:10px 16px 6px; font-size:12px; font-weight:600; color:var(--text-3); background:var(--bg); border-bottom:1px solid var(--border);}
 
   .chip{display:inline-flex; align-items:center; border-radius:var(--r-sm); padding:2px 6px; font-size:11px; font-weight:600; line-height:1.3; border:1px solid transparent; white-space:nowrap;}
-  .chip.red{background:var(--danger); color:var(--on-fill);}
-  .chip.green{background:var(--warn-soft); border-color:var(--warn-border); color:var(--warn-ink);}
+  /* Hạn liên hệ: trễ = hồng nhạt chữ đỏ · hôm nay = xanh lá · còn N ngày = xám */
+  .chip.red{background:var(--danger-soft); border-color:var(--danger-border); color:var(--danger-ink);}
+  .chip.green{background:var(--ok-soft); border-color:var(--ok-border); color:var(--ok-ink);}
+  .chip.an{background:var(--warn-soft); border-color:var(--warn-border); color:var(--warn-ink);}
   .chip.gray{background:var(--well); color:var(--text-2);}
   .chip.won{background:var(--ok-soft); border-color:var(--ok-border); color:var(--ok-ink);}
   .chip.lost{background:var(--danger-soft); border-color:var(--danger-border); color:var(--danger-ink);}
@@ -674,7 +676,7 @@
       + '<dt>Ngày tạo</dt><dd>' + ngay(l.createdAt) + '</dd>'
       + (l.wonAt ? '<dt>Ngày chốt</dt><dd>' + ngay(l.wonAt) + '</dd>' : '')
       + (l.lostAt ? '<dt>Ngày đóng</dt><dd>' + ngay(l.lostAt) + ' · ' + esc(l.lostReason||'—') + '</dd>' : '')
-      + '<dt>Điện thoại, Facebook</dt><dd><span class="chip green">Đã ẩn</span></dd>'
+      + '<dt>Điện thoại, Facebook</dt><dd><span class="chip an">Đã ẩn</span></dd>'
       + '</dl></section>';
 
     var moTa = [['Lịch trình', l.schedule], ['Chân dung khách hàng', l.persona], ['Objection của khách', l.objection]]
