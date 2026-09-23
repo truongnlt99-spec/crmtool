@@ -1501,7 +1501,7 @@
   .zalo-att{background:var(--well); color:var(--text-2); font-weight:600;}
 
   @media (max-width:820px){
-    .conv-wrap{padding:0;}
+    .conv-wrap{padding:0; grid-template-columns:minmax(0,1fr);}
     .conv-list-title{display:none;}
     .conv-chat-head{padding:12px 14px;}
     .conv-head-chip{display:none;}
@@ -1583,6 +1583,11 @@
 
   @media (max-width:1100px){
     .card-box.span-5, .card-box.span-7{grid-column:span 12;}
+  }
+  /* Máy tính bảng: thanh trên xuống dòng thay vì đẩy nút "Thêm lead" ra ngoài */
+  @media (min-width:761px) and (max-width:1024px){
+    .topbar{height:auto; flex-wrap:wrap; row-gap:10px; padding:12px 18px;}
+    .topbar-spacer{display:none;}
   }
   @media (max-width:760px){
     .dash-wrap{padding:14px 14px 24px;}
