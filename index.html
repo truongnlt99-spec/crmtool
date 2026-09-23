@@ -1812,7 +1812,6 @@
       <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true">🌷</span>CRM của Huyền Trân</div>
       <div class="lock-hero-bottom">
         <div class="lock-quote" id="lockQuote"></div>
-        <div class="lock-credit" id="lockCredit">Ảnh trên <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a></div>
       </div>
     </div>
   </div>
@@ -2619,7 +2618,7 @@ const LOCK_LOVE_MESSAGES = [
   "Lịch follow up hôm nay tới đâu rồi, vào check coi còn sót ai không 🗒️"
 ];
 
-/* Ảnh tulip màn đăng nhập: 4 ảnh bình hoa + 4 ảnh cánh đồng (Unsplash, ghi công tác giả) */
+/* Ảnh tulip màn đăng nhập: 4 ảnh bình hoa + 4 ảnh cánh đồng (Unsplash; giấy phép không bắt buộc ghi nguồn, tên tác giả giữ lại để tra cứu) */
 const ANH_DANG_NHAP = [
   ['photo-1778074631493-5bdb54f8ada6', 'Sixteen Miles Out', 'https://unsplash.com/@sixteenmilesout'],
   ['photo-1561181226-e8a7edd504c6',    'Uljana Borodina',   'https://unsplash.com/@anajlu'],
@@ -2644,11 +2643,8 @@ function initLockPhotos(){
     return img;
   });
   const hien = () => {
-    const [id, tacGia, link] = ANH_DANG_NHAP[i];
-    if (!imgs[i].src) imgs[i].src = url(id);
+    if (!imgs[i].src) imgs[i].src = url(ANH_DANG_NHAP[i][0]);
     imgs.forEach((im, k) => im.classList.toggle('on', k === i));
-    const c = document.getElementById('lockCredit');
-    if (c) c.innerHTML = `Ảnh: <a href="${link}" target="_blank" rel="noopener">${esc(tacGia)}</a> trên <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a>`;
   };
   hien();
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
