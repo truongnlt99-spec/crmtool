@@ -162,6 +162,12 @@
   .td{font-size:13px; color:var(--text-2); min-width:0; overflow-wrap:anywhere;}
   .td-rev{text-align:right; font:700 15px/1.2 var(--font-head); color:var(--text);}
   .ta-r{text-align:right;}
+  .deal-search{display:flex; align-items:center; gap:8px; min-width:min(320px, 100%); min-height:40px; padding:0 12px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface-2); color:var(--text-3);}
+  .deal-search:focus-within{border-color:var(--primary); box-shadow:var(--focus);}
+  .deal-search input{flex:1; min-width:0; border:0; background:none; outline:none; font-size:14px; color:var(--text); min-height:38px;}
+  .tim-goi-y{margin:0 16px 12px; padding:10px 12px; border-radius:var(--r-md); background:var(--warn-soft); border:1px solid var(--warn-border); color:var(--warn-ink); font-size:13px; line-height:1.5;}
+  .tim-goi-y[hidden]{display:none;}
+  .empty .ctrl-btn{margin-left:6px;}
   .grp{padding:10px 16px 6px; font-size:12px; font-weight:600; color:var(--text-3); background:var(--bg); border-bottom:1px solid var(--border);}
 
   .chip{display:inline-flex; align-items:center; border-radius:var(--r-sm); padding:2px 6px; font-size:11px; font-weight:600; line-height:1.3; border:1px solid transparent; white-space:nowrap;}
@@ -477,26 +483,14 @@
       : '<div class="empty">Chưa có việc nào hoàn thành trong kỳ này.</div>';
     h += '</section></div>';
 
-    /* Danh sách deal (thay cho bảng kéo thả: sếp chỉ cần đọc) */
-    var thuTu = {}; d.giaiDoan.forEach(function(g, i){ thuTu[g.id] = i; });
-    var deals = d.leads.slice().sort(function(a, b){
-      var nhom = function(l){ return l.stage === 'won' ? 0 : l.stage === 'lost' ? 2 : 1; };
-      return nhom(a) - nhom(b) || (thuTu[b.stage] || 0) - (thuTu[a.stage] || 0);
-    });
-    h += '<section class="table"><div class="table-head"><h2 class="panel-title">Danh sách deal <span>· ' + deals.length + ' deal</span></h2>'
-      + '<span class="muted" style="margin:0">Bấm một dòng để xem chi tiết</span></div>'
-      + '<div class="tr th" role="row"><span>Khách</span><span>Giai đoạn</span><span>Gói</span><span>Ngày cưới</span><span class="ta-r">Doanh thu</span></div>';
-    h += deals.length ? deals.map(function(l){
-      var dong = l.stage === 'won' || l.stage === 'lost';
-      return '<button type="button" class="tr" onclick="XEM.moLead(\'' + esc(l.id) + '\')">'
-        + '<span class="td-name">' + esc(l.name)
-        + (l.stage === 'won' ? ' <span class="chip won">Won</span>' : l.stage === 'lost' ? ' <span class="chip lost">Lost</span>' : '')
-        + (l.isPotential && !dong ? ' <span class="chip hot">🔥 Tiềm năng</span>' : '') + '</span>'
-        + '<span class="td">' + esc(l.stageName) + (dong ? '' : '<br><span class="chip ' + esc(l.statusType) + '">' + esc(l.status) + '</span>') + '</span>'
-        + '<span class="td">' + esc(l.package || '—') + '</span>'
-        + '<span class="td">' + ngay(l.weddingDate) + '</span>'
-        + '<span class="td-rev">' + tienGon(l.stage === 'won' ? l.revenueActual : l.revenueExpected) + '</span></button>';
-    }).join('') : '<div class="empty">Chưa có deal nào trong kỳ này.</div>';
+    /* Danh sách deal (thay cho bảng kéo thả: sếp chỉ cần đọc) + ô tìm tên / SĐT */
+    h += '<section class="table"><div class="table-head"><h2 class="panel-title">Danh sách deal <span id="demDeal"></span></h2>'
+      + '<div class="deal-search"><span aria-hidden="true">⌕</span>'
+      + '<input type="search" id="timDeal" placeholder="Tìm tên khách hoặc số điện thoại" autocomplete="off" aria-label="Tìm deal theo tên khách hoặc số điện thoại" value="' + esc(tim.q) + '" oninput="XEM.timDeal(this.value)">'
+      + '</div></div>'
+      + '<div class="tim-goi-y" id="timGoiY" role="status"></div>'
+      + '<div class="tr th" role="row"><span>Khách</span><span>Giai đoạn</span><span>Gói</span><span>Ngày cưới</span><span class="ta-r">Doanh thu</span></div>'
+      + '<div id="bangDeal"></div>';
     h += '</section>';
 
     /* Lý do mất deal */
@@ -518,6 +512,104 @@
     h += '</main>';
 
     app.innerHTML = h;
+    veBangDeal();
+  }
+
+  /* ---------- Tìm deal theo tên / số điện thoại ----------
+     Tên: lọc ngay trong trình duyệt (bỏ dấu, không phân biệt hoa thường).
+     SĐT: trang này KHÔNG có số điện thoại của khách, nên gửi số lên máy chủ để so;
+     máy chủ chỉ trả id deal khớp và chỉ khớp khi gõ đủ số (không dò từng phần được). */
+  var tim = { q: '', ids: null, dangTim: false, loi: '' };
+  var timHen = null, timLuot = 0;
+
+  function boDau(s){
+    return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+  }
+  function chuSo(s){ return String(s || '').replace(/\D/g, ''); }
+
+  function timDeal(v){
+    tim.q = v;
+    tim.ids = null; tim.loi = '';
+    clearTimeout(timHen);
+    var so = chuSo(v);
+    var laSo = so.length > 0 && !/[^\d\s+().-]/.test(v);
+    if (laSo && so.length >= 9){
+      tim.dangTim = true;
+      veBangDeal();
+      var luot = ++timLuot;
+      timHen = setTimeout(async function(){
+        try {
+          var res = await fetch('/api/share', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: TOKEN, session: phien, loai: 'timSdt', sdt: v })
+          });
+          var data = await res.json();
+          if (luot !== timLuot) return;          // đã gõ tiếp, bỏ kết quả cũ
+          if (!res.ok) throw new Error(data && data.loi ? data.loi : 'Lỗi');
+          tim.ids = data.ids || [];
+        } catch(e){
+          if (luot !== timLuot) return;
+          tim.loi = e.message || 'Không tìm được. Thử lại sau.';
+        }
+        tim.dangTim = false;
+        veBangDeal();
+      }, 300);
+      return;
+    }
+    tim.dangTim = false;
+    veBangDeal();
+  }
+  function xoaTim(){
+    var o = document.getElementById('timDeal');
+    if (o){ o.value = ''; o.focus(); }
+    timDeal('');
+  }
+
+  function veBangDeal(){
+    var bang = document.getElementById('bangDeal');
+    if (!bang || !duLieu) return;
+    var d = duLieu;
+    var thuTu = {}; d.giaiDoan.forEach(function(g, i){ thuTu[g.id] = i; });
+    var tatCa = d.leads.slice().sort(function(a, b){
+      var nhom = function(l){ return l.stage === 'won' ? 0 : l.stage === 'lost' ? 2 : 1; };
+      return nhom(a) - nhom(b) || (thuTu[b.stage] || 0) - (thuTu[a.stage] || 0);
+    });
+
+    var q = tim.q.trim(), so = chuSo(q);
+    var laSo = so.length > 0 && !/[^\d\s+().-]/.test(q);
+    var deals = tatCa, goiY = '';
+    if (q && laSo){
+      if (so.length < 9){ deals = []; goiY = 'Nhập đủ số điện thoại (ít nhất 9 số) để tìm. Số điện thoại của khách được ẩn nên không tìm theo vài số được.'; }
+      else if (tim.dangTim){ deals = []; goiY = 'Đang tìm theo số điện thoại…'; }
+      else if (tim.loi){ deals = []; goiY = tim.loi; }
+      else { var dsId = tim.ids || []; deals = tatCa.filter(function(l){ return dsId.indexOf(l.id) >= 0; }); }
+    } else if (q){
+      var k = boDau(q);
+      deals = tatCa.filter(function(l){ return boDau(l.name).indexOf(k) >= 0; });
+    }
+
+    var dem = document.getElementById('demDeal');
+    if (dem) dem.textContent = '· ' + (q ? deals.length + ' / ' : '') + tatCa.length + ' deal';
+    var gy = document.getElementById('timGoiY');
+    if (gy){ gy.textContent = goiY; gy.hidden = !goiY; }
+
+    if (!tatCa.length){ bang.innerHTML = '<div class="empty">Chưa có deal nào trong kỳ này.</div>'; return; }
+    if (!deals.length){
+      bang.innerHTML = goiY ? '' : '<div class="empty">Không có deal nào khớp “' + esc(q) + '”. '
+        + '<button type="button" class="ctrl-btn" onclick="XEM.xoaTim()">Xoá tìm kiếm</button></div>';
+      return;
+    }
+    bang.innerHTML = deals.map(function(l){
+      var dong = l.stage === 'won' || l.stage === 'lost';
+      return '<button type="button" class="tr" onclick="XEM.moLead(\'' + esc(l.id) + '\')">'
+        + '<span class="td-name">' + esc(l.name)
+        + (l.stage === 'won' ? ' <span class="chip won">Won</span>' : l.stage === 'lost' ? ' <span class="chip lost">Lost</span>' : '')
+        + (l.isPotential && !dong ? ' <span class="chip hot">🔥 Tiềm năng</span>' : '') + '</span>'
+        + '<span class="td">' + esc(l.stageName) + (dong ? '' : '<br><span class="chip ' + esc(l.statusType) + '">' + esc(l.status) + '</span>') + '</span>'
+        + '<span class="td">' + esc(l.package || '—') + '</span>'
+        + '<span class="td">' + ngay(l.weddingDate) + '</span>'
+        + '<span class="td-rev">' + tienGon(l.stage === 'won' ? l.revenueActual : l.revenueExpected) + '</span></button>';
+    }).join('');
   }
 
   // Tiền viết gọn cho bảng: 45.000.000 -> "45,0 tr"
@@ -781,7 +873,7 @@
     ky({ don:'tuyChon', lui:0, tu:a, den:b });
   }
 
-  window.XEM = { doiGiaoDien:doiGiaoDien, moLead:moLead, moDs:moDs, moPheu:moPheu, dong:dong,
+  window.XEM = { doiGiaoDien:doiGiaoDien, timDeal:timDeal, xoaTim:xoaTim, moLead:moLead, moDs:moDs, moPheu:moPheu, dong:dong,
                  luiKy:luiKy, veHienTai:veHienTai, doiDon:doiDon,
                  xemKhoang:xemKhoang, doiLoai:doiLoai };
 })();
