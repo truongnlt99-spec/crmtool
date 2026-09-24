@@ -153,17 +153,30 @@ const CHAT = {};
 for (const l of MAIN.leads.filter((x) => x.coHoiThoaiZalo)) {
   CHAT[l.id] = await goiShare({ token: 'demo', session: MAIN.session, loai: 'chat', leadId: l.id });
 }
+// Tìm theo SĐT: hỏi chính server thật với SĐT (giả) của từng lead, ghi sẵn đáp án vào demo
+const chuanSdt = (v) => { let d = String(v || '').replace(/\D/g, ''); if (d.startsWith('84') && d.length >= 11) d = d.slice(2); return d.replace(/^0+/, ''); };
+const SDT = {};
+for (const l of Object.values(tree.crmData.leads)) {
+  if (!l.phone) continue;
+  const r = await goiShare({ token: 'demo', session: MAIN.session, loai: 'timSdt', sdt: l.phone });
+  if (!r.ok) throw new Error('Server không trả kết quả tìm SĐT: ' + JSON.stringify(r).slice(0, 200));
+  SDT[chuanSdt(l.phone)] = r.ids;
+}
 const XEM_STUB = `<script>
 // ===== BẢN DEMO: trả dữ liệu mẫu thay cho /api/share. Mật khẩu nhập gì cũng được. =====
 (function(){
   var p = new URLSearchParams(location.search);
   if (!p.get('t')) { p.set('t', 'demo'); history.replaceState(null, '', location.pathname + '?' + p.toString()); }
-  var MAIN = ${json(MAIN)}, CHAT = ${json(CHAT)};
+  var MAIN = ${json(MAIN)}, CHAT = ${json(CHAT)}, SDT = ${json(SDT)};
+  var chuanSdt = ${chuanSdt.toString()};
   var goc = window.fetch;
   window.fetch = function(url, init){
     if (String(url).indexOf('/api/share') >= 0) {
       var b = {}; try { b = JSON.parse((init && init.body) || '{}'); } catch(e){}
-      var data = b.loai === 'chat' ? (CHAT[b.leadId] || { ok: true, hoiThoai: [] }) : MAIN;
+      var so = chuanSdt(b.sdt);
+      var data = b.loai === 'chat' ? (CHAT[b.leadId] || { ok: true, hoiThoai: [] })
+        : b.loai === 'timSdt' ? { ok: true, ids: so.length >= 9 ? (SDT[so] || []) : [] }
+        : MAIN;
       return Promise.resolve(new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } }));
     }
     return goc.apply(this, arguments);

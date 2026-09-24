@@ -373,6 +373,29 @@ function tenNguoiGuiZalo(m: ZaloMsg, convId: string, tenHoiThoai: string): strin
   return maHoa ? '' : t;
 }
 
+/**
+ * Tìm deal theo SĐT trên link chia sẻ. Trang chia sẻ KHÔNG bao giờ nhận SĐT của khách, nên
+ * việc so khớp làm ở đây. Chỉ khớp khi gõ đủ số (≥ 9 chữ số, bỏ qua cách viết, +84/84/0):
+ * cho khớp từng phần thì người xem gõ dần từng chữ số là dò ngược ra được SĐT đã ẩn.
+ */
+export function khopSoDienThoai(soCuaLead: unknown, soGo: unknown): boolean {
+  const chuan = (v: unknown) => {
+    let d = String(v || '').replace(/\D/g, '');
+    if (d.startsWith('84') && d.length >= 11) d = d.slice(2);
+    return d.replace(/^0+/, '');
+  };
+  const a = chuan(soCuaLead), b = chuan(soGo);
+  return b.length >= 9 && a === b;
+}
+
+/** Danh sách id deal có SĐT khớp số người xem gõ. Chỉ trả id, không trả SĐT. */
+async function traLoiTimSdt(dataRootCuaKho: string, soGo: string, dungPhien: boolean): Promise<Response> {
+  if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
+  const crm = await alsStore.run({ dataRoot: dataRootCuaKho }, () => loadCrm());
+  const ids = crm.leads.filter((l) => khopSoDienThoai(l.phone, soGo)).map((l) => l.id);
+  return traLoiJson({ ok: true, ids });
+}
+
 /** Hội thoại Zalo của một lead cho trang chỉ xem. Chỉ hội thoại status 'lead', chỉ trường cần hiển thị. */
 async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boolean): Promise<Response> {
   if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
@@ -1795,7 +1818,7 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
     token?: string; passcode?: string; session?: string;
     month?: number; year?: number; leadType?: string;
     don?: string; lui?: number; tu?: string; den?: string;
-    loai?: string; leadId?: string;
+    loai?: string; leadId?: string; sdt?: string;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -1827,6 +1850,8 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   // Hội thoại Zalo tải riêng từng deal (response tổng chứa mọi lead, nhét chat vào sẽ phình).
   // Bắt buộc có phiên xem hợp lệ: không nhận mật khẩu ở đây, không ghi nhật ký thêm.
   if (body.loai === 'chat') return traLoiChat(scope.dataRoot, String(body.leadId || ''), dungPhien);
+  // Tìm deal theo SĐT: cũng bắt buộc phiên xem hợp lệ; chỉ trả id deal khớp.
+  if (body.loai === 'timSdt') return traLoiTimSdt(scope.dataRoot, String(body.sdt || '').slice(0, 30), dungPhien);
 
   let phienMoi: string | undefined;
   if (!dungPhien) {
