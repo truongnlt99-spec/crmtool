@@ -1,0 +1,92 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test đọc DOM Zalo</title>
+<!--
+  Fixture dựng theo ĐÚNG cấu trúc DOM thật của chat.zalo.me (dò ngày 2026-09-28).
+  Chạy bằng: node test/zalo-dom.test.ts  (tự mở Chrome ngầm, không cần mở tay).
+-->
+<body>
+<script type="module">
+import { textFromMessage, quoteFromMessage } from '../extension/lib/dom-text.js';
+
+const ket = [];
+const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
+
+// Rác có trong MỌI tin: 6 emoji thả cảm xúc + giờ gửi (nằm ngoài text-message__container)
+const RAC = `
+  <div class="message-reaction-container message-reaction-container-v2"><div><div class="emoji-list-wrapper me">
+    <div class="reaction-emoji-list">
+      <div class="reaction-emoji-icon"><span class="emoji-sizer emoji-outer">❤️</span></div>
+      <div class="reaction-emoji-icon"><span class="emoji-sizer emoji-outer">👍</span></div>
+      <div class="reaction-emoji-icon"><span class="emoji-sizer emoji-outer">😄</span></div>
+    </div></div></div></div>
+  <div class="card-send-time flx"><span class="card-send-time__sendTime non-selected">08:16</span></div>`;
+
+const tin = (ben_trong) => {
+  const d = document.createElement('div');
+  d.className = 'chat-message chat-message-v2';
+  d.id = 'bb_msg_id_1758500000000';
+  d.innerHTML = `<div class="message-wrapper message-wrapper--me"><div class="message-content-wrapper">
+    <div class="message-content-render focused-background"><div class="me"><div>
+      ${ben_trong}${RAC}
+    </div></div></div></div></div>`;
+  document.body.appendChild(d);
+  return d;
+};
+
+/* ---------- 1. Tin thường: span.text ---------- */
+const thuong = tin(`<div class="message-action"><div class="text-message__container"><div>
+  <div class="overflow-hidden"><span-15><span class="text">tin nhắn bình thường</span></span-15></div>
+</div></div></div>`);
+check('tin thuong lay dung chu', textFromMessage(thuong) === 'tin nhắn bình thường', textFromMessage(thuong));
+
+/* ---------- 2. Tin IN ĐẬM: span không có class, trong .editor-input ---------- */
+const dam = tin(`<div class="message-action"><div class="text-message__container"><div>
+  <div class="overflow-hidden"><span-15><div><div class="editor-input"><div>
+    <span><strong>tin nhắn in đậm</strong></span>
+  </div></div></div></span-15></div>
+</div></div></div>`);
+check('tin IN DAM lay duoc chu', textFromMessage(dam) === 'tin nhắn in đậm', textFromMessage(dam));
+
+/* ---------- 3. Tin IN NGHIÊNG ---------- */
+const nghieng = tin(`<div class="message-action"><div class="text-message__container"><div>
+  <div class="overflow-hidden"><span-15><div><div class="editor-input"><div>
+    <span><em>tin nhắn in nghiêng</em></span>
+  </div></div></div></span-15></div>
+</div></div></div>`);
+check('tin IN NGHIENG lay duoc chu', textFromMessage(nghieng) === 'tin nhắn in nghiêng', textFromMessage(nghieng));
+
+/* ---------- 4. Không dính giờ gửi và emoji thả cảm xúc ---------- */
+const chu = textFromMessage(thuong) + textFromMessage(dam) + textFromMessage(nghieng);
+check('khong dinh gio gui', !chu.includes('08:16'));
+check('khong dinh emoji tha cam xuc', !/❤️|👍|😄/.test(chu));
+
+/* ---------- 5. Tin nhiều dòng + emoji trong nội dung ---------- */
+const nhieuDong = tin(`<div class="text-message__container"><div><div class="overflow-hidden"><span-15><div>
+  <div class="editor-input"><div><span>dòng một<br>dòng hai <img alt="🎉" src="x.png"></span></div></div>
+</div></span-15></div></div></div>`);
+check('giu xuong dong va emoji trong noi dung', textFromMessage(nhieuDong) === 'dòng một\ndòng hai 🎉', JSON.stringify(textFromMessage(nhieuDong)));
+
+/* ---------- 6. Tin trả lời: KHÔNG lẫn phần trích dẫn vào nội dung ---------- */
+const traLoi = tin(`<div class="text-message__container"><div><div class="overflow-hidden"><span-15>
+  <div class="message-quote-fragment">
+    <div class="message-quote-fragment__title-wrapper"><div class="message-quote-fragment__title">Huyền Trân</div></div>
+    <div class="message-quote-fragment__content-container"><div class="message-quote-fragment__description">bảng giá Signature</div></div>
+  </div>
+  <span class="text">dạ chị xem giúp em</span>
+</span-15></div></div></div>`);
+check('tin tra loi: chi lay noi dung', textFromMessage(traLoi) === 'dạ chị xem giúp em', textFromMessage(traLoi));
+const q = quoteFromMessage(traLoi);
+check('tin tra loi: doc duoc trich dan', q && q.title === 'Huyền Trân' && q.text === 'bảng giá Signature', JSON.stringify(q));
+
+/* ---------- 7. Tin ảnh: không có container chữ -> null ---------- */
+const anh = tin(`<div class="message-action"><div class="card"><img alt="" src="anh.jpg"></div></div>`);
+check('tin anh -> null', textFromMessage(anh) === null, JSON.stringify(textFromMessage(anh)));
+
+/* ---------- 8. Tin chưa vẽ xong -> null ---------- */
+const rong = tin(`<div class="text-message__container"><div><div class="overflow-hidden"></div></div></div>`);
+check('chua ve xong -> null', textFromMessage(rong) === null, JSON.stringify(textFromMessage(rong)));
+
+window.__ketQua = ket;
+</script>
+</body>
