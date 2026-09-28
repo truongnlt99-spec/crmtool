@@ -1,0 +1,43 @@
+HAYDAY CRM – ZALO (extension cho Chrome)
+========================================
+
+Extension này đưa tin nhắn Zalo của khách vào CRM (huyentran.vercel.app),
+và hiện thông tin lead ngay cạnh khung chat Zalo.
+
+LƯU Ý QUAN TRỌNG
+- Phải chat bằng Zalo WEB (chat.zalo.me) trên Chrome, KHÔNG dùng Zalo PC nữa.
+  (Zalo chỉ cho 1 phiên trên máy tính: đăng nhập Zalo web sẽ tự thoát Zalo PC.)
+- Giải nén xong thì ĐỂ NGUYÊN thư mục ở đó, đừng xoá hay di chuyển.
+  Chrome chạy extension trực tiếp từ thư mục này.
+
+CÀI ĐẶT (làm 1 lần, khoảng 2 phút)
+1. Giải nén file ZIP vào một chỗ cố định, ví dụ: Tài liệu (Documents).
+   Sẽ có thư mục "HayDay-CRM-Zalo".
+2. Mở Chrome, gõ vào thanh địa chỉ:  chrome://extensions   rồi Enter.
+3. Góc trên bên phải: bật "Chế độ dành cho nhà phát triển".
+4. Bấm "Tải tiện ích đã giải nén" -> chọn thư mục "HayDay-CRM-Zalo" -> Chọn thư mục.
+5. Bấm biểu tượng mảnh ghép trên thanh công cụ Chrome -> bấm ghim cạnh
+   "HayDay CRM – Zalo" để icon chữ H luôn hiện.
+
+DÙNG LẦN ĐẦU
+1. Mở https://chat.zalo.me và quét mã QR bằng Zalo trên điện thoại.
+2. Bấm icon chữ H -> khung bên phải mở ra.
+3. Đăng nhập bằng email + mật khẩu CRM của mình (chỉ cần 1 lần).
+
+DÙNG HẰNG NGÀY
+- Mở hội thoại của khách -> khung bên phải hiện 3 nút:
+    + Tạo lead mới           : khách mới, chưa có trong CRM
+    + Gắn vào lead có sẵn    : khách đã có trong CRM
+    + Không phải khách       : người nhà, nhà cung cấp... (sẽ không bao giờ hỏi lại)
+  Mỗi hội thoại chỉ cần chọn 1 lần. Từ đó tin nhắn tự vào CRM.
+- Hội thoại đã gắn lead: khung bên phải hiện giai đoạn, ngày cưới, hạn liên hệ.
+  Đổi giai đoạn và thêm ghi chú nhanh được ngay tại đây.
+  (Won/Lost vẫn đổi trong CRM vì cần nhập doanh thu hoặc lý do.)
+- Trong CRM, mở lead -> mục "Hội thoại Zalo" xem lại toàn bộ tin nhắn, tìm được theo từ khoá.
+  Trên thẻ lead có nhãn đỏ "Khách chờ trả lời" hoặc nhãn vàng "Khách im N ngày".
+
+NẾU CÓ GÌ LẠ
+- Tin chỉ đọc trên điện thoại sẽ hiện "Chưa có nội dung" cho tới khi mở
+  hội thoại đó trên Zalo web (extension không tự mở hội thoại để tránh báo "đã xem" cho khách).
+- Phải để tab Zalo web mở thì mới đồng bộ. Mở lại sau sẽ tự bù tin còn thiếu.
+- Khung bên phải báo lỗi ở dòng chữ nhỏ dưới cùng -> chụp màn hình gửi Trường.

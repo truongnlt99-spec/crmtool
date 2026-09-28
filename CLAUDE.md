@@ -66,6 +66,10 @@ Chạy một test lẻ: `node test/<tên>.test.ts`.
 
 ## Quy ước
 
+- **KHÔNG bao giờ ghi file ra Desktop hay chỗ khác ngoài project.** File gửi người dùng (ZIP extension…)
+  để trong project: `npm run dong-goi` tạo `ban-phat-hanh/HayDay-CRM-Zalo-v<version>.zip` (bản cũ tự dồn
+  vào `ban-phat-hanh/cu/`). Thư mục `ban-phat-hanh/` nằm trong `.gitignore`.
+  Hướng dẫn cài cho người dùng: `extension/HUONG-DAN-CAI-DAT.txt` (được gói kèm vào ZIP).
 - **Commit bằng tiếng Việt KHÔNG dấu** (theo lịch sử git: "Sua o...", "Bo cac dau hieu...").
 - Ghi Firebase luôn dùng PATCH/merge (`patchPath`), không PUT đè cả nhánh — app web và MCP ghi song song.
 - Biến môi trường (đặt trên Vercel): `FIREBASE_SERVICE_ACCOUNT` (bắt buộc để rules ăn), `MCP_SECRET`
