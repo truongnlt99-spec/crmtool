@@ -120,17 +120,10 @@
   }
 
   /* ---------- DOM hội thoại đang mở ---------- */
-  function domText(el) {
-    const spans = [...el.querySelectorAll('span.text')].filter((s) => !s.closest('[class*="message-quote-fragment"]'));
-    const t = spans.map((s) => s.innerText).join('').trim();
-    return t || null;
-  }
-  function domQuote(el) {
-    const q = el.querySelector('[class*="message-quote-fragment__description"]');
-    if (!q) return null;
-    const title = el.querySelector('[class*="message-quote-fragment__title"]');
-    return { title: (title && title.innerText.trim()) || '', text: q.innerText.trim() };
-  }
+  // Đọc nội dung tin nhắn: xem extension/lib/dom-text.js (có test ở test/zalo-dom.test.html)
+  const domText = (el) => D.textFromMessage(el);
+  const domQuote = (el) => D.quoteFromMessage(el);
+
   function headerName() {
     const h = document.querySelector('.header-title');
     return h ? (h.innerText || '').split('\n')[0].trim() : '';
