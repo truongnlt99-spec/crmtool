@@ -19,7 +19,7 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và link "chia sẻ chỉ
   tách sang `lib/`.
 - **`xem.html`** — trang chỉ xem cho người ngoài; chỉ POST token lên `/api/share`, không chạm
   Firebase. Backend là bên duy nhất đọc DB.
-- **`extension/`** —  là chỗ DUY NHẤT đọc nội dung tin từ DOM Zalo (có test chạy Chrome thật: `npm run test:zalo-dom`) — Chrome extension MV3 (cài unpacked) cho chat.zalo.me: `content.js` đọc IndexedDB + DOM của Zalo web, `background.js` ghi Firebase qua REST, thanh bên gắn lead. `extension/lib/zalo-map.js` là hàm thuần dùng chung với `index.html` (nạp bằng `<script type="module">`) và test Node — sửa logic chip/nhãn ở đây.
+- **`extension/`** — Chrome extension MV3 (cài unpacked) cho chat.zalo.me: `content.js` đọc IndexedDB + DOM của Zalo web, `background.js` ghi Firebase qua REST, thanh bên gắn lead. `extension/lib/dom-text.js` là chỗ DUY NHẤT đọc nội dung tin từ DOM Zalo (Zalo dùng cấu trúc khác cho tin có định dạng → luôn lấy chữ trong `.text-message__container`; có test chạy Chrome thật: `npm run test:zalo-dom`). `extension/lib/zalo-map.js` là hàm thuần dùng chung với `index.html` (nạp bằng `<script type="module">`) và test Node — sửa logic chip/nhãn ở đây.
 - **`firebase-rules.json`** (có `_huong_dan`) và **`firebase-rules-deploy.json`** (chỉ `rules`) —
   Security Rules sống trong repo để đọc/ghi chú. **Phải dán tay** `firebase-rules-deploy.json` vào
   Firebase Console → Realtime Database → Rules → Publish; đổi rules trong repo KHÔNG tự có hiệu lực.
