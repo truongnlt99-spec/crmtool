@@ -5,6 +5,7 @@
  */
 (async () => {
   const M = await import(chrome.runtime.getURL('lib/zalo-map.js'));
+  const D = await import(chrome.runtime.getURL('lib/dom-text.js'));
   const SCAN_MS = 15000;
   let db = null;
   let links = {};

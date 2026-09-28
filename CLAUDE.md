@@ -58,6 +58,7 @@ npm run audit            # test/audit.ts
 npm run test:zalo        # test/zalo-map + zalo-fb — hàm thuần extension, KHÔNG chạm Firebase
 npm run test:zalo-db     # test/zalo-rtdb.test.ts — cách ghi của extension trên sandbox zaloTest
 npm run test:zalo-dom    # test/zalo-dom.test.ts — đọc DOM Zalo (chạy Chrome ngầm, KHÔNG cần mạng)
+npm run test:zalo-tinh   # test/zalo-ext-static.test.ts — kiểm tra tĩnh extension (thiếu import, manifest, ký tự lạ)
 npm run test:mcp-zalo    # test/mcp-hoi-thoai.test.ts — tool MCP đọc hội thoại Zalo (sandbox crmDataTest + zaloTest)
 ```
 
