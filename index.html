@@ -1723,6 +1723,30 @@
   .todo-due.red{color:var(--danger-ink); border-color:var(--danger-border); background:var(--danger-soft);}
   .todo-due.green{color:var(--ok-ink); border-color:var(--ok-border); background:var(--ok-soft);}
   .quick-chip.chip-green:not(.active){background:var(--ok-soft); border-color:var(--ok-border); color:var(--ok-ink); font-weight:600;}
+
+  /* ================= KHUNG HỘI THOẠI ZALO — "Xanh CRM" =================
+     Feedback: bong bóng chat bị chìm vào nền. Nền khung đậm hơn một bậc, tin khách trắng viền rõ
+     có bóng, tin mình nền xanh chủ đạo chữ trắng. Áp cho Chi tiết lead + tab Hội thoại. */
+  :root{
+    --zl-nen:#F1E8E6; --zl-kh:#FFFFFF; --zl-kh-vien:#D8CCCB; --zl-me:#17795C; --zl-me-chu:#FFFFFF; --zl-me-phu:#CFEADF;
+    --zl-phu:#61565B; --zl-bong:0 2px 6px rgba(32,27,30,.10);
+  }
+  html[data-theme="dark"]{
+    --zl-nen:#0E0C12; --zl-kh:#2A2433; --zl-kh-vien:#3E3748; --zl-me:#2E9E77; --zl-me-chu:#FFFFFF; --zl-me-phu:#D5F5E8;
+    --zl-phu:#B7AEC0; --zl-bong:0 2px 6px rgba(0,0,0,.5);
+  }
+  .zalo-list{background:var(--zl-nen); border:1px solid var(--zl-kh-vien); border-radius:12px;}
+  .conv-chatcol{background:var(--zl-nen);}
+  .conv-msg-list{background:none; border:0; border-radius:0;}
+  .zalo-row.kh .zalo-bubble{background:var(--zl-kh); border-color:var(--zl-kh-vien); color:var(--text); box-shadow:var(--zl-bong);}
+  .zalo-row.me .zalo-bubble{background:var(--zl-me); border-color:var(--zl-me); color:var(--zl-me-chu); box-shadow:var(--zl-bong);}
+  .zalo-row.me .zalo-bubble a{color:inherit; text-decoration:underline;}
+  .zalo-row.me .zalo-quote{color:var(--zl-me-phu); border-left-color:currentColor;}
+  .zalo-row.me .zalo-att{background:rgba(255,255,255,.22); color:inherit;}
+  .zalo-row.me mark{background:rgba(255,255,255,.35); color:inherit;}
+  .zalo-who{color:var(--zl-phu); font-weight:700;}
+  .zalo-time{color:var(--zl-phu);}
+  .zalo-day{background:var(--zl-kh); color:var(--zl-phu); box-shadow:var(--zl-bong);}
 </style>
 </head>
 <body>

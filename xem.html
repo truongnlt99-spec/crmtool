@@ -232,13 +232,15 @@
   .log-t{font-size:12px; color:var(--text-3);}
   .zpanel{padding:0; overflow:hidden;}
   .zpanel .panel-title{padding:13px 14px; margin:0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;}
-  .zchat{display:flex; flex-direction:column; max-height:520px; overflow-y:auto; gap:4px; padding:14px; background:var(--surface-2);}
+  /* Khung hội thoại "Xanh CRM" (giống app): nền đậm một bậc, tin khách trắng viền rõ, tin mình nền xanh */
+  .zchat{display:flex; flex-direction:column; max-height:520px; overflow-y:auto; gap:4px; padding:14px; background:var(--well);}
   .zrow{display:flex; flex-direction:column; max-width:80%; margin:2px 0;}
   .zrow.kh{align-self:flex-start;} .zrow.me{align-self:flex-end; align-items:flex-end;}
-  .zwho{font-size:12px; font-weight:600; color:var(--text-2);}
-  .zbub{font-size:14px; line-height:1.5; padding:9px 11px; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--surface); border:1px solid var(--border); border-radius:14px 14px 14px 4px;}
-  .zrow.me .zbub{background:var(--primary-soft); border-color:var(--ok-border); border-radius:14px 14px 4px 14px;}
-  .zt{font-size:11px; color:var(--text-3); margin-top:3px;}
+  .zwho{font-size:12px; font-weight:700; color:var(--text-2);}
+  .zbub{font-size:14px; line-height:1.5; padding:9px 11px; white-space:pre-wrap; overflow-wrap:anywhere; background:var(--surface); border:1px solid var(--border-strong); border-radius:14px 14px 14px 4px; box-shadow:var(--sh-sm);}
+  .zrow.me .zbub{background:var(--primary); border-color:var(--primary); color:var(--on-fill); border-radius:14px 14px 4px 14px;}
+  .zrow.me .zatt{color:inherit; opacity:.85;}
+  .zt{font-size:11px; color:var(--text-2); margin-top:3px;}
   .zatt{font-size:12px; font-weight:600; color:var(--text-2);}
   .lrow{display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:10px 11px; border-radius:var(--r-md); background:var(--surface);
     margin-bottom:7px; cursor:pointer; border:1px solid var(--border); text-align:left;}
