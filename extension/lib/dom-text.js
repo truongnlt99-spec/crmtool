@@ -25,17 +25,19 @@ const KHOI = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'TABLE', 'TR', 'SECTION', 'A
 // Đuôi file người ta thật sự gửi qua Zalo. Nhận tên file theo danh sách này, KHÔNG theo
 // dấu chấm chung — tên miền trong thẻ link xem trước ("hayday.vn") cũng có dấu chấm.
 const DUOI_FILE = /\.(pdf|docx?|xlsx?|pptx?|csv|txt|rtf|zip|rar|7z|jpe?g|png|gif|heic|webp|svg|mp4|mov|avi|mkv|mp3|m4a|wav|ai|psd|eps|apk|json)$/i;
+// Dong chi co moi ten mien ("www.youtube.com") thi khong phai tieu de link.
+const LA_TEN_MIEN = /^(https?:\/\/)?(www\.)?[\w-]+(\.[\w-]+)+\/?$/i;
 
 /** Alt của <img> chỉ lấy khi là emoji (Zalo vẽ emoji bằng ảnh), không lấy tên file ảnh. */
 const laEmojiAlt = (alt) => !!alt && alt.length <= 8 && !DUOI_FILE.test(alt);
 
-/** Toạ độ dòng của một nút chữ trên màn hình, null nếu không đo được (đang ẩn). */
-function viTriDong(n) {
+/** Vị trí một nút chữ trên màn hình { top, left, right }, null nếu không đo được (đang ẩn). */
+function viTriChu(n) {
   try {
     const r = n.ownerDocument.createRange();
     r.selectNodeContents(n);
     const o = r.getBoundingClientRect();
-    return o.height || o.width ? Math.round(o.top) : null;
+    return o.height || o.width ? { top: Math.round(o.top), left: Math.round(o.left), right: Math.round(o.right) } : null;
   } catch { return null; }
 }
 
@@ -55,22 +57,28 @@ export function chuTrongNhanh(root, { boTrichDan = true, ngatKhoi = false } = {}
     acceptNode: (n) => (n.nodeType === 1 && n.matches(bo) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
   });
   let t = '';
-  let dongTruoc = null;      // toạ độ dòng của đoạn chữ liền trước
+  let truoc = null;          // vị trí đoạn chữ liền trước
   let doDuoc = false;        // đã đo được vị trí ít nhất một lần chưa
   const xuongDong = () => { if (t && !t.endsWith('\n')) t += '\n'; };
+  const themCach = () => { if (t && !/\s$/.test(t)) t += ' '; };
   while (walker.nextNode()) {
     const n = walker.currentNode;
     if (n.nodeType === 3) {
       if (ngatKhoi && n.nodeValue.trim()) {
-        const top = viTriDong(n);
-        if (top !== null) {
+        const o = viTriChu(n);
+        if (o !== null) {
           doDuoc = true;
-          if (dongTruoc !== null && Math.abs(top - dongTruoc) > 2) xuongDong();
-          dongTruoc = top;
+          if (truoc !== null) {
+            // Khác dòng -> xuống dòng. Cùng dòng mà cách xa nhau (dung lượng và nút bấm)
+            // -> thêm khoảng trắng; sát nhau thì nối liền (hai mảnh của một tên file).
+            if (Math.abs(o.top - truoc.top) > 2) xuongDong();
+            else if (o.left - truoc.right > 4) themCach();
+          }
+          truoc = o;
         }
       }
       t += n.nodeValue;
-    } else if (n.tagName === 'BR') { t += '\n'; dongTruoc = null; }
+    } else if (n.tagName === 'BR') { t += '\n'; truoc = null; }
     else if (n.tagName === 'IMG' && laEmojiAlt(n.alt)) t += n.alt;   // emoji được vẽ bằng <img alt="😀">
     else if (ngatKhoi && !doDuoc && KHOI.has(n.tagName)) xuongDong();
   }
@@ -136,6 +144,14 @@ export function attachmentFromMessage(el) {
   if (text) out.text = text.slice(0, 4000);
   const ten = dong.find((d) => d.length <= 200 && DUOI_FILE.test(d));
   if (ten) out.fileName = ten;
+  // Tiêu đề thẻ xem trước: Zalo đã tự tải sẵn, lưu lại để đọc được nội dung link mà
+  // không phải mở trang (nhất là link Facebook — mở ngoài vào chỉ thấy màn đăng nhập).
+  if (url) {
+    const chuTin = new Set((textFromMessage(el) || '').split('\n').map((s) => s.trim()).filter(Boolean));
+    const tieuDe = dong.find((d) => !chuTin.has(d) && !d.includes(url) && !LA_TEN_MIEN.test(d)
+      && d.length >= 8 && !DUOI_FILE.test(d));
+    if (tieuDe) out.linkTitle = tieuDe.slice(0, 300);
+  }
   return out;
 }
 
@@ -154,6 +170,7 @@ export function enrichFromDom(msg, el) {
     if (!text && pl.text) out.text = pl.text;
     if (pl.url) out.url = pl.url;
     if (pl.fileName) out.fileName = pl.fileName;
+    if (pl.linkTitle) out.linkTitle = pl.linkTitle;
   }
   const q = quoteFromMessage(el);
   if (q) out.quote = q;

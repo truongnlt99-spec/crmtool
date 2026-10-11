@@ -67,12 +67,21 @@ check('url rong -> khong ghi khoa url', !(`${base}/url` in M.messagePatch('zalo'
 const pUrlLe = M.messagePatch('zalo', { ...mMe, url: 'https://x.vn/' + String.fromCharCode(0xD83D), fileName: 'a' + String.fromCharCode(0xDC00) + '.pdf' });
 check('lam sach url + ten file', pUrlLe[`${base}/url`] === 'https://x.vn/' && pUrlLe[`${base}/fileName`] === 'a.pdf');
 check('JSON co url luon hop le', !/[\uD800-\uDFFF]/.test(JSON.stringify(pUrlLe)));
+// Tieu de the link xem truoc (Zalo da tai san) -> luu de doc duoc noi dung link
+const pTitle = M.messagePatch('zalo', { ...mMe, kind: 'card', url: 'https://youtu.be/x', linkTitle: 'Tour rodai 500km Sài Gòn' });
+check('luu linkTitle', pTitle[`${base}/linkTitle`] === 'Tour rodai 500km Sài Gòn');
+check('khong co tieu de -> khong ghi khoa', !(`${base}/linkTitle` in M.messagePatch('zalo', { ...mMe, url: 'https://youtu.be/x' })));
+check('lam sach linkTitle', M.messagePatch('zalo', { ...mMe, linkTitle: 'Tour' + String.fromCharCode(0xD83D) })[`${base}/linkTitle`] === 'Tour');
+// hienThiTin: chu hien cho duong link uu tien tieu de, khong co thi dung URL
+const htLink = M.hienThiTin({ kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/x', linkTitle: 'Tour rodai 500km' });
+check('hienThiTin tra ve tieu de link', htLink.linkTitle === 'Tour rodai 500km', JSON.stringify(htLink));
+check('khong co tieu de thi linkTitle rong', M.hienThiTin({ kind: 'card', url: 'https://youtu.be/x' }).linkTitle === null);
 
 console.log('\n>> hienThiTin: quy tac hien mot tin (dung chung cho CRM, trang chia se, MCP)');
 const ht = (m) => M.hienThiTin(m);
-check('tin chu: khong co nhan loai', JSON.stringify(ht({ kind: 'text', text: 'Chào em' })) === JSON.stringify({ chip: null, text: 'Chào em', url: null, thieu: false }), JSON.stringify(ht({ kind: 'text', text: 'Chào em' })));
+check('tin chu: khong co nhan loai', JSON.stringify(ht({ kind: 'text', text: 'Chào em' })) === JSON.stringify({ chip: null, text: 'Chào em', url: null, linkTitle: null, thieu: false }), JSON.stringify(ht({ kind: 'text', text: 'Chào em' })));
 check('tin chu chua co noi dung -> thieu', ht({ kind: 'text' }).thieu === true && ht({ kind: 'text' }).text === '');
-check('anh khong chu thich: chi co nhan', JSON.stringify(ht({ kind: 'image' })) === JSON.stringify({ chip: 'Hình ảnh', text: '', url: null, thieu: false }), JSON.stringify(ht({ kind: 'image' })));
+check('anh khong chu thich: chi co nhan', JSON.stringify(ht({ kind: 'image' })) === JSON.stringify({ chip: 'Hình ảnh', text: '', url: null, linkTitle: null, thieu: false }), JSON.stringify(ht({ kind: 'image' })));
 check('anh co chu thich: nhan + chu thich', ht({ kind: 'image', text: 'Xe cưới của c đây' }).chip === 'Hình ảnh' && ht({ kind: 'image', text: 'Xe cưới của c đây' }).text === 'Xe cưới của c đây');
 check('tin kem link co chu: KHONG dan nhan "Danh thiep"', ht({ kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/x' }).chip === null);
 check('tin kem link: tra ve url', ht({ kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/x' }).url === 'https://youtu.be/x');

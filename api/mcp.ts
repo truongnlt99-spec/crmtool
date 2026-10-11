@@ -358,7 +358,7 @@ export function zaloRootFromDataRoot(dataRoot: string): string {
 }
 
 type ZaloLink = { status?: string; leadId?: string | null; name?: string };
-type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; url?: unknown; fileName?: unknown; quote?: { title?: string; text?: string } | null };
+type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; url?: unknown; fileName?: unknown; linkTitle?: unknown; quote?: { title?: string; text?: string } | null };
 
 /**
  * Tên hiển thị của người gửi — cùng quy tắc displaySender() trong extension/lib/zalo-map.js
@@ -417,6 +417,7 @@ async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boo
           text: typeof m.text === 'string' ? m.text : null,
           url: m.url ? String(m.url) : null,
           fileName: m.fileName ? String(m.fileName) : null,
+          linkTitle: m.linkTitle ? String(m.linkTitle) : null,
           quote: m.quote ? { title: m.quote.title || '', text: m.quote.text || '' } : null,
         }))
         .sort((a, b) => a.at - b.at),
@@ -453,6 +454,7 @@ function hienThiZalo(m: ZaloMsg) {
     text,
     url: m.url ? String(m.url) : null,
     fileName: m.fileName ? String(m.fileName) : null,
+    linkTitle: m.linkTitle ? String(m.linkTitle) : null,
     thieu: kind === 'text' && !text,
   };
 }
@@ -1008,6 +1010,7 @@ const mcpHandler = createMcpHandler(
                 from: m.fromMe ? 'Mình' : (tenNguoiGuiZalo(m, convId, link.name || '') || 'Khách'),
                 text,
                 ...(h.url ? { url: h.url } : {}),
+                ...(h.linkTitle ? { linkTitle: h.linkTitle } : {}),
                 ...(h.fileName ? { fileName: h.fileName } : {}),
                 ...(m.quote ? { quote: `${m.quote.title ? m.quote.title + ': ' : ''}${m.quote.text || ''}` } : {}),
               };

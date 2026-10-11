@@ -4110,7 +4110,7 @@ function renderZaloMessages(box, data, hoiThoai, query){
     : { chip:null, text: typeof m.text === 'string' ? m.text : '', url: m.url || null, thieu: false };
   const q = (query || '').trim().toLowerCase();
   // Tìm cả trong tên file và link, không chỉ nội dung chữ
-  const timDuoc = m => [m.text, m.fileName, m.url].some(v => typeof v === 'string' && v.toLowerCase().includes(q));
+  const timDuoc = m => [m.text, m.fileName, m.url, m.linkTitle].some(v => typeof v === 'string' && v.toLowerCase().includes(q));
   const items = q ? data.filter(timDuoc) : data;
   const thieuChu = data.filter(m => m.kind === 'text' && typeof m.text !== 'string').length;
   const tenNguoiGui = m => window.ZaloMap ? window.ZaloMap.displaySender(m, hoiThoai) : '';
@@ -4128,7 +4128,8 @@ function renderZaloMessages(box, data, hoiThoai, query){
       ? '<span class="zalo-missing">Chưa có nội dung — mở hội thoại này trên Zalo web</span>'
       : chip + (chu ? (chip ? ' ' : '') + chu : '');
     const url = /^https?:\/\//i.test(h.url || '') ? h.url : '';
-    const link = url ? `<div class="zalo-link"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a></div>` : '';
+    // Có tiêu đề trang (Zalo đã tải sẵn) thì hiện tiêu đề cho dễ đọc, link vẫn trỏ đúng URL
+    const link = url ? `<div class="zalo-link"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(h.linkTitle || url)}</a></div>` : '';
     const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
     html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
       + (ten ? `<div class="zalo-who">${esc(ten)}</div>` : '')
