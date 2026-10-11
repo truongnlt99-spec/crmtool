@@ -214,6 +214,75 @@ check('enrich sticker: khong co khoa text', coPL(e23) && !('text' in e23), JSON.
 const e24 = thu(() => DT.enrichFromDom(tinGoc('text'), quoteNhieuDong));
 check('enrich tin tra loi: co trich dan nhieu dong', coPL(e24) && e24.quote && e24.quote.text === 'dòng một\ndòng hai 🎉', JSON.stringify(e24));
 
+/* ---------- 18. DOM THAT (do 11/10/2026): Zalo tach ten file thanh 2 manh de hien dau "..."
+   Hai manh nam CUNG MOT DONG -> phai ghep lien, khong duoc xuong dong giua ten file.
+   Bang chung: tin that luu duoc "HayDay-CRM-Zalo-v0 / .1.7.zip" va fileName sai thanh ".1.7.zip" ---------- */
+const fileTach = tin(`<div class="message-action"><div class="file-message">
+  <div style="display:flex; flex-direction:row">
+    <div class="name-head">HayDay-CRM-Zalo-v0</div><div class="name-tail">.1.7.zip</div>
+  </div>
+  <div class="size">27.52 KB</div>
+  <div class="hint">Tải về để xem lâu dài</div>
+</div></div>`);
+const pl18 = thu(() => DT.attachmentFromMessage(fileTach));
+check('ten file bi tach 2 manh: ghep lai dung', coPL(pl18) && pl18.fileName === 'HayDay-CRM-Zalo-v0.1.7.zip', JSON.stringify(pl18));
+check('ten file bi tach: khong xuong dong giua ten', coPL(pl18) && (pl18.text || '').split(String.fromCharCode(10))[0] === 'HayDay-CRM-Zalo-v0.1.7.zip', JSON.stringify(pl18 && pl18.text));
+check('ten file bi tach: dung luong van o dong rieng', coPL(pl18) && (pl18.text || '').includes(String.fromCharCode(10) + '27.52 KB'), JSON.stringify(pl18 && pl18.text));
+
+/* ---------- 19. Video gui dang file: ten cung bi tach (do 4/10/2026) ---------- */
+const videoTach = tin(`<div class="message-action"><div class="file-message">
+  <div class="duration">01:23</div>
+  <div style="display:flex"><div>video_20261003_1638</div><div>23_1.mp4</div></div>
+  <div>152.35 MB</div>
+</div></div>`);
+const pl19 = thu(() => DT.attachmentFromMessage(videoTach));
+check('ten video bi tach: ghep lai dung', coPL(pl19) && pl19.fileName === 'video_20261003_163823_1.mp4', JSON.stringify(pl19));
+
+/* ---------- 20. DOM THAT: the link xem truoc cua Zalo KHONG phai <a href>.
+   Tin that 15:12 11/10/2026 doc duoc chu "https://... / Tour rodai... / www.youtube.com"
+   nhung url trong -> phai lay URL tu chinh phan chu nhin thay. ---------- */
+const theLink = tin(`<div class="message-action"><div class="card-web" role="button">
+  <div class="card-web__link">https://www.youtube.com/watch?v=1_OLIAIyc5E</div>
+  <div class="card-web__title">Tour rodai 500km Sài Gòn - Nha Trang bằng Cfmoto 450mt mới sắm.</div>
+  <div class="card-web__domain">www.youtube.com</div>
+</div></div>`);
+const pl20 = thu(() => DT.attachmentFromMessage(theLink));
+check('the link khong phai <a>: van lay duoc URL tu chu', coPL(pl20) && pl20.url === 'https://www.youtube.com/watch?v=1_OLIAIyc5E', JSON.stringify(pl20));
+check('the link: giu ca tieu de lam noi dung', coPL(pl20) && (pl20.text || '').includes('Tour rodai 500km'), JSON.stringify(pl20 && pl20.text));
+
+/* ---------- 21. <a href> van duoc uu tien hon URL trong chu ---------- */
+const uuTien = tin(`<div class="message-action">
+  <div class="text-message__container"><div><span class="text">xem ở trang chủ hayday.vn nhé</span></div></div>
+  <div class="card"><a href="https://hayday.vn/bang-gia-2026">Bảng giá 2026</a></div>
+</div>`);
+check('uu tien href that hon chu', thu(() => DT.linkFromMessage(uuTien)) === 'https://hayday.vn/bang-gia-2026', thu(() => DT.linkFromMessage(uuTien)));
+
+/* ---------- 22. Chu binh thuong co dau cham KHONG bi nham la URL ---------- */
+const khongPhaiLink = tin(`<div class="message-action"><div class="file-message">
+  <div>Bao gia.pdf</div><div>1,2 MB</div></div></div>`);
+const pl22 = thu(() => DT.attachmentFromMessage(khongPhaiLink));
+check('ten file khong bi nham thanh URL', coPL(pl22) && !pl22.url, JSON.stringify(pl22));
+
+/* ---------- 23. DOM THAT tin 15:11 ngay 11/10/2026 (anh chup man hinh):
+   chu + URL mau xanh + the xem truoc (anh nho, tieu de, kenh, ten mien).
+   Truoc khi sua: luu duoc moi "test gui tin nhan kem link", url trong. ---------- */
+const tinThat = tin(`<div class="message-action">
+  <div class="text-message__container"><div><div class="overflow-hidden"><span-15>
+    <span class="text">test gửi tin nhắn kèm link</span>
+  </span-15></div></div></div>
+  <div class="link-text">https://www.youtube.com/watch?v=1_OLIAIyc5E</div>
+  <div class="card-web" role="button">
+    <div class="card-web__thumb"><img alt="" src="thumb.jpg"></div>
+    <div class="card-web__title">Tour rodai 500km Sài Gòn - Nha Trang bằng Cfmoto…</div>
+    <div class="card-web__source">Bụi Đời 2 Bánh</div>
+    <div class="card-web__domain">www.youtube.com</div>
+  </div>
+</div>`);
+const e30 = thu(() => DT.enrichFromDom({ msgId: '1', cliMsgId: '1', convId: '1', at: 1, fromMe: true, kind: 'card' }, tinThat));
+check('tin that 15:11: lay duoc URL', coPL(e30) && e30.url === 'https://www.youtube.com/watch?v=1_OLIAIyc5E', JSON.stringify(e30));
+check('tin that 15:11: chu dung y nhu ngoai that', coPL(e30) && e30.text === 'test gửi tin nhắn kèm link', JSON.stringify(e30 && e30.text));
+check('tin that 15:11: khong nham tieu de thanh ten file', coPL(e30) && !e30.fileName, JSON.stringify(e30));
+
 window.__ketQua = ket;
 </script>
 </body>

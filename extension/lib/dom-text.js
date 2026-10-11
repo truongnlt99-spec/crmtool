@@ -20,8 +20,7 @@
 const TRICH_DAN = '[class*="message-quote-fragment"]';
 // Phòng xa: nếu Zalo chuyển mấy phần này vào trong container thì vẫn không lẫn vào nội dung.
 const RAC = '[class*="card-send-time"], [class*="bubble-message-time"], [class*="message-reaction-container"], [class*="reaction-emoji"], [class*="message-sender-name"]';
-// Thẻ khối: trong DOM thật của Zalo các div nằm sát nhau không có khoảng trắng, không ngắt
-// dòng ở đây thì tên file và dung lượng dính liền thành "Bao gia.pdf1,2 MB".
+// Thẻ khối — chỉ dùng để DỰ PHÒNG khi không đo được vị trí (bong bóng đang ẩn).
 const KHOI = new Set(['DIV', 'P', 'LI', 'UL', 'OL', 'TABLE', 'TR', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6']);
 // Đuôi file người ta thật sự gửi qua Zalo. Nhận tên file theo danh sách này, KHÔNG theo
 // dấu chấm chung — tên miền trong thẻ link xem trước ("hayday.vn") cũng có dấu chấm.
@@ -30,10 +29,25 @@ const DUOI_FILE = /\.(pdf|docx?|xlsx?|pptx?|csv|txt|rtf|zip|rar|7z|jpe?g|png|gif
 /** Alt của <img> chỉ lấy khi là emoji (Zalo vẽ emoji bằng ảnh), không lấy tên file ảnh. */
 const laEmojiAlt = (alt) => !!alt && alt.length <= 8 && !DUOI_FILE.test(alt);
 
+/** Toạ độ dòng của một nút chữ trên màn hình, null nếu không đo được (đang ẩn). */
+function viTriDong(n) {
+  try {
+    const r = n.ownerDocument.createRange();
+    r.selectNodeContents(n);
+    const o = r.getBoundingClientRect();
+    return o.height || o.width ? Math.round(o.top) : null;
+  } catch { return null; }
+}
+
 /**
  * Gom chữ trong một nhánh, bỏ phần phụ; <br> thành xuống dòng, emoji lấy từ alt.
  * boTrichDan: bỏ luôn phần trích dẫn (mặc định) — tắt khi đang đọc chính phần trích dẫn.
- * ngatKhoi: mỗi thẻ khối thành một dòng — dùng cho tin file/link, nơi mỗi div là một ý.
+ * ngatKhoi: tách thành nhiều dòng — dùng cho tin file/link, nơi mỗi ý là một dòng.
+ *
+ * Tách dòng theo VỊ TRÍ HIỂN THỊ THẬT, không theo thẻ: Zalo cắt tên file dài thành hai
+ * mảnh nằm cạnh nhau trên cùng một dòng ("HayDay-CRM-Zalo-v0" + ".1.7.zip") để hiện dấu
+ * "…" — cứ thấy thẻ khối là xuống dòng thì tên file bị gãy đôi (lỗi thật ngày 11/10/2026).
+ * Không đo được (bong bóng đang ẩn) thì mới quay về cách cũ: mỗi thẻ khối một dòng.
  */
 export function chuTrongNhanh(root, { boTrichDan = true, ngatKhoi = false } = {}) {
   const bo = boTrichDan ? `${TRICH_DAN}, ${RAC}` : RAC;
@@ -41,12 +55,24 @@ export function chuTrongNhanh(root, { boTrichDan = true, ngatKhoi = false } = {}
     acceptNode: (n) => (n.nodeType === 1 && n.matches(bo) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
   });
   let t = '';
+  let dongTruoc = null;      // toạ độ dòng của đoạn chữ liền trước
+  let doDuoc = false;        // đã đo được vị trí ít nhất một lần chưa
+  const xuongDong = () => { if (t && !t.endsWith('\n')) t += '\n'; };
   while (walker.nextNode()) {
     const n = walker.currentNode;
-    if (n.nodeType === 3) t += n.nodeValue;
-    else if (n.tagName === 'BR') t += '\n';
+    if (n.nodeType === 3) {
+      if (ngatKhoi && n.nodeValue.trim()) {
+        const top = viTriDong(n);
+        if (top !== null) {
+          doDuoc = true;
+          if (dongTruoc !== null && Math.abs(top - dongTruoc) > 2) xuongDong();
+          dongTruoc = top;
+        }
+      }
+      t += n.nodeValue;
+    } else if (n.tagName === 'BR') { t += '\n'; dongTruoc = null; }
     else if (n.tagName === 'IMG' && laEmojiAlt(n.alt)) t += n.alt;   // emoji được vẽ bằng <img alt="😀">
-    else if (ngatKhoi && KHOI.has(n.tagName) && !t.endsWith('\n')) t += '\n';
+    else if (ngatKhoi && !doDuoc && KHOI.has(n.tagName)) xuongDong();
   }
   return t;
 }
@@ -84,15 +110,28 @@ export function linkFromMessage(el) {
 }
 
 /**
+ * URL nằm trong chính phần chữ nhìn thấy. Cần vì thẻ link xem trước của Zalo KHÔNG phải
+ * <a href> mà là div bắt sự kiện bấm (dò trên tin thật ngày 11/10/2026) — chỉ còn URL hiện
+ * ra dưới dạng chữ mới lấy được.
+ */
+function linkTrongChu(dong) {
+  for (const d of dong) {
+    const m = /https?:\/\/[^\s"'<>]+/i.exec(d);
+    if (m) return m[0].replace(/[.,;:!?)\]}]+$/, '');
+  }
+  return null;
+}
+
+/**
  * Phần ngoài chữ của tin: { text?, url?, fileName? } — chỉ gồm khoá nào có thật.
  * Dùng cho tin KHÔNG phải chữ: file (lấy tên file), link xem trước (lấy URL + tiêu đề),
  * ảnh có chú thích (lấy chú thích). Sticker không có chữ nên trả về {}.
  */
 export function attachmentFromMessage(el) {
   const out = {};
-  const url = linkFromMessage(el);
-  if (url) out.url = url;
   const dong = chuTrongNhanh(el, { ngatKhoi: true }).split('\n').map((s) => s.trim()).filter(Boolean);
+  const url = linkFromMessage(el) || linkTrongChu(dong);   // href thật trước, rồi mới tới URL hiện thành chữ
+  if (url) out.url = url;
   const text = dong.join('\n');
   if (text) out.text = text.slice(0, 4000);
   const ten = dong.find((d) => d.length <= 200 && DUOI_FILE.test(d));
