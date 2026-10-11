@@ -121,9 +121,8 @@
   }
 
   /* ---------- DOM hội thoại đang mở ---------- */
-  // Đọc nội dung tin nhắn: xem extension/lib/dom-text.js (có test ở test/zalo-dom.test.html)
-  const domText = (el) => D.textFromMessage(el);
-  const domQuote = (el) => D.quoteFromMessage(el);
+  // Đọc nội dung tin (chữ, chú thích ảnh, tên file, link): extension/lib/dom-text.js
+  // Mọi quyết định nằm trong enrichFromDom() vì chỗ đó có test chạy Chrome thật.
 
   function headerName() {
     const h = document.querySelector('.header-title');
@@ -143,12 +142,9 @@
       count[convId] = (count[convId] || 0) + 1;
       if (doneDom.has(cli) || !isLead(convId)) continue;
       const m = M.fromIdbRecord(rec, await friendName(String(rec.fromUid)));
-      const text = domText(el);
-      if (m.kind === 'text' && !text) continue; // chưa vẽ xong, lần quét sau thử lại
-      m.text = text;
-      const q = domQuote(el);
-      if (q) m.quote = q;
-      (batches[convId] = batches[convId] || []).push(m);
+      const full = D.enrichFromDom(m, el);
+      if (!full) continue; // tin chữ chưa vẽ xong, lần quét sau thử lại
+      (batches[convId] = batches[convId] || []).push(full);
       doneDom.add(cli);
     }
     for (const [convId, msgs] of Object.entries(batches)) {

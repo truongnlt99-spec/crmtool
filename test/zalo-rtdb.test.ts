@@ -60,6 +60,20 @@ try {
   await patchRoot(M.messagePatch(Z, msg));
   check('text van con', (await db(`${Z}/msgs/${C}/7001/text`)) === 'Chào em');
 
+console.log('\n>> 3b. Tin kem link / file: url + ten file len duoc Firebase');
+  const msgFile = { ...msg, msgId: '7005', cliMsgId: '1005', kind: 'file', fileName: 'Bao gia HayDay 2026.pdf', text: 'Bao gia HayDay 2026.pdf\n1,2 MB' };
+  const msgLink = { ...msg, msgId: '7006', cliMsgId: '1006', kind: 'card', text: 'Anh xem them video o day a:', url: 'https://youtu.be/abc123?t=5' };
+  await patchRoot({ ...M.messagePatch(Z, msgFile), ...M.messagePatch(Z, msgLink) });
+  const tFile = await db(`${Z}/msgs/${C}/7005`);
+  const tLink = await db(`${Z}/msgs/${C}/7006`);
+  check('ten file giu nguyen', tFile.fileName === 'Bao gia HayDay 2026.pdf', JSON.stringify(tFile));
+  check('noi dung nhieu dong giu xuong dong', tFile.text === 'Bao gia HayDay 2026.pdf\n1,2 MB', JSON.stringify(tFile.text));
+  check('url giu nguyen ca dau ? va =', tLink.url === 'https://youtu.be/abc123?t=5', JSON.stringify(tLink));
+  check('tin kem link van co chu', tLink.text === 'Anh xem them video o day a:', JSON.stringify(tLink));
+  console.log('\n>> 3c. Quet IndexedDB lan nua -> KHONG mat url/ten file');
+  await patchRoot({ ...M.messagePatch(Z, { ...msgFile, text: undefined, fileName: undefined }), ...M.messagePatch(Z, { ...msgLink, text: undefined, url: undefined }) });
+  check('url va ten file van con', (await db(`${Z}/msgs/${C}/7005/fileName`)) === 'Bao gia HayDay 2026.pdf' && (await db(`${Z}/msgs/${C}/7006/url`)) === 'https://youtu.be/abc123?t=5');
+
   console.log('\n>> 4. Meta + link trong cung mot lenh');
   await patchRoot({ [`${Z}/meta/${C}`]: M.mergeMeta(null, [msg], { leadId: 'L1' }) });
   const meta = await db(`${Z}/meta/${C}`);

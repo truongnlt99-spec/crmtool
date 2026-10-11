@@ -242,6 +242,8 @@
   .zrow.me .zatt{color:inherit; opacity:.85;}
   .zt{font-size:11px; color:var(--text-2); margin-top:3px;}
   .zatt{font-size:12px; font-weight:600; color:var(--text-2);}
+  .zlink{font-size:12px; margin-top:3px; overflow-wrap:anywhere;}
+  .zrow.me .zlink a{color:inherit; text-decoration:underline;}
   .lrow{display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:10px 11px; border-radius:var(--r-md); background:var(--surface);
     margin-bottom:7px; cursor:pointer; border:1px solid var(--border); text-align:left;}
   .lrow:hover{border-color:var(--border-strong); background:var(--surface-2);}
@@ -815,7 +817,19 @@
     if (l.coHoiThoaiZalo) taiHoiThoai(l.id);
   }
 
-  var NHAN_LOAI = { image:'Hình ảnh', sticker:'Sticker', file:'File', video:'Video', link:'Liên kết', card:'Danh thiếp', other:'Tin nhắn đặc biệt' };
+  var NHAN_LOAI = { image:'Hình ảnh', sticker:'Sticker', file:'File', video:'Video', link:'Liên kết', card:'Liên kết', other:'Tin nhắn đặc biệt' };
+  // Cùng quy tắc hienThiTin() trong extension/lib/zalo-map.js (trang này không nạp module được)
+  function hienThiTin(m){
+    var kind = m.kind || 'text';
+    var text = typeof m.text === 'string' ? m.text : '';
+    var kemLink = (kind === 'card' || kind === 'link') && !!text;
+    return {
+      chip: (kind === 'text' || kemLink) ? null : (NHAN_LOAI[kind] || NHAN_LOAI.other),
+      text: text,
+      url: /^https?:\/\//i.test(m.url || '') ? m.url : '',
+      thieu: kind === 'text' && !text
+    };
+  }
   async function taiHoiThoai(leadId){
     var el = document.getElementById('zaloChatBlk');
     if (!el) return;
@@ -835,12 +849,15 @@
     return ds.map(function(hc){
       var rows = hc.messages.map(function(m){
         var d = new Date(m.at);
-        var than = m.kind === 'text'
-          ? (m.text !== null ? esc(m.text) : '<span class="zatt">(chưa có nội dung)</span>')
-          : '<span class="zatt">' + esc(NHAN_LOAI[m.kind] || 'Tin nhắn') + '</span>' + (m.text ? ' ' + esc(m.text) : '');
+        var h = hienThiTin(m);
+        var chip = h.chip ? '<span class="zatt">' + esc(h.chip) + '</span>' : '';
+        var than = h.thieu
+          ? '<span class="zatt">(chưa có nội dung)</span>'
+          : chip + (h.text ? (chip ? ' ' : '') + linkify(esc(h.text)) : '');
+        var lien = h.url ? '<div class="zlink"><a href="' + esc(h.url) + '" target="_blank" rel="noopener noreferrer">' + esc(h.url) + '</a></div>' : '';
         return '<div class="zrow ' + (m.fromMe ? 'me' : 'kh') + '">'
           + (!m.fromMe && m.senderName ? '<div class="zwho">' + esc(m.senderName) + '</div>' : '')
-          + '<div class="zbub">' + than + '</div>'
+          + '<div class="zbub">' + than + lien + '</div>'
           + '<div class="zt">' + d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' }) + '</div></div>';
       }).join('');
       return '<h3 class="panel-title">Hội thoại Zalo' + (ds.length > 1 ? ' · ' + esc(hc.name) : '')
