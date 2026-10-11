@@ -107,7 +107,7 @@ try {
       c5: {
         '200': { at: NOW - 1 * H, fromMe: true, kind: 'text', text: 'Dạ em chào anh' },
         '201': { at: NOW - 50 * 60_000, fromMe: true, kind: 'file', text: 'Bao gia HayDay 2026.pdf'+'\\n'+'1,2 MB', fileName: 'Bao gia HayDay 2026.pdf' },
-        '202': { at: NOW - 40 * 60_000, fromMe: true, kind: 'card', text: 'Anh xem thêm video tại đây ạ:', url: 'https://youtu.be/abc123' },
+        '202': { at: NOW - 40 * 60_000, fromMe: true, kind: 'card', text: 'Anh xem thêm video tại đây ạ:', url: 'https://youtu.be/abc123', linkTitle: 'Phóng sự cưới HayDay — Trân & Tú' },
         '203': { at: NOW - 30 * 60_000, fromMe: false, kind: 'image', text: 'Xe cưới của c đây' },
       },
       g2: {
@@ -162,6 +162,8 @@ try {
   check('tin kem link: tra ve URL', t5[2]?.url === 'https://youtu.be/abc123', JSON.stringify(t5[2]));
   check('tin kem link: chu giu nguyen, khong bi dan nhan', t5[2]?.text === 'Anh xem thêm video tại đây ạ:', t5[2]?.text);
   check('KHONG con nhan sai "Danh thiep"', !r2.text.includes('Danh thiếp'));
+  check('tin kem link: tra ve tieu de trang', t5[2]?.linkTitle === 'Phóng sự cưới HayDay — Trân & Tú', JSON.stringify(t5[2]));
+  check('tieu de link nam trong phan chu cho Claude doc', /Phóng sự cưới HayDay/.test(r2.text), r2.text.slice(0, 120));
   check('anh co chu thich: nhan + chu thich', t5[3]?.text === '[Hình ảnh] Xe cưới của c đây', t5[3]?.text);
 
   const r2b = await callTool('get_conversation', { lead: 'L1', from: '2026-09-10' });

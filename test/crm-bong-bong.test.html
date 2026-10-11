@@ -74,6 +74,22 @@ check('url co dau nhay khong pha duoc thuoc tinh', hrefs.every((h) => /^https?:\
 check('khong nhan javascript:', !box.innerHTML.includes('javascript:'), box.innerHTML.slice(0, 300));
 check('khong co ma nao chay', window.__bi === undefined);
 
+/* ---------- 7. Tin kem link co tieu de: hien tieu de thay vi URL dai ---------- */
+ve([tin({ kind: 'card', text: 'test gửi tin nhắn kèm link', url: 'https://www.youtube.com/watch?v=1_OLIAIyc5E', linkTitle: 'Tour rodai 500km Sài Gòn - Nha Trang' })]);
+const a7 = box.querySelector('.zalo-bubble a');
+check('link co tieu de: href van la URL that', !!a7 && a7.getAttribute('href') === 'https://www.youtube.com/watch?v=1_OLIAIyc5E', a7 && a7.outerHTML);
+check('link co tieu de: chu hien la tieu de', !!a7 && a7.textContent === 'Tour rodai 500km Sài Gòn - Nha Trang', a7 && a7.textContent);
+check('link co tieu de: van giu chu nguoi go', box.innerText.includes('test gửi tin nhắn kèm link'), box.innerText);
+
+/* ---------- 8. Khong co tieu de thi hien URL nhu cu ---------- */
+ve([tin({ kind: 'card', text: 'xem nhé:', url: 'https://hayday.vn/bang-gia' })]);
+const a8 = box.querySelector('.zalo-bubble a');
+check('khong co tieu de: hien URL', !!a8 && a8.textContent === 'https://hayday.vn/bang-gia', a8 && a8.textContent);
+
+/* ---------- 9. Tim kiem theo tieu de link ---------- */
+ve([tin({ kind: 'text', text: 'chào chị' }), tin({ kind: 'card', text: 'link nè', url: 'https://x.vn/a', linkTitle: 'Phóng sự cưới Trân và Tú' })], 'phóng sự');
+check('tim duoc theo tieu de link', box.querySelectorAll('.zalo-row').length === 1 && box.innerText.includes('link nè'), box.innerText);
+
 window.__ketQua = ket;
 </script>
 </body>

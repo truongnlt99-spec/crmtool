@@ -827,6 +827,7 @@
       chip: (kind === 'text' || kemLink) ? null : (NHAN_LOAI[kind] || NHAN_LOAI.other),
       text: text,
       url: /^https?:\/\//i.test(m.url || '') ? m.url : '',
+      linkTitle: m.linkTitle || '',
       thieu: kind === 'text' && !text
     };
   }
@@ -854,7 +855,7 @@
         var than = h.thieu
           ? '<span class="zatt">(chưa có nội dung)</span>'
           : chip + (h.text ? (chip ? ' ' : '') + linkify(esc(h.text)) : '');
-        var lien = h.url ? '<div class="zlink"><a href="' + esc(h.url) + '" target="_blank" rel="noopener noreferrer">' + esc(h.url) + '</a></div>' : '';
+        var lien = h.url ? '<div class="zlink"><a href="' + esc(h.url) + '" target="_blank" rel="noopener noreferrer">' + esc(h.linkTitle || h.url) + '</a></div>' : '';
         return '<div class="zrow ' + (m.fromMe ? 'me' : 'kh') + '">'
           + (!m.fromMe && m.senderName ? '<div class="zwho">' + esc(m.senderName) + '</div>' : '')
           + '<div class="zbub">' + than + lien + '</div>'

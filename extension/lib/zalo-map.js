@@ -64,6 +64,7 @@ export function hienThiTin(m) {
     chip: laChu || kemLink ? null : (KIND_LABEL[kind] || KIND_LABEL.other),
     text,
     url,
+    linkTitle: (m && m.linkTitle) || null,
     thieu: laChu && !text,
   };
 }
@@ -156,6 +157,7 @@ export function messagePatch(zroot, msg) {
   if (typeof msg.text === 'string') p[`${b}/text`] = sachUnicode(msg.text);
   if (msg.url) p[`${b}/url`] = sachUnicode(msg.url);
   if (msg.fileName) p[`${b}/fileName`] = sachUnicode(msg.fileName);
+  if (msg.linkTitle) p[`${b}/linkTitle`] = sachUnicode(msg.linkTitle);
   if (msg.quote) p[`${b}/quote`] = { title: sachUnicode(msg.quote.title || ''), text: sachUnicode(msg.quote.text || '') };
   return p;
 }

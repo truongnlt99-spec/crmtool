@@ -283,6 +283,51 @@ check('tin that 15:11: lay duoc URL', coPL(e30) && e30.url === 'https://www.yout
 check('tin that 15:11: chu dung y nhu ngoai that', coPL(e30) && e30.text === 'test gửi tin nhắn kèm link', JSON.stringify(e30 && e30.text));
 check('tin that 15:11: khong nham tieu de thanh ten file', coPL(e30) && !e30.fileName, JSON.stringify(e30));
 
+/* ---------- 24. Cung mot dong nhung CACH NHAU thi phai co khoang trang
+   (du lieu that 15:29: "28.19 KBTai ve de xem lau dai" dinh lien, kho doc) ---------- */
+const fileCachNhau = tin(`<div class="message-action"><div class="file-message">
+  <div style="display:flex"><div>HayDay-CRM-Zalo-v0</div><div>.1.8.zip</div></div>
+  <div style="display:flex"><div style="margin-right:60px">28.19 KB</div><div>Tải về để xem lâu dài</div></div>
+</div></div>`);
+const pl24 = thu(() => DT.attachmentFromMessage(fileCachNhau));
+check('ten file sat nhau: van ghep lien', coPL(pl24) && pl24.fileName === 'HayDay-CRM-Zalo-v0.1.8.zip', JSON.stringify(pl24));
+check('cung dong nhung cach nhau: co khoang trang', coPL(pl24) && (pl24.text || '').includes('28.19 KB Tải về để xem lâu dài'), JSON.stringify(pl24 && pl24.text));
+
+/* ---------- 25. Tieu de the xem truoc: lay rieng ra de Claude doc duoc noi dung link ---------- */
+const linkCoTieuDe = tin(`<div class="message-action">
+  <div class="text-message__container"><div><span class="text">test gửi tin nhắn kèm link</span></div></div>
+  <div class="link-text">https://www.youtube.com/watch?v=1_OLIAIyc5E</div>
+  <div class="card-web">
+    <div class="card-web__title">Tour rodai 500km Sài Gòn - Nha Trang bằng Cfmoto 450mt mới sắm.</div>
+    <div class="card-web__source">Bụi Đời 2 Bánh</div>
+    <div class="card-web__domain">www.youtube.com</div>
+  </div>
+</div>`);
+const pl25 = thu(() => DT.attachmentFromMessage(linkCoTieuDe));
+check('lay duoc tieu de the link', coPL(pl25) && pl25.linkTitle === 'Tour rodai 500km Sài Gòn - Nha Trang bằng Cfmoto 450mt mới sắm.', JSON.stringify(pl25 && pl25.linkTitle));
+check('tieu de KHONG phai chu nguoi dung go', coPL(pl25) && pl25.linkTitle !== 'test gửi tin nhắn kèm link', JSON.stringify(pl25 && pl25.linkTitle));
+check('tieu de KHONG phai ten mien', coPL(pl25) && !/^www\./.test(pl25.linkTitle || ''), JSON.stringify(pl25 && pl25.linkTitle));
+
+/* ---------- 26. Tin chi co link (khong co chu nguoi go) ---------- */
+const chiLink26 = tin(`<div class="message-action"><div class="card-web">
+  <div>https://hayday.vn/bang-gia</div>
+  <div>Bảng giá chụp ảnh cưới 2026 — HayDay Media</div>
+  <div>hayday.vn</div>
+</div></div>`);
+const pl26 = thu(() => DT.attachmentFromMessage(chiLink26));
+check('tin chi co link: co ca url va tieu de', coPL(pl26) && pl26.url === 'https://hayday.vn/bang-gia' && pl26.linkTitle === 'Bảng giá chụp ảnh cưới 2026 — HayDay Media', JSON.stringify(pl26));
+
+/* ---------- 27. Tin file KHONG duoc sinh linkTitle ---------- */
+const file27 = tin(`<div class="message-action"><div class="file-message">
+  <div>Bao gia HayDay 2026.pdf</div><div>1,2 MB</div></div></div>`);
+const pl27 = thu(() => DT.attachmentFromMessage(file27));
+check('tin file khong co linkTitle', coPL(pl27) && !pl27.linkTitle, JSON.stringify(pl27));
+
+/* ---------- 28. enrichFromDom chuyen tieu de len tin ---------- */
+const e28 = thu(() => DT.enrichFromDom({ msgId: '1', cliMsgId: '1', convId: '1', at: 1, fromMe: true, kind: 'card' }, linkCoTieuDe));
+check('enrich: tin co linkTitle', coPL(e28) && e28.linkTitle === 'Tour rodai 500km Sài Gòn - Nha Trang bằng Cfmoto 450mt mới sắm.', JSON.stringify(e28));
+check('enrich: van giu chu nguoi go', coPL(e28) && e28.text === 'test gửi tin nhắn kèm link', JSON.stringify(e28 && e28.text));
+
 window.__ketQua = ket;
 </script>
 </body>
