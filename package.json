@@ -20,7 +20,8 @@
     "test:zalo-dom": "node test/zalo-dom.test.ts",
     "test:zalo-db": "node test/zalo-rtdb.test.ts",
     "test:mcp-zalo": "node test/mcp-hoi-thoai.test.ts",
-    "test:dongbo": "node test/dong-bo.test.ts"
+    "test:dongbo": "node test/dong-bo.test.ts",
+    "dong-goi": "node scripts/dong-goi-extension.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2",
