@@ -9,3 +9,6 @@ rules-de-dan.json
 
 # Bo ban giao thiet ke: sinh bang node design-handoff/build.mjs
 design-handoff/dist/
+
+# File ZIP extension de gui nguoi dung (tao bang: npm run dong-goi)
+ban-phat-hanh/
