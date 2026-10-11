@@ -1,0 +1,79 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test ve bong bong chat trong CRM</title>
+<!--
+  Chay HAM THAT trong index.html (renderZaloMessages + esc + linkify + zaloHighlight) chu khong
+  chep lai: trich nguyen van ham tu index.html roi chay trong trinh duyet that.
+  Chay bang: node test/zalo-dom.test.ts test/crm-bong-bong.test.html
+-->
+<body>
+<div id="box" class="zalo-list"></div>
+<script type="module">
+import * as ZaloMap from '../extension/lib/zalo-map.js';
+window.ZaloMap = ZaloMap;
+
+const ket = [];
+const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
+
+/* ---------- Trích hàm từ index.html ---------- */
+const src = await (await fetch('../index.html')).text();
+function trichHam(ten) {
+  // Cac ham nay deu o cap ngoai cung trong index.html -> ket thuc o dong "}" sat le trai.
+  // Khong dem ngoac: trong than ham co regex chua "}" le (vd linkify) lam dem sai.
+  const i = src.indexOf('function ' + ten + '(');
+  if (i < 0) throw new Error('khong tim thay ham ' + ten + ' trong index.html');
+  const het = src.indexOf(String.fromCharCode(10) + '}', i);
+  if (het < 0) throw new Error('khong thay cuoi ham ' + ten);
+  return src.slice(i, het + 2);
+}
+const nguon = ['esc', 'linkify', 'zaloHighlight', 'renderZaloMessages'].map(trichHam).join('\n');
+const render = new Function(nguon + '\nreturn renderZaloMessages;')();
+
+const box = document.getElementById('box');
+const tin = (x) => ({ at: Date.UTC(2026, 9, 1, 3, 0), fromMe: false, kind: 'text', ...x });
+const ve = (ds, q) => { render(box, ds, { name: 'Lan Nguyễn', isGroup: false }, q); return box; };
+
+/* ---------- 1. Tin kèm link: chữ + link bấm được, KHÔNG dán nhãn ---------- */
+ve([tin({ kind: 'card', text: 'Anh xem thêm video tại đây ạ:', url: 'https://youtu.be/abc123' })]);
+const a1 = box.querySelector('.zalo-bubble a');
+check('tin kem link: co the <a> dung URL', !!a1 && a1.getAttribute('href') === 'https://youtu.be/abc123', a1 && a1.outerHTML);
+check('tin kem link: giu nguyen chu', box.innerText.includes('Anh xem thêm video tại đây ạ:'), box.innerText);
+check('tin kem link: khong dan nhan loai', !box.querySelector('.zalo-att'), box.innerHTML.slice(0, 200));
+
+/* ---------- 2. Tin file: nhãn File + tên file + dung lượng ---------- */
+ve([tin({ kind: 'file', text: 'Bao gia HayDay 2026.pdf' + String.fromCharCode(10) + '1,2 MB', fileName: 'Bao gia HayDay 2026.pdf' })]);
+check('tin file: co nhan File', (box.querySelector('.zalo-att') || {}).textContent === 'File', box.innerHTML.slice(0, 200));
+check('tin file: co ten file va dung luong', /Bao gia HayDay 2026\.pdf/.test(box.innerText) && /1,2 MB/.test(box.innerText), box.innerText);
+
+/* ---------- 3. Ảnh có chú thích ---------- */
+ve([tin({ kind: 'image', text: 'Xe cưới của c đây' })]);
+check('anh co chu thich: nhan Hinh anh + chu thich', (box.querySelector('.zalo-att') || {}).textContent === 'Hình ảnh' && box.innerText.includes('Xe cưới của c đây'), box.innerText);
+
+/* ---------- 4. Tin chữ chưa đồng bộ nội dung ---------- */
+ve([tin({})]);
+check('tin chu thieu noi dung: bao ro', !!box.querySelector('.zalo-missing') && /Chưa có nội dung/.test(box.innerText), box.innerText);
+
+/* ---------- 5. Tìm kiếm: gõ "pdf" ra tin file, gõ "youtu" ra tin link ---------- */
+const ds = [
+  tin({ kind: 'text', text: 'Chị xem giúp em nhé' }),
+  tin({ kind: 'file', text: 'Bao gia.pdf', fileName: 'Bao gia.pdf' }),
+  tin({ kind: 'card', text: 'Video ở đây ạ:', url: 'https://youtu.be/abc123' }),
+];
+ve(ds, 'pdf');
+check('tim theo ten file', box.querySelectorAll('.zalo-row').length === 1 && box.innerText.includes('Bao gia.pdf'), box.innerText);
+ve(ds, 'youtu');
+check('tim theo link', box.querySelectorAll('.zalo-row').length === 1 && box.innerText.includes('Video ở đây ạ:'), box.innerText);
+
+/* ---------- 6. Nội dung khách gửi KHÔNG chạy được mã ---------- */
+ve([tin({ kind: 'text', text: '<img src=x onerror="window.__bi=1">' }),
+    tin({ kind: 'link', url: 'https://x.vn/a" onmouseover="window.__bi=1' }),
+    tin({ kind: 'link', url: 'javascript:window.__bi=1' })]);
+check('chu cua khach khong tao the HTML', !box.querySelector('img') && box.innerText.includes('<img src=x'), box.innerText);
+const hrefs = [...box.querySelectorAll('.zalo-bubble a')].map((a) => a.getAttribute('href'));
+check('url co dau nhay khong pha duoc thuoc tinh', hrefs.every((h) => /^https?:\/\//.test(h)), JSON.stringify(hrefs));
+check('khong nhan javascript:', !box.innerHTML.includes('javascript:'), box.innerHTML.slice(0, 300));
+check('khong co ma nao chay', window.__bi === undefined);
+
+window.__ketQua = ket;
+</script>
+</body>

@@ -56,6 +56,12 @@ for (const m of [...background.matchAll(/^import \{([^}]+)\} from '\.\/lib\/zalo
   }
 }
 
+// content.js phải đi qua enrichFromDom() — hàm DUY NHẤT có test DOM thật. Tự nội suy chữ
+// trong content.js là lỗi cũ (v0.1.5 ship ra mà không đọc được tin nào).
+console.log('\n>> content.js dung ham doc DOM da co test');
+check('goi D.enrichFromDom', /D\.enrichFromDom\(/.test(content));
+check('khong con tu lay text roi tu quyet dinh', !/const text = domText\(/.test(content));
+
 console.log('\n>> Phien ban va cac file bat buoc');
 check('manifest co version', /^\d+\.\d+\.\d+$/.test(manifest.version), manifest.version);
 for (const f of ['extension/background.js', 'extension/content.js', 'extension/sidepanel.html', 'extension/sidepanel.js', 'extension/sidepanel.css', 'extension/lib/config.js', 'extension/lib/fb.js']) {

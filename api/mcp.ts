@@ -358,7 +358,7 @@ export function zaloRootFromDataRoot(dataRoot: string): string {
 }
 
 type ZaloLink = { status?: string; leadId?: string | null; name?: string };
-type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; quote?: { title?: string; text?: string } | null };
+type ZaloMsg = { at?: number; fromMe?: boolean; senderName?: string; kind?: string; text?: unknown; url?: unknown; fileName?: unknown; quote?: { title?: string; text?: string } | null };
 
 /**
  * Tên hiển thị của người gửi — cùng quy tắc displaySender() trong extension/lib/zalo-map.js
@@ -415,6 +415,8 @@ async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boo
           senderName: tenNguoiGuiZalo(m, convId, l.name || ''),
           kind: m.kind || 'other',
           text: typeof m.text === 'string' ? m.text : null,
+          url: m.url ? String(m.url) : null,
+          fileName: m.fileName ? String(m.fileName) : null,
           quote: m.quote ? { title: m.quote.title || '', text: m.quote.text || '' } : null,
         }))
         .sort((a, b) => a.at - b.at),
@@ -433,8 +435,27 @@ type ZaloStore = { links: Record<string, ZaloLink>; meta: Record<string, ZaloMet
 const ZALO_SILENT_DAYS = 3;
 const NHAN_LOAI_ZALO: Record<string, string> = {
   image: 'Hình ảnh', sticker: 'Sticker', file: 'File', video: 'Video',
-  link: 'Liên kết', card: 'Danh thiếp', other: 'Tin nhắn đặc biệt',
+  link: 'Liên kết', card: 'Liên kết', other: 'Tin nhắn đặc biệt',
 };
+
+/**
+ * Giống hienThiTin() trong extension/lib/zalo-map.js (không import được vì Vercel không đóng gói
+ * file ngoài api/). Sửa quy tắc hiển thị thì sửa cả hai chỗ.
+ *   chip  : nhãn loại tin; null khi không cần (tin chữ, hoặc tin kèm link đã có chữ)
+ *   thieu : tin chữ chưa có nội dung (hội thoại chưa được mở trên Zalo web)
+ */
+function hienThiZalo(m: ZaloMsg) {
+  const kind = m.kind || 'text';
+  const text = typeof m.text === 'string' ? m.text : '';
+  const kemLink = (kind === 'card' || kind === 'link') && !!text;
+  return {
+    chip: kind === 'text' || kemLink ? null : (NHAN_LOAI_ZALO[kind] || NHAN_LOAI_ZALO.other),
+    text,
+    url: m.url ? String(m.url) : null,
+    fileName: m.fileName ? String(m.fileName) : null,
+    thieu: kind === 'text' && !text,
+  };
+}
 
 /** Kho Zalo của request hiện tại (theo tài khoản của khoá MCP). */
 function zaloRoot(): string {
@@ -978,15 +999,16 @@ const mcpHandler = createMcpHandler(
             shown: shown.length,
             missingText: msgs.filter((m) => (m.kind || 'text') === 'text' && typeof m.text !== 'string').length,
             messages: shown.map((m) => {
-              const kind = m.kind || 'other';
-              const chu = typeof m.text === 'string' ? m.text : '';
-              const text = kind === 'text'
-                ? (chu || '(chưa có nội dung — tin chưa được mở trên Zalo web)')
-                : `[${NHAN_LOAI_ZALO[kind] || 'Tin nhắn'}]${chu ? ' ' + chu : ''}`;
+              const h = hienThiZalo(m);
+              const text = h.thieu
+                ? '(chưa có nội dung — tin chưa được mở trên Zalo web)'
+                : (h.chip ? `[${h.chip}]${h.text ? ' ' + h.text : ''}` : h.text);
               return {
                 time: gioVN(Number(m.at)),
                 from: m.fromMe ? 'Mình' : (tenNguoiGuiZalo(m, convId, link.name || '') || 'Khách'),
                 text,
+                ...(h.url ? { url: h.url } : {}),
+                ...(h.fileName ? { fileName: h.fileName } : {}),
                 ...(m.quote ? { quote: `${m.quote.title ? m.quote.title + ': ' : ''}${m.quote.text || ''}` } : {}),
               };
             }),

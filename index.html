@@ -759,6 +759,8 @@
   .zalo-time{font-size:10px; color:var(--ink-faint); margin-top:2px;}
   .zalo-att{display:inline-block; font-size:11px; font-weight:700; color:var(--ink-soft); background:var(--gray-tag-soft); border-radius:999px; padding:1px 8px;}
   .zalo-quote{font-size:11px; color:var(--ink-soft); border-left:2px solid var(--green-500); padding-left:6px; margin-bottom:4px;}
+  .zalo-link{font-size:11px; margin-top:3px;}
+  .zalo-link a{overflow-wrap:anywhere;}
   .zalo-missing{font-style:italic; color:var(--ink-faint);}
   .zalo-note{font-size:11px; color:var(--amber); font-weight:700; margin-bottom:6px;}
   .zalo-list mark{background:var(--amber-soft); color:inherit; border-radius:2px;}
@@ -4103,9 +4105,13 @@ function renderZaloList(){
 function renderZaloMessages(box, data, hoiThoai, query){
   if (!data){ box.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
   if (data.error){ box.innerHTML = '<div class="list-empty">Không tải được hội thoại (có thể chưa cập nhật Security Rules).</div>'; return; }
-  const labels = (window.ZaloMap && window.ZaloMap.KIND_LABEL) || {};
+  // Quy tắc hiện một tin (nhãn loại, link, tin chưa có nội dung): extension/lib/zalo-map.js
+  const hienThi = m => window.ZaloMap ? window.ZaloMap.hienThiTin(m)
+    : { chip:null, text: typeof m.text === 'string' ? m.text : '', url: m.url || null, thieu: false };
   const q = (query || '').trim().toLowerCase();
-  const items = q ? data.filter(m => (m.text || '').toLowerCase().includes(q)) : data;
+  // Tìm cả trong tên file và link, không chỉ nội dung chữ
+  const timDuoc = m => [m.text, m.fileName, m.url].some(v => typeof v === 'string' && v.toLowerCase().includes(q));
+  const items = q ? data.filter(timDuoc) : data;
   const thieuChu = data.filter(m => m.kind === 'text' && typeof m.text !== 'string').length;
   const tenNguoiGui = m => window.ZaloMap ? window.ZaloMap.displaySender(m, hoiThoai) : '';
   let html = '', ngayTruoc = '';
@@ -4114,14 +4120,19 @@ function renderZaloMessages(box, data, hoiThoai, query){
     const d = new Date(m.at);
     const ngay = d.toLocaleDateString('vi-VN', { weekday:'long', day:'2-digit', month:'2-digit' });
     if (!q && ngay !== ngayTruoc){ html += `<div class="zalo-day">${esc(ngay)}</div>`; ngayTruoc = ngay; }
-    const chu = typeof m.text === 'string' ? zaloHighlight(esc(m.text), q) : '';
-    const body = m.kind === 'text'
-      ? (typeof m.text === 'string' ? chu : '<span class="zalo-missing">Chưa có nội dung — mở hội thoại này trên Zalo web</span>')
-      : `<span class="zalo-att">${esc(labels[m.kind] || 'Tin nhắn')}</span>${chu ? ' ' + chu : ''}`;
+    const h = hienThi(m);
+    // Đang tìm thì tô vàng (không gắn link kẻo <mark> lọt vào href); không tìm thì link bấm được
+    const chu = h.text ? (q ? zaloHighlight(esc(h.text), q) : linkify(esc(h.text))) : '';
+    const chip = h.chip ? `<span class="zalo-att">${esc(h.chip)}</span>` : '';
+    const body = h.thieu
+      ? '<span class="zalo-missing">Chưa có nội dung — mở hội thoại này trên Zalo web</span>'
+      : chip + (chu ? (chip ? ' ' : '') + chu : '');
+    const url = /^https?:\/\//i.test(h.url || '') ? h.url : '';
+    const link = url ? `<div class="zalo-link"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(url)}</a></div>` : '';
     const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
     html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
       + (ten ? `<div class="zalo-who">${esc(ten)}</div>` : '')
-      + `<div class="zalo-bubble">${quote}${body}</div>`
+      + `<div class="zalo-bubble">${quote}${body}${link}</div>`
       + `<div class="zalo-time">${d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}</div></div>`;
   });
   box.innerHTML = (thieuChu ? `<div class="zalo-note">${thieuChu} tin chưa có nội dung — mở hội thoại trên Zalo web để đồng bộ</div>` : '')

@@ -44,8 +44,29 @@ export function kindOf(originMsgType) {
 }
 export const KIND_LABEL = {
   text: '', image: 'Hình ảnh', sticker: 'Sticker', file: 'File', video: 'Video',
-  link: 'Liên kết', card: 'Danh thiếp', other: 'Tin nhắn đặc biệt',
+  link: 'Liên kết', card: 'Liên kết', other: 'Tin nhắn đặc biệt',
 };
+
+/**
+ * Quy tắc hiện MỘT tin nhắn, dùng chung cho CRM (index.html), trang chia sẻ (xem.html) và
+ * MCP (api/mcp.ts). Hai chỗ sau chép lại quy tắc này vì không import được module —
+ * sửa ở đây thì sửa cả hai chỗ đó.
+ *   chip  : nhãn loại tin; null khi không cần (tin chữ, hoặc tin kèm link đã có chữ)
+ *   thieu : tin chữ chưa có nội dung (hội thoại chưa được mở trên Zalo web)
+ */
+export function hienThiTin(m) {
+  const kind = (m && m.kind) || 'text';
+  const text = typeof (m && m.text) === 'string' ? m.text : '';
+  const url = (m && m.url) || null;
+  const laChu = kind === 'text';
+  const kemLink = (kind === 'card' || kind === 'link') && !!text;
+  return {
+    chip: laChu || kemLink ? null : (KIND_LABEL[kind] || KIND_LABEL.other),
+    text,
+    url,
+    thieu: laChu && !text,
+  };
+}
 
 export function isGroupConv(convId) {
   return String(convId).startsWith('g');
@@ -133,6 +154,8 @@ export function messagePatch(zroot, msg) {
   };
   if (msg.senderName) p[`${b}/senderName`] = sachUnicode(msg.senderName);
   if (typeof msg.text === 'string') p[`${b}/text`] = sachUnicode(msg.text);
+  if (msg.url) p[`${b}/url`] = sachUnicode(msg.url);
+  if (msg.fileName) p[`${b}/fileName`] = sachUnicode(msg.fileName);
   if (msg.quote) p[`${b}/quote`] = { title: sachUnicode(msg.quote.title || ''), text: sachUnicode(msg.quote.text || '') };
   return p;
 }

@@ -8,6 +8,7 @@
 <body>
 <script type="module">
 import { textFromMessage, quoteFromMessage } from '../extension/lib/dom-text.js';
+import * as DT from '../extension/lib/dom-text.js';
 
 const ket = [];
 const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
@@ -86,6 +87,132 @@ check('tin anh -> null', textFromMessage(anh) === null, JSON.stringify(textFromM
 /* ---------- 8. Tin chưa vẽ xong -> null ---------- */
 const rong = tin(`<div class="text-message__container"><div><div class="overflow-hidden"></div></div></div>`);
 check('chua ve xong -> null', textFromMessage(rong) === null, JSON.stringify(textFromMessage(rong)));
+
+/* ==================================================================
+   Các loại tin kèm nội dung ngoài chữ (link xem trước, file, chú thích)
+   Cấu trúc dưới đây là MẪU GIẢ: thuật toán cố ý KHÔNG dựa vào tên class,
+   chỉ gom chữ nhìn thấy trong bong bóng + href, nên Zalo đổi class vẫn chạy.
+   ================================================================== */
+const thu = (fn) => { try { return fn(); } catch (e) { return { loi: e.message }; } };
+// Phu luc doc duoc that su (khong phai loi) -> cac check 'khong duoc lan rac' moi co y nghia
+const coPL = (x) => !!x && typeof x === 'object' && !x.loi;
+
+/* ---------- 9. Trích dẫn nhiều dòng: giữ xuống dòng, không mất chữ ---------- */
+const quoteNhieuDong = tin(`<div class="text-message__container"><div><span-15>
+  <div class="message-quote-fragment">
+    <div class="message-quote-fragment__title-wrapper"><div class="message-quote-fragment__title">Chị Phương Anh</div></div>
+    <div class="message-quote-fragment__content-container"><div class="message-quote-fragment__description">
+      <div class="message-quote-fragment__text">dòng một<br>dòng hai <img alt="🎉" src="x.png"></div>
+    </div></div>
+  </div>
+  <span class="text">dạ em gửi chị</span>
+</span-15></div></div>`);
+const q2 = thu(() => quoteFromMessage(quoteNhieuDong));
+check('trich dan nhieu dong: giu xuong dong', q2 && q2.text === 'dòng một\ndòng hai 🎉', JSON.stringify(q2));
+check('trich dan nhieu dong: noi dung tin khong lan trich dan', textFromMessage(quoteNhieuDong) === 'dạ em gửi chị', textFromMessage(quoteNhieuDong));
+
+/* ---------- 10. Tin chữ KÈM LINK xem trước (kind card) ---------- */
+const kemLink = tin(`<div class="message-action">
+  <div class="text-message__container"><div><div class="overflow-hidden"><span-15>
+    <span class="text">Anh Đức xem thêm video tại đây ạ:</span>
+  </span-15></div></div></div>
+  <div class="card-link"><a href="https://youtu.be/abc123" target="_blank">
+    <div class="card-link__title">Phóng sự cưới HayDay</div>
+    <div class="card-link__desc">youtube.com</div>
+  </a></div>
+</div>`);
+check('tin kem link: noi dung chu khong lan tieu de link', textFromMessage(kemLink) === 'Anh Đức xem thêm video tại đây ạ:', textFromMessage(kemLink));
+check('tin kem link: lay duoc URL', thu(() => DT.linkFromMessage(kemLink)) === 'https://youtu.be/abc123', thu(() => DT.linkFromMessage(kemLink)));
+
+/* ---------- 11. Tin CHỈ có link xem trước (kind link) ---------- */
+const chiLink = tin(`<div class="message-action"><div class="card-link">
+  <a href="https://hayday.vn/bang-gia"><div class="card-link__title">Bảng giá 2026</div>
+  <div class="card-link__desc">hayday.vn</div></a>
+</div></div>`);
+const pl11 = thu(() => DT.attachmentFromMessage(chiLink));
+check('tin chi co link: lay URL', pl11 && pl11.url === 'https://hayday.vn/bang-gia', JSON.stringify(pl11));
+check('tin chi co link: lay tieu de lam noi dung', pl11 && pl11.text === 'Bảng giá 2026\nhayday.vn', JSON.stringify(pl11));
+check('tin chi co link: ten mien KHONG bi coi la ten file', coPL(pl11) && !pl11.fileName, JSON.stringify(pl11));
+
+/* ---------- 12. Tin FILE: lấy tên file ---------- */
+const file = tin(`<div class="message-action"><div class="file-message">
+  <div class="file-message__name">Bao gia HayDay 2026.pdf</div>
+  <div class="file-message__size">1,2 MB</div>
+</div></div>`);
+const pl12 = thu(() => DT.attachmentFromMessage(file));
+check('tin file: lay dung ten file', pl12 && pl12.fileName === 'Bao gia HayDay 2026.pdf', JSON.stringify(pl12));
+check('tin file: noi dung co ten file va dung luong', pl12 && pl12.text === 'Bao gia HayDay 2026.pdf\n1,2 MB', JSON.stringify(pl12));
+check('tin file: khong dinh gio gui / cam xuc', coPL(pl12) && !/08:16|❤️|👍|😄/.test(pl12.text || ''), JSON.stringify(pl12));
+
+/* ---------- 13. Sticker: không có chữ -> không ghi gì ---------- */
+const sticker = tin(`<div class="message-action"><div class="sticker-wrapper"><img alt="" src="sticker.png"></div></div>`);
+const pl13 = thu(() => DT.attachmentFromMessage(sticker));
+check('sticker: khong sinh noi dung rac', coPL(pl13) && !pl13.text && !pl13.url && !pl13.fileName, JSON.stringify(pl13));
+
+/* ---------- 14. Ảnh có chú thích: lấy chú thích, KHÔNG lấy tên file ảnh ---------- */
+const anhCoChu = tin(`<div class="message-action">
+  <div class="card"><img alt="IMG_20260101_123456.jpg" src="anh.jpg"></div>
+  <div class="photo-caption">Xe cưới của c đây <img alt="🎉" src="e.png"></div>
+</div>`);
+const pl14 = thu(() => DT.attachmentFromMessage(anhCoChu));
+check('anh co chu thich: lay duoc chu thich + emoji', pl14 && pl14.text === 'Xe cưới của c đây 🎉', JSON.stringify(pl14));
+check('anh co chu thich: khong lay ten file anh tu alt', coPL(pl14) && !pl14.fileName, JSON.stringify(pl14));
+
+/* ---------- 15. Bong bóng lạ (Zalo đổi class): vẫn đọc được chữ ---------- */
+const la = tin(`<div class="xyz-9f2"><div class="abc-11">Tin dạng mới của Zalo</div></div>`);
+check('bong bong la: van doc duoc chu', thu(() => DT.attachmentFromMessage(la).text) === 'Tin dạng mới của Zalo', JSON.stringify(thu(() => DT.attachmentFromMessage(la))));
+
+/* ---------- 16. Phụ lục không lấn sang phần trích dẫn ---------- */
+const fileTraLoi = tin(`<div class="message-action">
+  <div class="message-quote-fragment"><div class="message-quote-fragment__description">gửi em bảng giá nhé</div></div>
+  <div class="file-message"><div class="file-message__name">Bang gia.xlsx</div></div>
+</div>`);
+const pl16 = thu(() => DT.attachmentFromMessage(fileTraLoi));
+check('phu luc: khong lan chu trong trich dan', pl16 && pl16.text === 'Bang gia.xlsx', JSON.stringify(pl16));
+check('phu luc: ten file trong tin tra loi', pl16 && pl16.fileName === 'Bang gia.xlsx', JSON.stringify(pl16));
+
+/* ---------- 17. DOM that cua Zalo bi minify: cac div dinh lien, khong co khoang trang ---------- */
+const fileMin = tin('<div class="message-action"><div class="f"><div class="n">Bang gia Signature.pdf</div><div class="s">980 KB</div></div></div>');
+const pl17 = thu(() => DT.attachmentFromMessage(fileMin));
+check('DOM minify: ten file khong dinh lien dung luong', coPL(pl17) && pl17.fileName === 'Bang gia Signature.pdf', JSON.stringify(pl17));
+check('DOM minify: noi dung tach thanh 2 dong', coPL(pl17) && pl17.text === 'Bang gia Signature.pdf' + String.fromCharCode(10) + '980 KB', JSON.stringify(pl17));
+
+/* ==================================================================
+   enrichFromDom(): gắn những gì đọc được từ DOM vào tin đã có siêu dữ liệu.
+   content.js chỉ gọi đúng hàm này -> lỗi "quên nối dây" bị test bắt tại đây.
+   ================================================================== */
+const tinGoc = (kind) => ({ msgId: '700', cliMsgId: '1758500000000', convId: '123', at: 1758500000123, fromMe: false, kind });
+
+/* ---------- 18. Tin chữ: gắn chữ, không sinh url/fileName ---------- */
+const e18 = thu(() => DT.enrichFromDom(tinGoc('text'), thuong));
+check('enrich tin chu: co text', coPL(e18) && e18.text === 'tin nhắn bình thường', JSON.stringify(e18));
+check('enrich tin chu: khong sinh url/fileName', coPL(e18) && !e18.url && !e18.fileName, JSON.stringify(e18));
+
+/* ---------- 19. Tin chữ chưa vẽ xong -> null để lần quét sau thử lại ---------- */
+check('enrich tin chu chua ve xong -> null', thu(() => DT.enrichFromDom(tinGoc('text'), rong)) === null, JSON.stringify(thu(() => DT.enrichFromDom(tinGoc('text'), rong))));
+
+/* ---------- 20. Tin kèm link xem trước: giữ chữ VÀ lấy URL ---------- */
+const e20 = thu(() => DT.enrichFromDom(tinGoc('card'), kemLink));
+check('enrich tin kem link: giu nguyen chu', coPL(e20) && e20.text === 'Anh Đức xem thêm video tại đây ạ:', JSON.stringify(e20));
+check('enrich tin kem link: co url', coPL(e20) && e20.url === 'https://youtu.be/abc123', JSON.stringify(e20));
+
+/* ---------- 21. Tin file: có tên file ---------- */
+const e21 = thu(() => DT.enrichFromDom(tinGoc('file'), file));
+check('enrich tin file: co fileName', coPL(e21) && e21.fileName === 'Bao gia HayDay 2026.pdf', JSON.stringify(e21));
+check('enrich tin file: text co ten file', coPL(e21) && (e21.text || '').indexOf('Bao gia HayDay 2026.pdf') === 0, JSON.stringify(e21));
+
+/* ---------- 22. Ảnh có chú thích: lấy chú thích làm nội dung ---------- */
+const e22 = thu(() => DT.enrichFromDom(tinGoc('image'), anhCoChu));
+check('enrich anh co chu thich: text la chu thich', coPL(e22) && e22.text === 'Xe cưới của c đây 🎉', JSON.stringify(e22));
+
+/* ---------- 23. Sticker: không có chữ nhưng vẫn giữ tin (không trả null) ---------- */
+const e23 = thu(() => DT.enrichFromDom(tinGoc('sticker'), sticker));
+check('enrich sticker: van giu tin', coPL(e23) && e23.kind === 'sticker', JSON.stringify(e23));
+check('enrich sticker: khong co khoa text', coPL(e23) && !('text' in e23), JSON.stringify(e23));
+
+/* ---------- 24. Tin trả lời: gắn kèm trích dẫn ---------- */
+const e24 = thu(() => DT.enrichFromDom(tinGoc('text'), quoteNhieuDong));
+check('enrich tin tra loi: co trich dan nhieu dong', coPL(e24) && e24.quote && e24.quote.text === 'dòng một\ndòng hai 🎉', JSON.stringify(e24));
 
 window.__ketQua = ket;
 </script>

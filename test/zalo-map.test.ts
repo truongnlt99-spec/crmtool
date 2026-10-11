@@ -58,6 +58,28 @@ check('sachUnicode chiu duoc null', M.sachUnicode(null) === '' && M.sachUnicode(
 const pLe = M.messagePatch('zalo', { ...mMe, text: LE, quote: { title: LE, text: 'ok' } });
 check('messagePatch lam sach text + quote', pLe[`${base}/text`] === 'Chào chị ' && pLe[`${base}/quote`].title === 'Chào chị ');
 check('JSON goi len luon hop le', !/[\uD800-\uDFFF]/.test(JSON.stringify(pLe)));
+// Tin kem link / file: URL + ten file phai len Firebase, va phai duoc lam sach nhu text
+const pLinkFile = M.messagePatch('zalo', { ...mMe, kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/abc', fileName: 'Bang gia.pdf' });
+check('luu url', pLinkFile[`${base}/url`] === 'https://youtu.be/abc');
+check('luu ten file', pLinkFile[`${base}/fileName`] === 'Bang gia.pdf');
+check('khong co url -> khong ghi khoa url', !(`${base}/url` in M.messagePatch('zalo', mMe)));
+check('url rong -> khong ghi khoa url', !(`${base}/url` in M.messagePatch('zalo', { ...mMe, url: '' })));
+const pUrlLe = M.messagePatch('zalo', { ...mMe, url: 'https://x.vn/' + String.fromCharCode(0xD83D), fileName: 'a' + String.fromCharCode(0xDC00) + '.pdf' });
+check('lam sach url + ten file', pUrlLe[`${base}/url`] === 'https://x.vn/' && pUrlLe[`${base}/fileName`] === 'a.pdf');
+check('JSON co url luon hop le', !/[\uD800-\uDFFF]/.test(JSON.stringify(pUrlLe)));
+
+console.log('\n>> hienThiTin: quy tac hien mot tin (dung chung cho CRM, trang chia se, MCP)');
+const ht = (m) => M.hienThiTin(m);
+check('tin chu: khong co nhan loai', JSON.stringify(ht({ kind: 'text', text: 'Chào em' })) === JSON.stringify({ chip: null, text: 'Chào em', url: null, thieu: false }), JSON.stringify(ht({ kind: 'text', text: 'Chào em' })));
+check('tin chu chua co noi dung -> thieu', ht({ kind: 'text' }).thieu === true && ht({ kind: 'text' }).text === '');
+check('anh khong chu thich: chi co nhan', JSON.stringify(ht({ kind: 'image' })) === JSON.stringify({ chip: 'Hình ảnh', text: '', url: null, thieu: false }), JSON.stringify(ht({ kind: 'image' })));
+check('anh co chu thich: nhan + chu thich', ht({ kind: 'image', text: 'Xe cưới của c đây' }).chip === 'Hình ảnh' && ht({ kind: 'image', text: 'Xe cưới của c đây' }).text === 'Xe cưới của c đây');
+check('tin kem link co chu: KHONG dan nhan "Danh thiep"', ht({ kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/x' }).chip === null);
+check('tin kem link: tra ve url', ht({ kind: 'card', text: 'Anh xem o day a:', url: 'https://youtu.be/x' }).url === 'https://youtu.be/x');
+check('link tran: co nhan Lien ket', ht({ kind: 'link', url: 'https://hayday.vn' }).chip === 'Liên kết');
+check('file: nhan File + ten file trong noi dung', ht({ kind: 'file', text: 'Bao gia.pdf\n1,2 MB', fileName: 'Bao gia.pdf' }).chip === 'File');
+check('loai la: nhan chung', ht({ kind: 'other' }).chip === 'Tin nhắn đặc biệt' && ht({ kind: undefined }).chip === null);
+check('khong bao gio tra ve undefined', Object.values(ht({})).every((v) => v !== undefined), JSON.stringify(ht({})));
 
 console.log('\n>> mergeMeta');
 const msgs = [

@@ -64,7 +64,8 @@ const cdp = (method: string, params: any = {}, sessionId?: string) => new Promis
 
 let pass = 0, fail = 0;
 try {
-  const { targetId } = await cdp('Target.createTarget', { url: `http://127.0.0.1:${PORT}/test/zalo-dom.test.html` });
+  const TRANG = process.argv[2] || 'test/zalo-dom.test.html';   // cho phep chay mot trang test khac
+  const { targetId } = await cdp('Target.createTarget', { url: `http://127.0.0.1:${PORT}/${TRANG}` });
   const { sessionId } = await cdp('Target.attachToTarget', { targetId, flatten: true });
   await cdp('Runtime.enable', {}, sessionId);
 

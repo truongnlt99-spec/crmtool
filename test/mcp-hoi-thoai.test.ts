@@ -104,7 +104,12 @@ try {
         '104': { at: NOW - 2 * H + 2000, fromMe: false, kind: 'text', senderName: MA_HOA,
                  quote: { title: 'Huyền Trân', text: 'báo giá Signature' } },
       },
-      c5: { '200': { at: NOW - 1 * H, fromMe: true, kind: 'text', text: 'Dạ em chào anh' } },
+      c5: {
+        '200': { at: NOW - 1 * H, fromMe: true, kind: 'text', text: 'Dạ em chào anh' },
+        '201': { at: NOW - 50 * 60_000, fromMe: true, kind: 'file', text: 'Bao gia HayDay 2026.pdf'+'\\n'+'1,2 MB', fileName: 'Bao gia HayDay 2026.pdf' },
+        '202': { at: NOW - 40 * 60_000, fromMe: true, kind: 'card', text: 'Anh xem thêm video tại đây ạ:', url: 'https://youtu.be/abc123' },
+        '203': { at: NOW - 30 * 60_000, fromMe: false, kind: 'image', text: 'Xe cưới của c đây' },
+      },
       g2: {
         '300': { at: NOW - 5 * D, fromMe: false, kind: 'text', text: 'Ngân sách tầm 45tr', senderName: 'Minh Tuấn' },
         '301': { at: NOW - 5 * D + 1000, fromMe: false, kind: 'text', text: 'Tin nhóm tên mã hoá', senderName: MA_HOA },
@@ -147,6 +152,17 @@ try {
   check('dem tin thieu chu', h1?.missingText === 1);
   check('ten ma hoa KHONG lot ra', !r2.text.includes(MA_HOA));
   check('co thong tin lead', r2.json?.lead?.name === 'Lan Nguyễn' && r2.json?.lead?.stageName === 'Báo giá');
+
+  console.log('\n>> 2b. Tin file / tin kem link / anh co chu thich');
+  const h5 = hts.find((x: any) => x.convId === 'c5');
+  const t5 = h5?.messages || [];
+  check('du 4 tin trong c5', t5.length === 4, String(t5.length));
+  check('tin file: noi dung co ten file', /Bao gia HayDay 2026\.pdf/.test(t5[1]?.text || ''), t5[1]?.text);
+  check('tin file: tra ve truong fileName', t5[1]?.fileName === 'Bao gia HayDay 2026.pdf', JSON.stringify(t5[1]));
+  check('tin kem link: tra ve URL', t5[2]?.url === 'https://youtu.be/abc123', JSON.stringify(t5[2]));
+  check('tin kem link: chu giu nguyen, khong bi dan nhan', t5[2]?.text === 'Anh xem thêm video tại đây ạ:', t5[2]?.text);
+  check('KHONG con nhan sai "Danh thiep"', !r2.text.includes('Danh thiếp'));
+  check('anh co chu thich: nhan + chu thich', t5[3]?.text === '[Hình ảnh] Xe cưới của c đây', t5[3]?.text);
 
   const r2b = await callTool('get_conversation', { lead: 'L1', from: '2026-09-10' });
   const h1b = (r2b.json?.conversations || []).find((x: any) => x.convId === 'c1');
