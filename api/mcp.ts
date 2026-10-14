@@ -292,6 +292,8 @@ interface Lead {
   tags?: string[];
   todos?: Todo[];
   activityLog?: Activity[];
+  /** Báo giá Trân làm trên claude.ai, lưu qua tool save_quote. Khoá = baoGiaId; bản mới nhất = taoLuc lớn nhất. */
+  baoGia?: Record<string, BaoGia>;
 }
 
 interface CrmData {
@@ -751,6 +753,81 @@ export function kiemTraHoSo(b: z.infer<typeof BriefInputZ>, theoConv: Record<str
 }
 
 const taoIdHua = () => 'h_' + Array.from({ length: 8 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
+
+/* ===================== Báo giá trong lead: hàm thuần (export để test) ===================== */
+// Spec: docs/superpowers/specs/2026-10-15-bao-gia-trong-lead-design.md
+
+export type BuoiBaoGia = {
+  loai: 'anHoi' | 'cuoi' | 'khac'; ten: string; ngay: string | null; gio: string | null;
+  soKhach: string | null; moTa: string | null; goi: string;
+  giaGoc: number; uuDaiPhanTram: number; giaSauUuDai: number;
+  ekip: string[]; sanPham: string[]; quaTang: string[];
+};
+export type BaoGia = {
+  taoLuc?: string; tieuDe: string; tenKhach: string; diaDiem: string | null;
+  buoi: BuoiBaoGia[]; tongGiaGoc: number; tongSauUuDai: number; tietKiem: number;
+  hanUuDai: string | null; ghiChu: string[];
+};
+
+const tienVN = (n: number) => Number(n).toLocaleString('vi-VN');
+export const ddmm = (iso: string) => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
+
+/** Lỗi phép tính / ngày của một báo giá; mảng rỗng = hợp lệ. */
+export function kiemTraBaoGia(bg: BaoGia): string[] {
+  const loi: string[] = [];
+  bg.buoi.forEach((b, i) => {
+    const nhan = `Buổi ${i + 1} (${b.ten})`;
+    const dung = Math.round((b.giaGoc * (100 - b.uuDaiPhanTram)) / 100 / 1000) * 1000;
+    if (Math.abs(dung - b.giaSauUuDai) > 1000) {
+      loi.push(`${nhan}: ${tienVN(b.giaGoc)} × ${100 - b.uuDaiPhanTram}% = ${tienVN(dung)}, không phải ${tienVN(b.giaSauUuDai)}`);
+    }
+    if (b.ngay && kiemTraGiaTriO('weddingDate', b.ngay)) loi.push(`${nhan}: ngày ${b.ngay} không có thật`);
+  });
+  const tongGoc = bg.buoi.reduce((s, b) => s + b.giaGoc, 0);
+  const tongSau = bg.buoi.reduce((s, b) => s + b.giaSauUuDai, 0);
+  if (tongGoc !== bg.tongGiaGoc) loi.push(`Tổng giá gốc phải là ${tienVN(tongGoc)} (cộng các buổi), không phải ${tienVN(bg.tongGiaGoc)}`);
+  if (tongSau !== bg.tongSauUuDai) loi.push(`Tổng sau ưu đãi phải là ${tienVN(tongSau)} (cộng các buổi), không phải ${tienVN(bg.tongSauUuDai)}`);
+  if (bg.tietKiem !== bg.tongGiaGoc - bg.tongSauUuDai) loi.push(`Tiết kiệm phải là ${tienVN(bg.tongGiaGoc - bg.tongSauUuDai)}, không phải ${tienVN(bg.tietKiem)}`);
+  if (bg.hanUuDai && kiemTraGiaTriO('weddingDate', bg.hanUuDai)) loi.push(`Hạn ưu đãi ${bg.hanUuDai} không có thật`);
+  if (bg.buoi.filter((b) => b.loai === 'cuoi').length > 1) loi.push('Chỉ được một buổi loại "cuoi" (đám cưới)');
+  return loi;
+}
+
+/** Tên gói trong báo giá -> gói của app (PACKAGES), hoặc null nếu không khớp hẳn. */
+export function khopGoi(ten: string): string | null {
+  const chuan = (s: string) => boDauZalo(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
+  const t = chuan(ten);
+  return (PACKAGES as readonly string[]).find((p) => chuan(p) === t) || null;
+}
+
+export type MucDeXuatBaoGia =
+  | { type: 'field'; field: 'revenueExpected' | 'weddingDate' | 'package'; newValue: string | number }
+  | { type: 'todo'; huaId: string; todoText: string; due: string };
+
+/** Đề xuất sinh từ một báo giá: doanh thu, ngày cưới, gói, việc nhắc trước hạn ưu đãi 2 ngày. */
+export function deXuatTuBaoGia(bg: BaoGia, homNay: string): MucDeXuatBaoGia[] {
+  const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: bg.tongSauUuDai }];
+  const cuoi = bg.buoi.find((b) => b.loai === 'cuoi');
+  if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
+  const goi = cuoi ? khopGoi(cuoi.goi) : null;
+  if (goi) ds.push({ type: 'field', field: 'package', newValue: goi });
+  if (bg.hanUuDai && bg.hanUuDai >= homNay) {
+    const truoc2 = congNgay(bg.hanUuDai, -2);
+    ds.push({
+      type: 'todo',
+      huaId: 'bguu' + bg.hanUuDai.replace(/-/g, ''),
+      todoText: `Nhắc khách ưu đãi hết hạn ${ddmm(bg.hanUuDai)}`,
+      due: truoc2 < homNay ? homNay : truoc2,
+    });
+  }
+  return ds;
+}
+
+export function baoGiaMoiNhat(l: { baoGia?: Record<string, BaoGia> }): (BaoGia & { id: string }) | null {
+  const ds = Object.entries(l.baoGia || {}).map(([id, b]) => ({ ...b, id }));
+  ds.sort((a, b) => String(b.taoLuc || '').localeCompare(String(a.taoLuc || '')));
+  return ds[0] || null;
+}
 
 const O_LEAD_CHO_CLAUDE = ['weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth', 'phone', 'facebook', 'schedule', 'persona', 'objection'] as const;
 
