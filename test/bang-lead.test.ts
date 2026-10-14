@@ -99,7 +99,7 @@ check('dem cot dang loc', B.soCotDangLoc({ a: { chua: 'x' }, b: { chua: ' ' }, c
 
 console.log('\n>> dongXuat');
 const x = B.dongXuat([LEADS[0], LEADS[3]], ['name', 'weddingDate', 'expectedCloseMonth', 'revenueExpected', 'stage', 'todos', 'status'], ctx);
-check('tieu de theo cot', JSON.stringify(x.tieuDe) === JSON.stringify(['Tên', 'Ngày cưới', 'Tháng dự kiến chốt', 'DT dự kiến', 'Giai đoạn', 'Việc chưa xong', 'Trạng thái hẹn']));
+check('tieu de theo cot', JSON.stringify(x.tieuDe) === JSON.stringify(['Tên', 'Ngày cưới', 'Tháng dự kiến chốt', 'DT dự kiến', 'Giai đoạn', 'Việc', 'Trạng thái hẹn']));
 check('kieu theo cot, todos la chu', JSON.stringify(x.kieu) === JSON.stringify(['chu', 'ngay', 'thang', 'so', 'chu', 'chu', 'chu']), JSON.stringify(x.kieu));
 const d0 = x.dong[0];
 check('ngay la Date dia phuong', d0[1] instanceof Date && d0[1].getFullYear() === 2026 && d0[1].getMonth() === 11 && d0[1].getDate() === 1 && d0[1].getHours() === 0);
