@@ -602,7 +602,12 @@ export function tinhDotTin(tin: TinPhang[], toiDa: number, now: number): { dot: 
   }
   let cursorDeXuat: number | null = null;
   for (const t of dot) {
-    if (t.thieu && now - t.at < KET_TIN_THIEU_MS) break;
+    if (t.thieu && now - t.at < KET_TIN_THIEU_MS) {
+      // Con trỏ phải nằm HẲN trước tin thiếu: tin thật cùng mốc at phía trước không được đặt con trỏ = t.at.
+      cursorDeXuat = null;
+      for (const u of dot) if (u.at < t.at) cursorDeXuat = u.at; // dot sắp tăng dần: lấy mốc lớn nhất < t.at
+      break;
+    }
     cursorDeXuat = t.at;
   }
   return { dot, conLai: tin.length - dot.length, cursorDeXuat };
@@ -612,9 +617,9 @@ export function tinhDotTin(tin: TinPhang[], toiDa: number, now: number): { dot: 
 export function kiemTraBangChung(evs: Evidence[], theoConv: Record<string, Record<string, ZaloMsg>>, nhan: string): string[] {
   const loi: string[] = [];
   for (const ev of evs) {
-    const conv = theoConv[ev.convId];
+    const conv = Object.hasOwn(theoConv, ev.convId) ? theoConv[ev.convId] : undefined;
     if (!conv) { loi.push(`${nhan}: hội thoại ${ev.convId} không thuộc lead này`); continue; }
-    const m = conv[ev.msgId];
+    const m = Object.hasOwn(conv, ev.msgId) ? conv[ev.msgId] : undefined;
     if (!m) { loi.push(`${nhan}: không có tin ${ev.msgId} trong hội thoại ${ev.convId}`); continue; }
     if (!trichDanKhop(ev.quote, noiDungTin(m))) loi.push(`${nhan}: trích dẫn "${ev.quote}" không khớp nội dung tin ${ev.msgId}`);
   }

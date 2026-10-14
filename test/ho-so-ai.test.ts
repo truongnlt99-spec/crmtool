@@ -109,6 +109,16 @@ const NOW = 10 * 24 * 3600_000;
   const r = S.tinhDotTin([T('a', cu, true), T('b', cu + 1)], 400, NOW);
   eq('tin thieu qua 3 ngay: bo qua', r.cursorDeXuat, cu + 1);
 }
+{
+  // Fix round 1: tin thiếu mới cùng mốc at với tin thật phía trước -> con trỏ phải lùi hẳn về null
+  const r = S.tinhDotTin([T('a', NOW - 500), T('b', NOW - 500, true), T('c', NOW - 100)], 400, NOW);
+  eq('thieu moi cung at voi tin that truoc: con tro null', r.cursorDeXuat, null);
+}
+{
+  // Fix round 1: lùi về mốc nhỏ hơn at của tin thiếu
+  const r = S.tinhDotTin([T('z', NOW - 900), T('a', NOW - 500), T('b', NOW - 500, true)], 400, NOW);
+  eq('thieu moi: con tro lui ve moc truoc do', r.cursorDeXuat, NOW - 900);
+}
 
 console.log('\n>> kiemTraBangChung');
 {
@@ -126,6 +136,9 @@ console.log('\n>> kiemTraBangChung');
   // tin file: khớp theo tên file
   const file = { c1: { '11': { at: 2, kind: 'file', text: '', fileName: 'Bao gia HayDay.pdf' } } } as any;
   eq('khop ten file', S.kiemTraBangChung([{ convId: 'c1', msgId: '11', quote: 'bao gia hayday' }], file, 'x'), []);
+  // Fix round 1: thuộc tính kế thừa của Object không được coi là hội thoại của lead
+  const proto = S.kiemTraBangChung([{ convId: 'constructor', msgId: '10', quote: 'cưới 12/12' }], theoConv, 'nhuCau');
+  eq('constructor khong la hoi thoai cua lead', proto.length === 1 && /không thuộc lead/.test(proto[0]), true);
 }
 
 console.log('\n>> xetDeXuat');
