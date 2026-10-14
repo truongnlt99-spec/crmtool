@@ -639,6 +639,8 @@ export type DeXuat = {
   reason: string; evidence: Evidence[];
   status: 'cho' | 'duyet' | 'bo'; createdAt: string; decidedAt?: string;
   giaTriDuyet?: unknown; boLyDo?: string;
+  /** Đề xuất do server sinh từ báo giá (không có trích dẫn tin Zalo). */
+  nguon?: { loai: 'baoGia'; baoGiaId: string; taoLuc: string };
 };
 
 /** Bốn quy tắc chống trùng của spec. `cuaLead` = mọi đề xuất (mọi trạng thái) của lead đó. */
@@ -715,6 +717,46 @@ async function napTinLead(z: ZaloStore, leadId: string) {
     tenConv[convId] = link.name || '';
   }));
   return { theoConv, tenConv };
+}
+
+/** Một lô đề xuất sắp ghi vào aiRoot()/proposals trong MỘT lệnh PATCH. */
+type LoDeXuat = { patch: Record<string, unknown>; taoMoi: DeXuat[]; boQua: Array<{ item: unknown; lyDo: string }>; cuaLead: DeXuat[]; now: string };
+
+function moLoDeXuat(cuaLead: DeXuat[]): LoDeXuat {
+  return { patch: {}, taoMoi: [], boQua: [], cuaLead, now: new Date().toISOString() };
+}
+
+/**
+ * Áp 4 quy tắc chống trùng (xetDeXuat) rồi thêm một đề xuất vào lô. Dùng chung cho propose_changes
+ * (Claude đề xuất từ hội thoại) và save_quote (server đề xuất từ báo giá).
+ */
+function themDeXuat(
+  lo: LoDeXuat, l: Lead, item: unknown,
+  khoa: { type: 'field'; field: string; newValue: unknown } | { type: 'todo'; huaId: string },
+  than: Omit<DeXuat, 'id' | 'leadId' | 'status' | 'createdAt'>
+): void {
+  const xet = xetDeXuat(khoa, l as any, lo.cuaLead);
+  if (xet.hanhDong === 'boQua') { lo.boQua.push({ item, lyDo: xet.lyDo }); return; }
+  const id = khoa.type === 'todo' ? `todo_${khoa.huaId}` : `f_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const p: DeXuat = { ...than, id, leadId: l.id, status: 'cho', createdAt: lo.now };
+  if (xet.hanhDong === 'thay' && Object.hasOwn(lo.patch, xet.idCu)) {
+    // bản cũ vừa tạo trong CHÍNH lô này: bỏ hẳn, không ghi đường con (tránh PATCH chồng đường dẫn)
+    delete lo.patch[xet.idCu];
+    const i = lo.taoMoi.findIndex((x) => x.id === xet.idCu);
+    if (i >= 0) lo.taoMoi.splice(i, 1);
+    const j = lo.cuaLead.findIndex((x) => x.id === xet.idCu);
+    if (j >= 0) lo.cuaLead.splice(j, 1);
+  } else if (xet.hanhDong === 'thay') {
+    lo.patch[`${xet.idCu}/status`] = 'bo';
+    lo.patch[`${xet.idCu}/boLyDo`] = 'Thay bằng đề xuất mới';
+    lo.patch[`${xet.idCu}/decidedAt`] = lo.now;
+    const cu = lo.cuaLead.find((x) => x.id === xet.idCu);
+    if (cu) cu.status = 'bo';
+  }
+  const { id: _id, ...luu } = p;
+  lo.patch[id] = luu;
+  lo.cuaLead.push(p);
+  lo.taoMoi.push(p);
 }
 
 const NGAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -828,6 +870,32 @@ export function baoGiaMoiNhat(l: { baoGia?: Record<string, BaoGia> }): (BaoGia &
   ds.sort((a, b) => String(b.taoLuc || '').localeCompare(String(a.taoLuc || '')));
   return ds[0] || null;
 }
+
+const DsChuoiZ = z.array(z.string().max(200)).max(10);
+const BuoiBaoGiaZ = z.object({
+  loai: z.enum(['anHoi', 'cuoi', 'khac']).describe('anHoi = lễ ăn hỏi, cuoi = đám cưới (tối đa 1), khac = buổi khác'),
+  ten: z.string().min(1).max(100),
+  ngay: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  gio: z.string().max(60).nullable(),
+  soKhach: z.string().max(30).nullable(),
+  moTa: z.string().max(300).nullable(),
+  goi: z.string().min(1).max(100),
+  giaGoc: z.number().int().nonnegative(),
+  uuDaiPhanTram: z.number().min(0).max(100),
+  giaSauUuDai: z.number().int().nonnegative(),
+  ekip: DsChuoiZ, sanPham: DsChuoiZ, quaTang: DsChuoiZ,
+}).strict();
+const BaoGiaZ = z.object({
+  tieuDe: z.string().min(1).max(200),
+  tenKhach: z.string().min(1).max(100),
+  diaDiem: z.string().max(100).nullable(),
+  buoi: z.array(BuoiBaoGiaZ).min(1).max(6),
+  tongGiaGoc: z.number().int().nonnegative(),
+  tongSauUuDai: z.number().int().nonnegative(),
+  tietKiem: z.number().int().nonnegative(),
+  hanUuDai: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
+  ghiChu: z.array(z.string().max(300)).max(10),
+}).strict();
 
 const O_LEAD_CHO_CLAUDE = ['weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth', 'phone', 'facebook', 'schedule', 'persona', 'objection'] as const;
 
@@ -1221,6 +1289,9 @@ const mcpHandler = createMcpHandler(
         const l = findLead(crm, args.lead);
         return ok({
           ...l,
+          baoGia: undefined,
+          baoGiaMoiNhat: baoGiaMoiNhat(l),
+          soBanBaoGia: Object.keys(l.baoGia || {}).length,
           stageName: STAGE_NAME[l.stage] || l.stage,
           status: leadStatus(l).label,
           revenueExpectedText: formatMoney(l.revenueExpected),
@@ -1431,6 +1502,7 @@ const mcpHandler = createMcpHandler(
         return ok({
           lead,
           viecChuaXong: (l.todos || []).filter((t) => !t.done).map((t) => ({ text: t.text, dueDate: t.dueDate || null })),
+          baoGiaMoiNhat: baoGiaMoiNhat(l),
           brief: brief ? { ...brief, loiHua: Object.entries(brief.loiHua || {}).map(([id, h]) => ({ id, ...h })) } : null,
           tin: dot.map((t) => ({ convId: t.convId, msgId: t.msgId, at: t.at, time: gioVN(t.at), from: t.from, text: t.text })),
           conLai,
@@ -1504,55 +1576,79 @@ const mcpHandler = createMcpHandler(
         const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
         const l = findLead(crm, args.lead);
         const [deXuat, brief, { theoConv }] = await Promise.all([napDeXuat(), napBrief(l.id), napTinLead(z, l.id)]);
-        const cuaLead = deXuat.filter((p) => p.leadId === l.id);
-        const now = new Date().toISOString();
-        const patch: Record<string, unknown> = {};
-        const taoMoi: DeXuat[] = [];
-        const boQua: Array<{ item: unknown; lyDo: string }> = [];
+        const lo = moLoDeXuat(deXuat.filter((p) => p.leadId === l.id));
 
         for (const item of args.items) {
           const loi = kiemTraBangChung(item.evidence, theoConv, 'evidence');
           if (item.type === 'field') {
             const sai = kiemTraGiaTriO(item.field, item.newValue);
-            if (sai) { boQua.push({ item, lyDo: sai }); continue; }
+            if (sai) { lo.boQua.push({ item, lyDo: sai }); continue; }
           } else {
             if (!/^h_[a-z0-9]{8}$/.test(item.huaId) || !Object.hasOwn(brief?.loiHua || {}, item.huaId)) {
-              boQua.push({ item, lyDo: `Không có lời hứa ${item.huaId} trong hồ sơ — lưu hồ sơ trước` }); continue;
+              lo.boQua.push({ item, lyDo: `Không có lời hứa ${item.huaId} trong hồ sơ — lưu hồ sơ trước` }); continue;
             }
             const saiHan = kiemTraGiaTriO('weddingDate', item.due);
-            if (saiHan) { boQua.push({ item, lyDo: `Hạn việc không hợp lệ: ${saiHan}` }); continue; }
+            if (saiHan) { lo.boQua.push({ item, lyDo: `Hạn việc không hợp lệ: ${saiHan}` }); continue; }
           }
-          if (loi.length) { boQua.push({ item, lyDo: loi.join('; ') }); continue; }
+          if (loi.length) { lo.boQua.push({ item, lyDo: loi.join('; ') }); continue; }
 
-          const xet = xetDeXuat(item.type === 'field' ? { type: 'field', field: item.field, newValue: item.newValue } : { type: 'todo', huaId: item.huaId }, l as any, cuaLead);
-          if (xet.hanhDong === 'boQua') { boQua.push({ item, lyDo: xet.lyDo }); continue; }
-
-          const id = item.type === 'todo' ? `todo_${item.huaId}` : `f_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
-          const p: DeXuat = item.type === 'field'
-            ? { id, leadId: l.id, type: 'field', field: item.field, oldValue: (l as any)[item.field] ?? null, newValue: item.newValue, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now }
-            : { id, leadId: l.id, type: 'todo', todoText: item.todoText, due: item.due, huaId: item.huaId, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now };
-          if (xet.hanhDong === 'thay' && Object.hasOwn(patch, xet.idCu)) {
-            // bản cũ vừa tạo trong CHÍNH lần gọi này: bỏ hẳn, không ghi đường con (tránh PATCH chồng đường dẫn)
-            delete patch[xet.idCu];
-            const i = taoMoi.findIndex((x) => x.id === xet.idCu);
-            if (i >= 0) taoMoi.splice(i, 1);
-            const j = cuaLead.findIndex((x) => x.id === xet.idCu);
-            if (j >= 0) cuaLead.splice(j, 1);
-          } else if (xet.hanhDong === 'thay') {
-            patch[`${xet.idCu}/status`] = 'bo';
-            patch[`${xet.idCu}/boLyDo`] = 'Thay bằng đề xuất mới';
-            patch[`${xet.idCu}/decidedAt`] = now;
-            const cu = cuaLead.find((x) => x.id === xet.idCu);
-            if (cu) cu.status = 'bo';
+          if (item.type === 'field') {
+            themDeXuat(lo, l, item, { type: 'field', field: item.field, newValue: item.newValue },
+              { type: 'field', field: item.field, oldValue: (l as any)[item.field] ?? null, newValue: item.newValue, reason: item.reason, evidence: item.evidence });
+          } else {
+            themDeXuat(lo, l, item, { type: 'todo', huaId: item.huaId },
+              { type: 'todo', todoText: item.todoText, due: item.due, huaId: item.huaId, reason: item.reason, evidence: item.evidence });
           }
-          const { id: _id, ...luu } = p;
-          patch[id] = luu;
-          cuaLead.push(p);
-          taoMoi.push(p);
         }
 
-        if (Object.keys(patch).length) await patchPath(`${aiRoot()}/proposals`, patch);
-        return ok({ taoMoi, boQua });
+        if (Object.keys(lo.patch).length) await patchPath(`${aiRoot()}/proposals`, lo.patch);
+        return ok({ taoMoi: lo.taoMoi, boQua: lo.boQua });
+      }
+    );
+
+    server.registerTool(
+      'save_quote',
+      {
+        title: 'Lưu báo giá vào lead',
+        description:
+          'Lưu báo giá Trân vừa làm trên claude.ai vào lead (mỗi lần lưu là một phiên bản mới; bản mới nhất là bản hiệu lực). Dùng SAU KHI làm xong báo giá; nếu chưa rõ lead nào thì HỎI Trân "lưu vào lead nào?" trước khi gọi. Mọi số tiền là số nguyên VND. Server kiểm tra phép tính (giá sau ưu đãi = giá gốc × (100 − %), tổng = cộng các buổi, tiết kiệm = tổng gốc − tổng sau ưu đãi) — sai thì từ chối và chỉ rõ dòng sai. Lưu xong server tự tạo đề xuất (doanh thu dự kiến, ngày cưới, gói, việc nhắc trước hạn ưu đãi) vào hàng chờ để Trân duyệt trong app — tool này KHÔNG sửa ô nào của lead.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          baoGia: BaoGiaZ,
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const l = findLead(crm, args.lead);
+        const bg = args.baoGia as BaoGia;
+        const loi = kiemTraBaoGia(bg);
+        if (loi.length) throw new Error(`Chưa lưu báo giá cho "${l.name}". Sửa ${loi.length} lỗi:\n- ${loi.join('\n- ')}`);
+
+        const baoGiaId = `bg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+        const taoLuc = new Date().toISOString();
+        await patchPath(`${dataRoot()}/leads/${l.id}/baoGia`, { [baoGiaId]: { ...bg, taoLuc } });
+        await logActivity(l, `Lưu báo giá: ${formatMoney(bg.tongSauUuDai)} (${bg.buoi.length} buổi)`);
+        await touch();
+
+        const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
+        const homNay = todayISO();
+        const chung = { reason: `Theo báo giá ngày ${ddmm(homNay)}`, evidence: [], nguon: { loai: 'baoGia' as const, baoGiaId, taoLuc } };
+        for (const m of deXuatTuBaoGia(bg, homNay)) {
+          if (m.type === 'field') {
+            themDeXuat(lo, l, m, { type: 'field', field: m.field, newValue: m.newValue },
+              { ...chung, type: 'field', field: m.field, oldValue: (l as any)[m.field] ?? null, newValue: m.newValue });
+          } else {
+            themDeXuat(lo, l, m, { type: 'todo', huaId: m.huaId },
+              { ...chung, type: 'todo', todoText: m.todoText, due: m.due, huaId: m.huaId });
+          }
+        }
+        if (Object.keys(lo.patch).length) await patchPath(`${aiRoot()}/proposals`, lo.patch);
+
+        return ok({
+          baoGiaId,
+          deXuatTao: lo.taoMoi.map((p) => ({ id: p.id, type: p.type, field: p.field, newValue: p.newValue, todoText: p.todoText, due: p.due })),
+          deXuatBoQua: lo.boQua.map((b) => ({ lyDo: b.lyDo })),
+        });
       }
     );
 
@@ -1692,6 +1788,7 @@ const mcpHandler = createMcpHandler(
               '- Lời hứa chuyển "xong" khi hội thoại cho thấy đã làm (vd: đã gửi file/link, khách đã báo lại).',
               '- doNong: "nong" khi khách hỏi cọc/hợp đồng/số tài khoản hoặc chốt ngày; "nguoi" khi im lâu hoặc nói đã chọn bên khác; còn lại "am".',
               '- Không đề xuất chuyển giai đoạn, Won hay Lost. Không đề xuất lại giá trị nằm trong daBo.',
+              '- Nếu lead có baoGiaMoiNhat: coi đó là giá đã chào chính thức — ghi vào nhóm Ngân sách (tổng sau ưu đãi, gói từng buổi, hạn ưu đãi). Không đề xuất doanh thu / ngày cưới / gói trùng với báo giá (server đã tự đề xuất).',
               '- KHÔNG tự gọi approve_proposal / reject_proposal — duyệt hay bỏ là việc của Trân.',
               '',
               'Cuối cùng tóm tắt ngắn cho Trân: lead nào nóng lên/nguội đi, lời hứa sắp hoặc đã quá hạn, số đề xuất mới đang chờ duyệt trong app.',
