@@ -849,6 +849,7 @@
   .bang .bang-input{width:100%; min-height:0; padding:3px 5px; font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--primary); border-radius:4px;}
   @media (max-width:760px){
     #navList{display:none;}            /* điện thoại: vào bảng qua tấm "Khác" */
+    #navDeXuat{display:none;}          /* điện thoại: vào hàng chờ đề xuất qua tấm "Khác" */
     .bang-wrap{padding:10px 10px 12px;}
   }
   @media (max-width:820px){
@@ -1808,9 +1809,8 @@
   .zalo-day{background:var(--zl-kh); color:var(--zl-phu); box-shadow:var(--zl-bong);}
 
   /* ===== Hồ sơ khách AI + đề xuất ===== */
-  .nut-de-xuat{gap:6px;}
-  .nut-de-xuat[hidden]{display:none;}
-  .nut-de-xuat-so{background:var(--blush); color:#fff; border-radius:999px; padding:0 7px; font-size:12px; line-height:18px;}
+  #navDeXuat[hidden], #menuKhacDeXuat[hidden]{display:none;}
+  .block-hoso .block-collapse{white-space:nowrap; flex:none;}
   .card-dx{color:var(--purple); font-size:13px;}
   /* Đề xuất: mỗi đề xuất một dòng gọn, bấm để mở chi tiết */
   .dx-dem{display:inline-block; min-width:18px; margin-left:4px; padding:0 6px; border-radius:999px; background:var(--blush); color:#fff; font-size:12px; line-height:18px; text-align:center; vertical-align:middle;}
@@ -2049,6 +2049,12 @@
         <span>Hội thoại</span>
         <span class="nav-badge" id="navConvBadge" hidden>0</span>
       </button>
+      <!-- Hàng chờ đề xuất của Claude (hồ sơ khách AI). Điện thoại: nằm trong tấm "Khác" -->
+      <button class="nav-item" id="navDeXuat" onclick="moModalDeXuat()" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
+        <span>Claude đề xuất</span>
+        <span class="nav-badge" id="navDeXuatBadge" hidden>0</span>
+      </button>
       <!-- Chỉ hiện trên điện thoại: gom Nhắc nhở, giao diện, chia sẻ, Claude, đăng xuất vào một tấm trượt -->
       <button class="nav-item nav-more" id="navMore" onclick="moMenuKhac()" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
@@ -2139,7 +2145,6 @@
 
       <div class="topbar-spacer"></div>
 
-      <button type="button" class="btn btn-secondary nut-de-xuat" id="nutDeXuat" hidden onclick="moModalDeXuat()">Đề xuất của Claude <span class="nut-de-xuat-so" id="nutDeXuatSo">0</span></button>
       <span class="sync-status" id="syncStatus"><span class="sync-dot"></span>Đang kết nối...</span>
 
       <button class="btn btn-primary" onclick="openAddLead()">
@@ -2432,6 +2437,9 @@
     </div>
     <div class="modal-body menu-khac-body">
       <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); setView('list')"><span>Danh sách lead (bảng)</span><span class="menu-khac-meta">›</span></button>
+      <button type="button" class="menu-khac-item" id="menuKhacDeXuat" onclick="dongMenuKhac(); moModalDeXuat()" hidden>
+        <span>Claude đề xuất</span><span class="menu-khac-meta" id="menuKhacDeXuatSo"></span>
+      </button>
       <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); openRemindersModal()">
         <span>Nhắc nhở</span><span class="menu-khac-meta" id="menuKhacNhacNho"></span>
       </button>
@@ -4553,6 +4561,7 @@ let zaloOpenFor = '';        // "<leadId>:<convIds>" để biết khi nào cần
 // Logic thuần ở web/ho-so-ai.js (window.HoSoAI). Dữ liệu ở aiData — KHÔNG nằm trong crmData,
 // nên không đụng luồng đồng bộ onValue(dataRef)/saveToCloud().
 let aiDeXuat = {};               // { id: đề xuất } — chỉ status 'cho'
+let aiDocDuoc = false;          // đọc được aiData/proposals chưa (rules đã dán + có quyền)
 const aiDangDuyet = new Set();   // đã duyệt trong máy, chờ bản máy chủ của lead mang giá trị
 const aiDaGuiDuyet = new Set();  // đã gửi status 'duyet' lên, chờ listener gỡ khỏi danh sách
 
@@ -4561,12 +4570,18 @@ function initAI(){
   const q = f.query(f.refAt(f.aiBase() + '/proposals'), f.orderByChild('status'), f.equalTo('cho'));
   // Rules chưa dán -> lỗi quyền: ẩn phần AI, KHÔNG báo lỗi đồng bộ CRM.
   f.onValue(q, s => {
+    aiDocDuoc = true;
     aiDeXuat = s.val() || {};
     Object.keys(aiDeXuat).forEach(id => { aiDeXuat[id].id = id; });
     doiSoatDeXuat();
     veLaiPhanDeXuat();
     if (!uiIsBusy()) renderPipeline();
-  }, e => { console.warn('Không đọc được aiData/proposals:', e); aiDeXuat = {}; veLaiPhanDeXuat(); });
+  }, e => { console.warn('Không đọc được aiData/proposals:', e); aiDocDuoc = false; aiDeXuat = {}; veLaiPhanDeXuat(); });
+}
+
+/** Tổng đề xuất đang chờ (của các lead còn tồn tại) — cho mục menu và badge tab "Khác". */
+function demDeXuat(){
+  return leads.reduce((s, l) => s + deXuatCuaLead(l.id).length, 0);
 }
 
 function deXuatCuaLead(leadId){
@@ -4674,9 +4689,17 @@ function veModalDeXuat(ep){
 }
 
 function veLaiPhanDeXuat(ep){
-  const n = leads.reduce((s, l) => s + deXuatCuaLead(l.id).length, 0);
-  const nut = document.getElementById('nutDeXuat');
-  if (nut){ nut.hidden = !n || !window.HoSoAI; document.getElementById('nutDeXuatSo').textContent = n; }
+  const n = demDeXuat();
+  const coAI = !!window.HoSoAI && aiDocDuoc;
+  const nav = document.getElementById('navDeXuat');
+  if (nav){
+    nav.hidden = !coAI;
+    const b = document.getElementById('navDeXuatBadge');
+    b.textContent = n; b.hidden = !n;
+  }
+  const mk = document.getElementById('menuKhacDeXuat');
+  if (mk){ mk.hidden = !coAI; document.getElementById('menuKhacDeXuatSo').textContent = n ? `${n} đang chờ ›` : 'Không có ›'; }
+  renderSidebarStats();
   const ov = document.getElementById('deXuatOverlay');
   if (ov && ov.classList.contains('show')) veModalDeXuat(ep);
   if (typeof veKhoiHoSo === 'function' && currentLeadId) veKhoiHoSo(currentLeadId, ep);
@@ -5866,9 +5889,11 @@ function renderSidebarStats(){
   const { today, week } = getReminderBuckets();
   document.getElementById('sidebarTodayCount').textContent = today.length;
   document.getElementById('sidebarOverdueCount').textContent = `${week.length} việc trong 7 ngày tới`;
-  // Điện thoại: khối Nhắc nhở nằm trong tab "Khác" -> đưa số việc hôm nay lên badge của tab
+  // Điện thoại: Nhắc nhở và Claude đề xuất nằm trong tab "Khác" -> cộng cả hai lên badge của tab
   const badge = document.getElementById('navMoreBadge');
-  if (badge){ badge.textContent = today.length; badge.hidden = !today.length; }
+  let soDx = 0; try { soDx = demDeXuat(); } catch(e){}   // phần AI chưa khởi tạo thì coi như 0
+  const tong = today.length + soDx;
+  if (badge){ badge.textContent = tong; badge.hidden = !tong; }
 }
 
 /* ======================= MASTER RENDER ======================= */
