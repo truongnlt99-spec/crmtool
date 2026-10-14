@@ -157,7 +157,41 @@ console.log('\n>> xetDeXuat');
   eq('todo moi', S.xetDeXuat({ type: 'todo', huaId: 'h_2' }, lead, ds).hanhDong, 'tao');
 }
 
-// Task 2 nối thêm phần web vào đây, trước dòng tổng kết.
+console.log('\n>> web/ho-so-ai.js: cung bo ca voi server');
+const W = await import('../web/ho-so-ai.js');
+eq('whitelist giong server', [...W.FIELD_WHITELIST], [...S.FIELD_WHITELIST]);
+for (const [f, v, hopLe] of CA_GIA_TRI) {
+  eq(`web ${f}=${JSON.stringify(v).slice(0, 30)}`, W.kiemTraGiaTriO(f, v) === null, hopLe);
+}
+eq('web giaTriBang', [W.giaTriBang(1, 1), W.giaTriBang('', null), W.giaTriBang('a', 'b')], [true, true, false]);
+
+console.log('\n>> hienGiaTri');
+eq('ngay', W.hienGiaTri('weddingDate', '2026-12-12'), '12/12/2026');
+eq('thang', W.hienGiaTri('expectedCloseMonth', '2026-11'), '11/2026');
+eq('tien', W.hienGiaTri('revenueExpected', 45000000), '45.000.000 đ');
+eq('rong', W.hienGiaTri('phone', ''), '(trống)');
+
+console.log('\n>> daApDung (Review Focus 4: chi tinh theo ban may chu)');
+{
+  const p = { id: 'f_1', type: 'field', field: 'weddingDate', newValue: '2026-12-12' };
+  eq('may chu chua doi', W.daApDung(p, { weddingDate: null }), false);
+  eq('may chu da doi', W.daApDung(p, { weddingDate: '2026-12-12' }), true);
+  eq('sua roi duyet', W.daApDung({ ...p, giaTriDuyet: '2026-12-13' }, { weddingDate: '2026-12-13' }), true);
+  const t = { id: 'todo_h_1', type: 'todo', huaId: 'h_1' };
+  eq('viec chua co', W.daApDung(t, { todos: [{ id: 't1' }] }), false);
+  eq('viec da co', W.daApDung(t, { todos: [{ id: 't1' }, { id: 't2', tuDeXuat: 'todo_h_1' }] }), true);
+  eq('todos dang object', W.daApDung(t, { todos: { 0: { id: 't2', tuDeXuat: 'todo_h_1' } } }), true);
+  eq('lead khong ton tai', W.daApDung(p, null), false);
+}
+
+console.log('\n>> trangThaiLoiHua + demTinMoi');
+eq('xong', W.trangThaiLoiHua({ trangThai: 'xong', han: '2026-01-01' }, '2026-10-14'), 'xong');
+eq('qua han', W.trangThaiLoiHua({ trangThai: 'mo', han: '2026-10-13' }, '2026-10-14'), 'quaHan');
+eq('con han', W.trangThaiLoiHua({ trangThai: 'mo', han: '2026-10-14' }, '2026-10-14'), 'mo');
+eq('khong han', W.trangThaiLoiHua({ trangThai: 'mo', han: null }, '2026-10-14'), 'mo');
+eq('dem tin moi', W.demTinMoi({ c1: [{ at: 1 }, { at: 5 }], g2: [{ at: 7 }] }, 4), 2);
+eq('dem tin moi: chua co ho so', W.demTinMoi({ c1: [{ at: 1 }] }, 0), 1);
+
 
 console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'}: ${pass} ok, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);
