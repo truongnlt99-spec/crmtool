@@ -78,6 +78,8 @@ try {
       L1: { id: 'L1', name: 'Lan Nguyễn', stage: 'baogia', package: 'Unique', ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-09-01' },
       L2: { id: 'L2', name: 'Ngọc Hân', stage: 'follow1', package: 'Unique', ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-09-01' },
       L3: { id: 'L3', name: 'Khách Chốt', stage: 'won', package: 'Standard', ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-09-01' },
+      L4: { id: 'L4', name: 'Chưa Có Zalo', stage: 'leadin', package: 'Standard', ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-09-01' },
+      L5: { id: 'L5', name: 'Khách Mất', stage: 'lost', package: 'Standard', ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-09-01' },
     },
     planRevenue: 1, planLeads: 1,
   }) });
@@ -86,9 +88,13 @@ try {
       c1: { status: 'lead', leadId: 'L1', name: 'Lan Nguyễn', isGroup: false, linkedAt: 1 },
       c2: { status: 'lead', leadId: 'L2', name: 'Ngọc Hân', isGroup: false, linkedAt: 1 },
       c3: { status: 'lead', leadId: 'L3', name: 'Khách Chốt', isGroup: false, linkedAt: 1 },
+      c5: { status: 'lead', leadId: 'L5', name: 'Khách Mất', isGroup: false, linkedAt: 1 },
+      c6: { status: 'lead', leadId: 'L1', name: 'Chồng Lan', isGroup: false, linkedAt: 1 },
+      c9: { status: 'ignored', leadId: 'L1', name: 'Không phải khách', isGroup: false, linkedAt: 1 },
     },
     meta: {
       c1: { lastAt: NOW - 1 * H }, c2: { lastAt: NOW - 3 * H }, c3: { lastAt: NOW - 2 * H },
+      c5: { lastAt: NOW - 30 * 60_000 }, c6: { lastAt: NOW - 6 * H }, c9: { lastAt: NOW - 1.5 * H },
     },
     msgs: {
       c1: {
@@ -99,6 +105,9 @@ try {
         '105': { at: NOW - 1 * H, fromMe: false, kind: 'text' },   // chưa có nội dung
       },
       c2: { '201': { at: NOW - 3 * H, fromMe: false, kind: 'text', text: 'Ngân sách tụi em tầm 45 triệu' } },
+      c5: { '501': { at: NOW - 30 * 60_000, fromMe: false, kind: 'text', text: 'Em đổi ý rồi' } },
+      c6: { '601': { at: NOW - 6 * H, fromMe: false, kind: 'text', text: 'Anh là chồng Lan' } },
+      c9: { '901': { at: NOW - 1.5 * H, fromMe: false, kind: 'text', text: 'TIN KHONG PHAI KHACH' } },
       c3: { '301': { at: NOW - 2 * H, fromMe: false, kind: 'text', text: 'Em chuyển cọc rồi nha' } },
     },
   }) });
@@ -109,7 +118,7 @@ try {
     const r = await callTool('list_stale_leads', {});
     const ids = (r.json?.leads || []).map((l: any) => l.leadId);
     check('co L1 va L2, xep tin moi nhat truoc', JSON.stringify(ids) === '["L1","L2"]', r.text);
-    check('bo lead Won', !ids.includes('L3'));
+    check('bo lead Won, Lost, khong co hoi thoai', !ids.includes('L3') && !ids.includes('L5') && !ids.includes('L4'));
     check('chua co ho so', r.json?.leads?.[0]?.chuaCoHoSo === true, r.text);
   }
 
@@ -117,13 +126,14 @@ try {
   {
     const r = await callTool('lead_context', { lead: 'L1' });
     const j = r.json;
-    check('tra 5 tin', j?.tin?.length === 5, r.text.slice(0, 300));
-    check('tin co convId + msgId', j?.tin?.[0]?.convId === 'c1' && j?.tin?.[0]?.msgId === '101');
-    check('nguoi gui', j?.tin?.[1]?.from === 'Mình' && j?.tin?.[0]?.from === 'Lan Nguyễn', JSON.stringify(j?.tin?.slice(0, 2)));
+    check('tra 6 tin (c1 + c6)', j?.tin?.length === 6, r.text.slice(0, 300));
+    check('tin co convId + msgId', j?.tin?.[0]?.convId === 'c6' && j?.tin?.[0]?.msgId === '601' && j?.tin?.[1]?.msgId === '101');
+    check('nguoi gui', j?.tin?.[2]?.from === 'Mình' && j?.tin?.[0]?.from === 'Chồng Lan' && j?.tin?.[1]?.from === 'Lan Nguyễn', JSON.stringify(j?.tin?.slice(0, 3)));
     check('con tro dung truoc tin thieu noi dung', j?.cursorDeXuat === NOW - 2 * H, String(j?.cursorDeXuat));
     check('chua co ho so', j?.brief === null);
     check('o hien tai', j?.lead?.package === 'Unique' && j?.lead?.stageName === 'Báo giá', JSON.stringify(j?.lead));
-    check('khong co tin cua lead khac', !j?.tin?.some((t: any) => t.convId !== 'c1'));
+    check('chi tin tu c1 va c6', !j?.tin?.some((t: any) => !['c1', 'c6'].includes(t.convId)));
+    check('khong lo tin link khong phai khach', !r.text.includes('901') && !r.text.includes('TIN KHONG PHAI KHACH'));
   }
 
   // Task 4, 5, 6 nối tiếp các khối test vào đây.
