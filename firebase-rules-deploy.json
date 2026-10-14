@@ -74,6 +74,18 @@
         ".write": "auth != null && auth.uid === $uid"
       }
     },
+    "aiData": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      "proposals": { ".indexOn": ["status"] }
+    },
+    "aiData_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "proposals": { ".indexOn": ["status"] }
+      }
+    },
     "appConfig": {
       ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
       ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",

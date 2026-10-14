@@ -29,7 +29,8 @@
     "LUU Y: Firebase Console KHONG chap nhan khoa _huong_dan (bao loi 'Expected rules property').",
     "  De dan vao Console, dung file 'firebase-rules-deploy.json' (chi co khoi rules). File nay",
     "  chi de doc/ghi chu, giu trong repo.",
-    "- zalo / zalo_users: du lieu extension Zalo (hoi thoai da gan lead). Chu cu dung 'zalo', tai khoan khac dung 'zalo_users/<uid>'."
+    "- zalo / zalo_users: du lieu extension Zalo (hoi thoai da gan lead). Chu cu dung 'zalo', tai khoan khac dung 'zalo_users/<uid>'.",
+    "- aiData / aiData_users: ho so khach + hang cho de xuat do Claude ghi qua MCP (service account). App doc + ghi trang thai duyet. Chu cu dung 'aiData', tai khoan khac dung 'aiData_users/<uid>'."
   ],
   "rules": {
     ".read": false,
@@ -104,6 +105,18 @@
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
         ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "aiData": {
+      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      "proposals": { ".indexOn": ["status"] }
+    },
+    "aiData_users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "proposals": { ".indexOn": ["status"] }
       }
     },
     "appConfig": {
