@@ -307,6 +307,10 @@ function normalizeLead(l: Lead): Lead {
   // Lead cũ chưa có chủ -> coi như thuộc về chủ tài khoản. Chỉ mặc định lúc ĐỌC,
   // không tự ghi ngược xuống database; app sẽ ghi thật ở lần lưu kế tiếp.
   if (!l.ownerUid) l.ownerUid = OWNER_UID;
+  // RTDB có thể trả mảng về dạng object {0:..,1:..} — giữ lại ghi chú như migrateLead() trong
+  // app, kẻo delete_note ghi lại cả danh sách từ mảng rỗng là mất sạch ghi chú.
+  const nl = l.notesList as unknown;
+  if (nl && typeof nl === 'object' && !Array.isArray(nl)) l.notesList = Object.values(nl) as Note[];
   if (!Array.isArray(l.notesList)) l.notesList = [];
   if (!Array.isArray(l.tags)) l.tags = [];
   if (!Array.isArray(l.todos)) l.todos = [];
@@ -672,6 +676,31 @@ async function napBrief(leadId: string): Promise<Brief | null> {
 async function napDeXuat(): Promise<DeXuat[]> {
   const raw = (await readPath<Record<string, DeXuat> | null>(`${aiRoot()}/proposals`)) || {};
   return Object.entries(raw).map(([id, p]) => ({ ...p, id }));
+}
+
+/** Một đề xuất còn đang chờ — dùng cho duyệt/bỏ qua chat. */
+async function napMotDeXuat(id: string): Promise<DeXuat> {
+  const p = await readPath<DeXuat | null>(`${aiRoot()}/proposals/${id}`);
+  if (!p) throw new Error(`Không có đề xuất nào mang id ${id}.`);
+  if (p.status !== 'cho') {
+    throw new Error(`Đề xuất ${id} đã ${p.status === 'duyet' ? 'được duyệt' : 'bị bỏ'} từ trước${p.decidedAt ? ` (${p.decidedAt})` : ''}.`);
+  }
+  return { ...p, id };
+}
+
+/** Nhãn ô cho người đọc — giống NHAN_O trong web/ho-so-ai.js. */
+const NHAN_O: Record<string, string> = {
+  weddingDate: 'Ngày cưới', package: 'Gói dịch vụ', revenueExpected: 'Doanh thu dự kiến',
+  expectedCloseMonth: 'Tháng chốt dự kiến', phone: 'SĐT', facebook: 'Facebook',
+  schedule: 'Lịch trình', persona: 'Chân dung khách hàng', objection: 'Objection',
+};
+
+function hienGiaTriO(field: string, v: unknown): string {
+  if (v === null || v === undefined || v === '') return '(trống)';
+  if (field === 'weddingDate') { const [y, m, d] = String(v).split('-'); return `${d}/${m}/${y}`; }
+  if (field === 'expectedCloseMonth') { const [y, m] = String(v).split('-'); return `${m}/${y}`; }
+  if (field === 'revenueExpected') return formatMoney(Number(v));
+  return String(v);
 }
 
 /** Tin của mọi hội thoại gắn với lead — CHỈ của lead đó (để kiểm tra trích dẫn không mượn lead khác). */
@@ -1450,6 +1479,111 @@ const mcpHandler = createMcpHandler(
       }
     );
 
+    server.registerTool(
+      'list_proposals',
+      {
+        title: 'Xem đề xuất của Claude',
+        description:
+          'Liệt kê đề xuất trong hàng chờ (mặc định: đang chờ duyệt), kèm tên lead, giá trị hiện tại của ô, giá trị đề xuất, lý do và trích dẫn. daDoi = true nghĩa là ô đã bị đổi từ lúc Claude đề xuất.',
+        inputSchema: z.object({
+          lead: z.string().optional().describe('leadId hoặc tên khách; bỏ trống = mọi lead'),
+          status: z.enum(['cho', 'duyet', 'bo', 'tatCa']).optional().describe('cho (mặc định) | duyet | bo | tatCa'),
+        }),
+        annotations: { readOnlyHint: true },
+      },
+      async (args) => {
+        const [crm, deXuat] = await Promise.all([loadCrm(), napDeXuat()]);
+        const chiLead = args.lead ? findLead(crm, args.lead).id : null;
+        const status = args.status || 'cho';
+        const theoId = new Map(crm.leads.map((l) => [l.id, l]));
+        const ds = deXuat
+          .filter((p) => theoId.has(p.leadId) && (!chiLead || p.leadId === chiLead) && (status === 'tatCa' || p.status === status))
+          .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)))
+          .map((p) => {
+            const l = theoId.get(p.leadId)!;
+            const chung = { id: p.id, leadId: p.leadId, leadName: l.name, status: p.status, reason: p.reason, evidence: p.evidence, createdAt: p.createdAt, decidedAt: p.decidedAt || null };
+            if (p.type === 'todo') return { ...chung, type: 'todo', todoText: p.todoText, due: p.due || null };
+            const hienTai = (l as any)[p.field!] ?? null;
+            return {
+              ...chung, type: 'field', field: p.field, nhan: NHAN_O[p.field!] || p.field,
+              giaTriHienTai: hienTai, newValue: p.newValue,
+              daDoi: !giaTriBang(hienTai, p.oldValue),
+            };
+          });
+        return ok({ soLuong: ds.length, deXuat: ds });
+      }
+    );
+
+    server.registerTool(
+      'approve_proposal',
+      {
+        title: 'Duyệt đề xuất của Claude',
+        description:
+          'Duyệt một đề xuất đang chờ: ghi giá trị vào lead (type "field") hoặc thêm việc (type "todo"), như Trân bấm Duyệt trong app. CHỈ gọi khi người dùng bảo duyệt rõ ràng trong chat — KHÔNG tự duyệt trong lúc cập nhật hồ sơ. Truyền giaTri để "sửa rồi duyệt" (chỉ với type "field").',
+        inputSchema: z.object({
+          proposalId: z.string().regex(/^[A-Za-z0-9_-]{1,80}$/).describe('id đề xuất, lấy từ list_proposals'),
+          giaTri: z.union([z.string(), z.number()]).optional().describe('Giá trị thay cho giá trị Claude đề xuất (sửa rồi duyệt)'),
+        }),
+      },
+      async (args) => {
+        const [crm, p] = await Promise.all([loadCrm(), napMotDeXuat(args.proposalId)]);
+        const l = crm.leads.find((x) => x.id === p.leadId);
+        if (!l) throw new Error(`Lead ${p.leadId} của đề xuất này không còn trong CRM.`);
+        const now = new Date().toISOString();
+        const trangThai: Record<string, unknown> = { status: 'duyet', decidedAt: now };
+        let ketQua: string;
+
+        if (p.type === 'field') {
+          const field = p.field!;
+          const v = args.giaTri !== undefined ? args.giaTri : p.newValue;
+          const loi = kiemTraGiaTriO(field, v);
+          if (loi) throw new Error(`Không duyệt được: ${loi}`);
+          // Ghi giaTriDuyet TRƯỚC (như app) để đối soát nhận ra giá trị đã sửa
+          if (args.giaTri !== undefined) await patchPath(`${aiRoot()}/proposals/${p.id}`, { giaTriDuyet: v });
+          await patchPath(`${dataRoot()}/leads/${l.id}`, { [field]: v });
+          ketQua = `${NHAN_O[field] || field} → ${hienGiaTriO(field, v)}`;
+        } else {
+          if (args.giaTri !== undefined) throw new Error('giaTri chỉ dùng cho đề xuất sửa ô, không dùng cho đề xuất việc.');
+          if (!(l.todos || []).some((t) => (t as any).tuDeXuat === p.id)) {
+            const dueDate = p.due || null;
+            await patchPath(`${dataRoot()}/leads/${l.id}/todos`, {
+              [(l.todos || []).length]: {
+                id: 't' + Date.now() + Math.random().toString(36).slice(2, 6),
+                text: p.todoText, done: false, dueDate, completedAt: null, tuDeXuat: p.id,
+              },
+            });
+            const moved = nextLeadDeadline(l, dueDate);
+            if (moved) await patchPath(`${dataRoot()}/leads/${l.id}`, { deadline: moved });
+          }
+          ketQua = `thêm việc "${p.todoText}"${p.due ? ` (hạn ${p.due})` : ''}`;
+        }
+
+        // Lead trước, trạng thái sau — cùng thứ tự với app
+        await logActivity(l, `Duyệt đề xuất của Claude (qua chat): ${ketQua}`);
+        await patchPath(`${aiRoot()}/proposals/${p.id}`, trangThai);
+        await touch();
+        return say(`Đã duyệt đề xuất cho lead "${l.name}": ${ketQua}.`);
+      }
+    );
+
+    server.registerTool(
+      'reject_proposal',
+      {
+        title: 'Bỏ đề xuất của Claude',
+        description:
+          'Bỏ (từ chối) một đề xuất đang chờ, như Trân bấm Bỏ trong app — Claude sẽ không đề xuất lại đúng giá trị này. CHỈ gọi khi người dùng bảo bỏ rõ ràng trong chat.',
+        inputSchema: z.object({
+          proposalId: z.string().regex(/^[A-Za-z0-9_-]{1,80}$/).describe('id đề xuất, lấy từ list_proposals'),
+        }),
+      },
+      async (args) => {
+        const p = await napMotDeXuat(args.proposalId);
+        await patchPath(`${aiRoot()}/proposals/${p.id}`, { status: 'bo', decidedAt: new Date().toISOString() });
+        const mo = p.type === 'todo' ? `việc "${p.todoText}"` : `${NHAN_O[p.field!] || p.field} → ${hienGiaTriO(p.field!, p.newValue)}`;
+        return say(`Đã bỏ đề xuất ${mo}.`);
+      }
+    );
+
     server.registerPrompt(
       'cap-nhat-ho-so',
       {
@@ -1481,6 +1615,7 @@ const mcpHandler = createMcpHandler(
               '- Lời hứa chuyển "xong" khi hội thoại cho thấy đã làm (vd: đã gửi file/link, khách đã báo lại).',
               '- doNong: "nong" khi khách hỏi cọc/hợp đồng/số tài khoản hoặc chốt ngày; "nguoi" khi im lâu hoặc nói đã chọn bên khác; còn lại "am".',
               '- Không đề xuất chuyển giai đoạn, Won hay Lost. Không đề xuất lại giá trị nằm trong daBo.',
+              '- KHÔNG tự gọi approve_proposal / reject_proposal — duyệt hay bỏ là việc của Trân.',
               '',
               'Cuối cùng tóm tắt ngắn cho Trân: lead nào nóng lên/nguội đi, lời hứa sắp hoặc đã quá hạn, số đề xuất mới đang chờ duyệt trong app.',
             ].join('\n'),
@@ -1947,6 +2082,54 @@ const mcpHandler = createMcpHandler(
         await touch();
 
         return say(`Đã thêm ghi chú cho lead "${l.name}".`);
+      }
+    );
+
+    server.registerTool(
+      'delete_note',
+      {
+        title: 'Xoá ghi chú',
+        description:
+          'Xoá một ghi chú của lead. Xác định ghi chú bằng noteId (chắc chắn nhất, lấy từ notesList của get_lead), hoặc bằng một đoạn nội dung khớp DUY NHẤT một ghi chú.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          noteId: z.string().optional().describe('id của ghi chú — cách xác định chắc chắn nhất'),
+          noteText: z.string().optional().describe('Hoặc khớp theo một đoạn nội dung ghi chú'),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const l = findLead(crm, args.lead);
+        const notes = (l.notesList || []).filter(Boolean);
+
+        let note: Note | undefined;
+        if (args.noteId) {
+          note = notes.find((n) => n.id === args.noteId);
+          if (!note) throw new Error(`Lead "${l.name}" không có ghi chú nào mang id ${args.noteId}.`);
+        } else if (args.noteText) {
+          const q = args.noteText.toLowerCase().trim();
+          const found = notes.filter((n) => (n.text || '').toLowerCase().includes(q));
+          if (!found.length) throw new Error(`Không tìm thấy ghi chú nào khớp "${args.noteText}".`);
+          if (found.length > 1) {
+            throw new Error(
+              `Có ${found.length} ghi chú khớp: ${found
+                .map((n) => `[${n.id}] ${n.text}`)
+                .join(' | ')}. Hãy dùng noteId cho chắc.`
+            );
+          }
+          note = found[0];
+        } else {
+          throw new Error('Cần truyền noteId hoặc noteText để xác định ghi chú.');
+        }
+
+        // Ghi lại cả danh sách (như removeNote() trong app) thay vì xoá theo chỉ số:
+        // để lỗ trong mảng thì RTDB trả về phần tử null, app đọc n.id là vỡ.
+        const rest = notes.filter((n) => n !== note);
+        await patchPath(`${dataRoot()}/leads/${l.id}`, { notesList: rest.length ? rest : null });
+        await logActivity(l, `Xoá ghi chú: ${note.text}`);
+        await touch();
+
+        return say(`Đã xoá ghi chú "${note.text}" của lead "${l.name}".`);
       }
     );
 

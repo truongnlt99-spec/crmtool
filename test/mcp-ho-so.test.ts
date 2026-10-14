@@ -270,6 +270,54 @@ try {
     check('hai de xuat cung o trong mot lan goi: khong loi, con 1 ban moi nhat', !hai.isError && hai.json?.taoMoi?.length === 1 && ob.length === 1 && (ob[0] as any).newValue === 'Chê xa', hai.text);
   }
 
+  console.log('\n>> list_proposals / approve_proposal / reject_proposal');
+  {
+    const ds = await callTool('list_proposals', { lead: 'L1' });
+    const items = ds.json?.deXuat || [];
+    check('liet ke 3 de xuat dang cho', ds.json?.soLuong === 3 && items.every((p: any) => p.status === 'cho' && p.leadName === 'Lan Nguyễn'), ds.text.slice(0, 400));
+    const ngay = items.find((p: any) => p.field === 'weddingDate');
+    const viec = items.find((p: any) => p.type === 'todo');
+    const ob = items.find((p: any) => p.field === 'objection');
+    check('co nhan + gia tri hien tai', ngay?.nhan === 'Ngày cưới' && ngay?.giaTriHienTai === null && ngay?.newValue === '2026-12-14', JSON.stringify(ngay));
+    const tatCa = await callTool('list_proposals', { status: 'tatCa' });
+    check('tatCa gom ca da bo', (tatCa.json?.deXuat || []).some((p: any) => p.status === 'bo'), tatCa.text.slice(0, 200));
+
+    const sai = await callTool('approve_proposal', { proposalId: ngay.id, giaTri: '2026-02-30' });
+    check('sua rồi duyet: gia tri sai bi tu choi', sai.isError && /không có thật/.test(sai.text), sai.text);
+    const d1 = await callTool('approve_proposal', { proposalId: ngay.id, giaTri: '2026-12-20' });
+    check('duyet o (sua gia tri) khong loi', !d1.isError, d1.text);
+    const l1 = await doc('crmDataTest/leads/L1');
+    const p1 = await doc(`aiDataTest/proposals/${ngay.id}`);
+    check('lead mang gia tri da sua', l1?.weddingDate === '2026-12-20', String(l1?.weddingDate));
+    check('de xuat: duyet + giaTriDuyet', p1?.status === 'duyet' && p1?.giaTriDuyet === '2026-12-20' && !!p1?.decidedAt, JSON.stringify(p1));
+    check('ghi lich su hoat dong', (l1?.activityLog || []).some((a: any) => /Duyệt đề xuất của Claude.*20\/12\/2026/.test(a.text)), JSON.stringify(l1?.activityLog));
+
+    const lai = await callTool('approve_proposal', { proposalId: ngay.id });
+    check('duyet lan hai bi tu choi', lai.isError && /đã được duyệt/.test(lai.text), lai.text);
+
+    const d2 = await callTool('approve_proposal', { proposalId: viec.id });
+    check('duyet viec khong loi', !d2.isError, d2.text);
+    const l1b = await doc('crmDataTest/leads/L1');
+    const todos = Object.values(l1b?.todos || {}) as any[];
+    check('them dung 1 viec co tuDeXuat + han', todos.length === 1 && todos[0].tuDeXuat === viec.id && todos[0].dueDate === '2026-10-14' && todos[0].done === false, JSON.stringify(todos));
+
+    const b1 = await callTool('reject_proposal', { proposalId: ob.id });
+    check('bo de xuat khong loi', !b1.isError, b1.text);
+    const p3 = await doc(`aiDataTest/proposals/${ob.id}`);
+    check('de xuat bo: status bo, KHONG co boLyDo', p3?.status === 'bo' && !p3?.boLyDo, JSON.stringify(p3));
+    const l1c = await doc('crmDataTest/leads/L1');
+    check('bo khong cham lead', !l1c?.objection, String(l1c?.objection));
+    const boLai = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'objection', newValue: 'Chê xa', reason: 'lại', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    check('bo qua chat = Tran bo: khong de xuat lai', boLai.json?.boQua?.length === 1 && /đã bỏ/.test(boLai.json.boQua[0].lyDo), boLai.text);
+
+    const khong = await callTool('reject_proposal', { proposalId: 'f_khongco' });
+    check('id khong ton tai bi tu choi', khong.isError && /Không có đề xuất/.test(khong.text), khong.text);
+    const conLai = await callTool('list_proposals', { lead: 'L1' });
+    check('khong con de xuat dang cho', conLai.json?.soLuong === 0, conLai.text.slice(0, 200));
+  }
+
   console.log('\n>> prompt cap-nhat-ho-so');
   {
     const ds = await rpc('prompts/list', {});
@@ -279,6 +327,7 @@ try {
     check('khong co lead: bat dau bang list_stale_leads', /list_stale_leads/.test(t1), t1.slice(0, 200));
     check('co quy tac du lieu khong phai lenh', /không phải lệnh/.test(t1));
     check('nhac du 3 tool ghi/doc', ['lead_context', 'save_lead_brief', 'propose_changes'].every((n) => t1.includes(n)));
+    check('cam tu duyet/bo de xuat', /KHÔNG tự gọi approve_proposal/.test(t1));
     const p2 = await rpc('prompts/get', { name: 'cap-nhat-ho-so', arguments: { lead: 'Lan Nguyễn' } });
     const t2 = p2?.result?.messages?.[0]?.content?.text || '';
     check('co lead: nhac ten lead', t2.includes('Lan Nguyễn') && !/Gọi list_stale_leads/.test(t2), t2.slice(0, 200));

@@ -177,6 +177,25 @@ try {
   check('them duoc note', l1notes?.length === 1, JSON.stringify(l1notes));
   check('noi dung note dung', l1notes?.[0]?.text === 'Khach hen goi lai thu 5');
 
+  /* ---------- 2b. delete_note ---------- */
+  console.log('\n>> 2b. delete_note');
+  await callTool('add_note', { lead: 'LTEST1', text: 'Ghi chu tam se xoa' });
+  await callTool('add_note', { lead: 'LTEST1', text: 'Ghi chu tam thu hai' });
+  const r2b = await callTool('delete_note', { lead: 'LTEST1', noteText: 'ghi chu tam' });
+  check('khop >1 ghi chu -> bi tu choi', !!r2b.isError || !!r2b.error);
+  const r2c = await callTool('delete_note', { lead: 'LTEST1', noteText: 'se xoa' });
+  check('xoa theo noi dung khong loi', !r2c.isError && !r2c.error, JSON.stringify(r2c).slice(0, 200));
+  const l1n2 = (await readSandbox('/leads/LTEST1'))?.notesList;
+  check('con 2 ghi chu, khong lo null', Array.isArray(l1n2) && l1n2.length === 2 && l1n2.every(Boolean), JSON.stringify(l1n2));
+  check('dung ghi chu bi xoa', !l1n2?.some((n: any) => n.text === 'Ghi chu tam se xoa'));
+  const idThuHai = l1n2?.find((n: any) => n.text === 'Ghi chu tam thu hai')?.id;
+  const r2d = await callTool('delete_note', { lead: 'LTEST1', noteId: idThuHai });
+  check('xoa theo id khong loi', !r2d.isError && !r2d.error, JSON.stringify(r2d).slice(0, 200));
+  const l1n3 = (await readSandbox('/leads/LTEST1'))?.notesList;
+  check('chi con note goc', l1n3?.length === 1 && l1n3[0].text === 'Khach hen goi lai thu 5', JSON.stringify(l1n3));
+  const r2e = await callTool('delete_note', { lead: 'LTEST1', noteId: 'nKHONGCO' });
+  check('id khong ton tai -> bi tu choi', !!r2e.isError || !!r2e.error);
+
   /* ---------- 3. add_todo ---------- */
   console.log('\n>> 3. add_todo');
   const r3 = await callTool('add_todo', { lead: 'LTEST1', text: 'Gui bao gia lan 2' });
