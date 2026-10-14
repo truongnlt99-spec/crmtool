@@ -106,6 +106,13 @@ check('msgId la: chip nguon khong bam duoc', !box.querySelector('.hs-nhu-cau .hs
 box.innerHTML = W.veTheDeXuat({ ...p, field: 'package', newValue: 'Signature', oldValue: 'Unique' }, lead);
 check('o sua goi la select', box.querySelectorAll('.dx-sua select option').length === W.PACKAGES.length);
 
+/* 12. Đề xuất do server sinh từ báo giá: không trích dẫn, lý do "Theo báo giá ngày ..." */
+box.innerHTML = W.veTheDeXuat({ id: 'f_bg1', leadId: 'L1', type: 'field', field: 'revenueExpected', oldValue: 0, newValue: 41905000,
+  reason: 'Theo báo giá ngày 15/10', evidence: [], nguon: { loai: 'baoGia', baoGiaId: 'bg_x', taoLuc: 't' }, status: 'cho', createdAt: '' }, { id: 'L1', revenueExpected: 0 });
+check('de xuat tu bao gia: tieu de', /Doanh thu dự kiến/.test(box.querySelector('.dx-tom').innerText) && /41\.905\.000 đ/.test(box.querySelector('.dx-tom').innerText), box.innerText);
+check('de xuat tu bao gia: ly do', /Theo báo giá ngày 15\/10/.test(box.querySelector('.dx-ly-do').textContent));
+check('de xuat tu bao gia: khong chip nguon', !box.querySelector('.dx-ly-do .hs-nguon'));
+
 check('khong co ma nao chay', window.__bi === undefined);
 window.__ketQua = ket;
 </script>

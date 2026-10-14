@@ -1,0 +1,63 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test khoi Bao gia</title>
+<!-- Chay bang: npm run test:bao-gia-ui -->
+<body>
+<div id="box"></div>
+<script type="module">
+import * as B from '../web/bao-gia.js';
+
+const ket = [];
+const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
+const box = document.getElementById('box');
+const XSS = '<img src=x onerror="window.__bi=1">';
+const buoi = (o) => ({ loai: 'cuoi', ten: 'Đám cưới', ngay: '2026-12-24', gio: null, soKhach: '750', moTa: null, goi: 'Gói Standard',
+  giaGoc: 29900000, uuDaiPhanTram: 5, giaSauUuDai: 28405000, ekip: ['1 Quay phim'], sanPham: ['Phim 4-6 phút'], quaTang: [], ...o });
+const bg = (o) => ({ tieuDe: 'Phương án quay chụp', tenKhach: 'Cô dâu Huyền', diaDiem: 'Hà Nội',
+  buoi: [buoi({ loai: 'anHoi', ten: 'Lễ ăn hỏi', ngay: '2026-11-16', goi: 'Combo 2 máy', giaGoc: 18000000, uuDaiPhanTram: 25, giaSauUuDai: 13500000 }), buoi({})],
+  tongGiaGoc: 47900000, tongSauUuDai: 41905000, tietKiem: 5995000, hanUuDai: '2026-10-20', ghiChu: ['Phụ phí 3.000.000 đ/máy'], ...o });
+
+/* 1. Chưa có báo giá */
+check('chua co: rong', B.veBaoGia({}, '2026-10-15') === '');
+check('chua co: moi nhat null', B.baoGiaMoiNhat({ baoGia: {} }) === null);
+
+/* 2. Bản mới nhất + các bản cũ */
+const lead = { baoGia: {
+  bg_a: bg({ taoLuc: '2026-10-10T03:00:00.000Z', tongSauUuDai: 45000000 }),
+  bg_b: bg({ taoLuc: '2026-10-14T03:00:00.000Z' }),
+} };
+check('moi nhat la bg_b', B.baoGiaMoiNhat(lead).id === 'bg_b');
+box.innerHTML = B.veBaoGia(lead, '2026-10-15');
+check('2 buoi', box.querySelectorAll('.bg-buoi').length === 2);
+check('gia goc gach + gia sau uu dai', !!box.querySelector('.bg-buoi s') && /28\.405\.000 đ/.test(box.innerText), box.innerText.slice(0, 300));
+check('phan tram uu dai', /−25%/.test(box.innerText) && /−5%/.test(box.innerText));
+check('tong sau uu dai', /41\.905\.000 đ/.test(box.querySelector('.bg-tong').innerText));
+check('tiet kiem', /Tiết kiệm 5\.995\.000 đ/.test(box.innerText));
+check('ban cu thu gon', /1 bản báo giá trước/.test(box.querySelector('.bg-ban-cu summary').innerText) && /45\.000\.000 đ/.test(box.querySelector('.bg-ban-cu').textContent));
+check('chi tiet ekip trong details', !!box.querySelector('.bg-buoi details') && /1 Quay phim/.test(box.querySelector('.bg-buoi details').textContent));
+check('ghi chu', /Phụ phí 3\.000\.000 đ\/máy/.test(box.innerText));
+
+/* 3. Hạn ưu đãi */
+check('han con', B.trangThaiHan('2026-10-20', '2026-10-15') === 'con');
+check('han sap (3 ngay)', B.trangThaiHan('2026-10-18', '2026-10-15') === 'sap');
+check('han hom nay la sap', B.trangThaiHan('2026-10-15', '2026-10-15') === 'sap');
+check('han het', B.trangThaiHan('2026-10-14', '2026-10-15') === 'het');
+check('khong han', B.trangThaiHan(null, '2026-10-15') === null);
+box.innerHTML = B.veBaoGia({ baoGia: { x: bg({ taoLuc: 't', hanUuDai: '2026-10-17' }) } }, '2026-10-15');
+check('han sap: class + con n ngay', !!box.querySelector('.bg-han.sap') && /còn 2 ngày/.test(box.innerText), box.innerText);
+box.innerHTML = B.veBaoGia({ baoGia: { x: bg({ taoLuc: 't', hanUuDai: '2026-10-10' }) } }, '2026-10-15');
+check('han het: da het han', !!box.querySelector('.bg-han.het') && /đã hết hạn/.test(box.innerText));
+
+/* 4. Dữ liệu Firebase thiếu mảng rỗng / null không làm vỡ */
+box.innerHTML = B.veBaoGia({ baoGia: { x: { tieuDe: 'T', tenKhach: 'K', buoi: [{ loai: 'cuoi', ten: 'Cưới', goi: 'G', giaGoc: 1000, uuDaiPhanTram: 0, giaSauUuDai: 1000 }], tongGiaGoc: 1000, tongSauUuDai: 1000, tietKiem: 0, taoLuc: 't' } } }, '2026-10-15');
+check('thieu truong khong vo', box.querySelectorAll('.bg-buoi').length === 1 && !/undefined|NaN/.test(box.innerText), box.innerText);
+
+/* 5. Chống XSS */
+box.innerHTML = B.veBaoGia({ baoGia: { x: bg({ taoLuc: 't', tieuDe: XSS, ghiChu: [XSS], buoi: [buoi({ goi: XSS, ekip: [XSS] })] }) } }, '2026-10-15');
+check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 300));
+check('van hien nguyen van', box.innerText.includes('<img src=x'));
+check('khong co ma nao chay', window.__bi === undefined);
+
+window.__ketQua = ket;
+</script>
+</body>
