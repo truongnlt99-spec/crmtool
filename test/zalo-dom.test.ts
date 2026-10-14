@@ -90,7 +90,10 @@ try {
   chrome.kill();
   server.close();
   await new Promise((r) => setTimeout(r, 300));
-  fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5 });
+  // Chrome trên Windows có lúc chưa nhả file profile -> EPERM. Không xoá được thư mục tạm thì bỏ qua,
+  // đừng để lỗi dọn dẹp che mất kết quả test.
+  try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); }
+  catch (e: any) { console.warn(`(bo qua: khong xoa duoc thu muc tam Chrome — ${e.code})`); }
   console.log(`\n${'='.repeat(50)}\nKET QUA: ${pass} PASS / ${fail} FAIL\n${'='.repeat(50)}`);
   if (fail) process.exitCode = 1;
 }
