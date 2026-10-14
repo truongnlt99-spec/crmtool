@@ -90,6 +90,12 @@ check('khong co tieu de: hien URL', !!a8 && a8.textContent === 'https://hayday.v
 ve([tin({ kind: 'text', text: 'chào chị' }), tin({ kind: 'card', text: 'link nè', url: 'https://x.vn/a', linkTitle: 'Phóng sự cưới Trân và Tú' })], 'phóng sự');
 check('tim duoc theo tieu de link', box.querySelectorAll('.zalo-row').length === 1 && box.innerText.includes('link nè'), box.innerText);
 
+/* ---------- 10. Moi bong bong mang data-msg-id de nhay toi tu ho so ---------- */
+ve([tin({ id: '12345', text: 'tin có mã' }), tin({ id: 'a"b', text: 'mã lạ' })]);
+const hang = box.querySelectorAll('.zalo-row');
+check('bong bong co data-msg-id', hang[0] && hang[0].dataset.msgId === '12345', box.innerHTML.slice(0, 200));
+check('ma la duoc escape', hang[1] && hang[1].dataset.msgId === 'a"b', hang[1] && hang[1].outerHTML.slice(0, 120));
+
 window.__ketQua = ket;
 </script>
 </body>

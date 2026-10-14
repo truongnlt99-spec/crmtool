@@ -1484,7 +1484,8 @@
     .detail-tab[aria-selected="true"]{background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm);}
     #drawerBody[data-tab="viec"] [data-tab-of]:not([data-tab-of="viec"]),
     #drawerBody[data-tab="hoithoai"] [data-tab-of]:not([data-tab-of="hoithoai"]),
-    #drawerBody[data-tab="thongtin"] [data-tab-of]:not([data-tab-of="thongtin"]){display:none;}
+    #drawerBody[data-tab="thongtin"] [data-tab-of]:not([data-tab-of="thongtin"]),
+    #drawerBody[data-tab="hoso"] [data-tab-of]:not([data-tab-of="hoso"]){display:none;}
     .detail-col-main{gap:12px;}
     .block-package{grid-template-columns:minmax(0,1fr);}
     .stepper{flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;}
@@ -1822,6 +1823,26 @@
   .dx-ten-lead{background:none; border:none; padding:0; font-weight:600; cursor:pointer; color:inherit;}
   .hs-nguon{border:none; background:var(--purple-soft); color:var(--purple); border-radius:999px; padding:1px 8px; font-size:12px; cursor:pointer; margin:2px 2px 0 0;}
   .hs-nguon.mat{background:var(--gray-tag-soft); color:var(--gray-tag); cursor:default;}
+  .block-hoso .hs-dau{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .hs-nong{border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600;}
+  .hs-nong.nong{background:var(--blush); color:#fff;}
+  .hs-nong.am{background:var(--amber-soft); color:var(--amber);}
+  .hs-nong.nguoi{background:var(--slate-soft); color:var(--slate);}
+  .hs-buoc-tiep{margin:8px 0; font-size:14px;}
+  .hs-nhom{margin:10px 0;}
+  .hs-nhan{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:2px;}
+  .hs-chu{font-size:14px; white-space:pre-wrap;}
+  .hs-hua-cot{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;}
+  @media (max-width:760px){ .hs-hua-cot{grid-template-columns:1fr;} }
+  .hs-hua{border-left:3px solid var(--border); padding:4px 8px; margin:6px 0; font-size:14px;}
+  .hs-hua.quaHan{border-left-color:var(--blush);}
+  .hs-hua.quaHan .hs-han{color:var(--blush); font-weight:600;}
+  .hs-hua.xong{opacity:.6; text-decoration:line-through;}
+  .hs-han{font-size:12px; color:var(--ink-faint);}
+  .hs-chan{font-size:12px; color:var(--ink-faint); margin-top:12px;}
+  .hs-trong{text-align:center; padding:12px 0;}
+  .hs-cau-mau{margin-top:8px; border:1px dashed var(--border); background:none; border-radius:10px; padding:8px 12px; cursor:pointer; color:inherit;}
+  .zalo-row.zalo-flash .zalo-bubble{outline:2px solid var(--purple); outline-offset:2px; transition:outline-color .3s;}
 </style>
 </head>
 <body>
@@ -4071,10 +4092,16 @@ function openLead(id){
       <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')">Việc &amp; ghi chú</button>
       <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại</button>
       <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
+      <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ</button>
     </div>
 
     <div class="detail-grid">
       <div class="detail-col detail-col-main">
+        <div class="detail-block block-hoso" data-tab-of="hoso">
+          <div class="block-head"><h3 class="block-title">✦ Hồ sơ khách <span class="block-meta">do Claude soạn</span></h3></div>
+          <div id="hoSoDeXuat"></div>
+          <div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div>
+        </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
           <div class="field-group">
@@ -4183,6 +4210,7 @@ function openLead(id){
   openZaloChat(id);
   initAutoGrowTextareas();
   chonTabChiTiet(tabChiTiet);
+  moHoSo(id);
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
 }
@@ -4456,6 +4484,7 @@ function closeDrawer(){
   document.getElementById('drawer').classList.remove('open');
   currentLeadId = null;
   closeZaloChat();
+  dongHoSo();
 }
 function deleteCurrentLead(){
   if (!currentLeadId) return;
@@ -4607,6 +4636,72 @@ function veLaiPhanDeXuat(){
 }
 
 
+/* ----- Tab "Hồ sơ" trong chi tiết lead ----- */
+let hoSoUnsub = null;
+let hoSoBrief = null;        // undefined = đang tải, null = chưa có, object = hồ sơ
+let hoSoLoi = false;
+
+function moHoSo(leadId){
+  dongHoSo();
+  hoSoBrief = undefined; hoSoLoi = false;
+  const f = window.__firebase;
+  if (!f || !f.aiBase) return;
+  hoSoUnsub = f.onValue(f.refAt(`${f.aiBase()}/briefs/${leadId}`), s => {
+    hoSoBrief = s.val() || null;
+    if (currentLeadId === leadId) veKhoiHoSo(leadId);
+  }, e => {
+    console.warn('Không đọc được aiData/briefs:', e);
+    hoSoLoi = true;
+    if (currentLeadId === leadId) veKhoiHoSo(leadId);
+  });
+  veKhoiHoSo(leadId);
+}
+
+function dongHoSo(){
+  if (hoSoUnsub){ try { hoSoUnsub(); } catch(e){} }
+  hoSoUnsub = null; hoSoBrief = undefined;
+}
+
+function veKhoiHoSo(leadId){
+  const khoi = document.getElementById('hoSoBlock');
+  const dx = document.getElementById('hoSoDeXuat');
+  if (!khoi || !dx) return;
+  const vo = khoi.closest('.block-hoso');
+  if (!window.HoSoAI || hoSoLoi){ vo.style.display = 'none'; return; }
+  vo.style.display = '';
+  const lead = leads.find(l => l.id === leadId);
+  dx.innerHTML = deXuatCuaLead(leadId).map(p => HoSoAI.veTheDeXuat(p, lead)).join('');
+  if (hoSoBrief === undefined){ khoi.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
+  const convIds = new Set(zaloConvsOf(leadId).map(c => c.convId));
+  const coTin = (convId, msgId) => {
+    if (!convIds.has(convId)) return false;
+    const ds = zaloMsgs[convId];
+    // Hội thoại chưa tải xong (hoặc tin cũ hơn 500 tin cuối): coi là còn, bấm vào vẫn mở đúng hội thoại
+    return !Array.isArray(ds) || ds.length >= 500 || ds.some(m => m.id === msgId);
+  };
+  const tinMoi = HoSoAI.demTinMoi(
+    Object.fromEntries([...convIds].map(c => [c, Array.isArray(zaloMsgs[c]) ? zaloMsgs[c] : []])),
+    hoSoBrief ? hoSoBrief.cursorAt : 0
+  );
+  khoi.innerHTML = HoSoAI.veHoSo(hoSoBrief, { homNay: todayISO(), coTin, tinMoi, tenLead: lead ? lead.name : '' });
+}
+
+/** Chip nguồn: mở tab Hội thoại đúng hội thoại, cuộn tới tin và tô sáng. */
+function xemNguon(convId, msgId){
+  if (!currentLeadId) return;
+  chonTabChiTiet('hoithoai');
+  pickZaloConv(currentLeadId, convId);
+  const tim = (lan) => {
+    const row = [...document.querySelectorAll('#zaloList .zalo-row')].find(r => r.dataset.msgId === msgId);
+    if (row){
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      row.classList.add('zalo-flash');
+      setTimeout(() => row.classList.remove('zalo-flash'), 2000);
+    } else if (lan < 10) setTimeout(() => tim(lan + 1), 150);   // hội thoại còn đang tải
+  };
+  tim(0);
+}
+
 function initZalo(){
   const f = window.__firebase;
   const base = f.zaloBase();
@@ -4657,6 +4752,7 @@ function openZaloChat(leadId){
     const un = f.onValue(q, s => {
       zaloMsgs[c.convId] = Object.entries(s.val() || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.at || 0) - (b.at || 0));
       if (currentLeadId === leadId) renderZaloList();
+      if (currentLeadId === leadId && typeof veKhoiHoSo === 'function') veKhoiHoSo(leadId);
     }, e => {
       console.warn('Không tải được hội thoại Zalo:', e);
       zaloMsgs[c.convId] = { error: true };
@@ -4735,7 +4831,7 @@ function renderZaloMessages(box, data, hoiThoai, query){
     // Có tiêu đề trang (Zalo đã tải sẵn) thì hiện tiêu đề cho dễ đọc, link vẫn trỏ đúng URL
     const link = url ? `<div class="zalo-link"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(h.linkTitle || url)}</a></div>` : '';
     const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
-    html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
+    html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}" data-msg-id="${esc(m.id || '')}">`
       + (ten ? `<div class="zalo-who">${esc(ten)}</div>` : '')
       + `<div class="zalo-bubble">${quote}${body}${link}</div>`
       + `<div class="zalo-time">${d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}</div></div>`;
