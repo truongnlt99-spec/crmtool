@@ -1809,6 +1809,7 @@
 
   /* ===== Hồ sơ khách AI + đề xuất ===== */
   .nut-de-xuat{gap:6px;}
+  .nut-de-xuat[hidden]{display:none;}
   .nut-de-xuat-so{background:var(--blush); color:#fff; border-radius:999px; padding:0 7px; font-size:12px; line-height:18px;}
   .card-dx{color:var(--purple); font-size:13px;}
   .dx-the{border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:8px 0; background:var(--surface-2);}
@@ -4574,11 +4575,12 @@ function apDungDeXuat(p, giaTri){
   aiDangDuyet.add(p.id);
   if (currentLeadId === lead.id) openLead(lead.id);
   renderAll();
-  veLaiPhanDeXuat();
+  veLaiPhanDeXuat(true);
   return true;
 }
 
 function duyetDeXuat(id){
+  if (aiDangDuyet.has(id)) return;
   const p = aiDeXuat[id];
   if (p) apDungDeXuat(p, p.newValue);
 }
@@ -4588,6 +4590,7 @@ function moSuaDeXuat(id){
 }
 
 function duyetDeXuatSua(id, btn){
+  if (aiDangDuyet.has(id)) return;
   const p = aiDeXuat[id];
   if (!p) return;
   const o = btn.parentElement.querySelector('input, select, textarea');
@@ -4598,24 +4601,33 @@ function duyetDeXuatSua(id, btn){
   // Ghi giaTriDuyet TRƯỚC để đối soát nhận ra giá trị đã sửa (kể cả sau khi tải lại trang)
   const f = window.__firebase;
   f.update(f.refAt(`${f.aiBase()}/proposals/${id}`), { giaTriDuyet: v })
-    .then(() => { p.giaTriDuyet = v; apDungDeXuat(p, v); })
+    .then(() => { if (aiDangDuyet.has(id)) return; p.giaTriDuyet = v; apDungDeXuat(p, v); })
     .catch(e => alert('Không lưu được: ' + (e && e.message || e)));
 }
 
 function boDeXuat(id){
   const f = window.__firebase;
   aiDangDuyet.add(id);
-  veLaiPhanDeXuat();
+  veLaiPhanDeXuat(true);
   f.update(f.refAt(`${f.aiBase()}/proposals/${id}`), { status: 'bo', decidedAt: new Date().toISOString() })
-    .catch(e => { aiDangDuyet.delete(id); veLaiPhanDeXuat(); alert('Không bỏ được: ' + (e && e.message || e)); });
+    .catch(e => { aiDangDuyet.delete(id); veLaiPhanDeXuat(true); alert('Không bỏ được: ' + (e && e.message || e)); });
 }
 
 function moModalDeXuat(){ veModalDeXuat(); document.getElementById('deXuatOverlay').classList.add('show'); }
 function dongModalDeXuat(){ document.getElementById('deXuatOverlay').classList.remove('show'); }
 
-function veModalDeXuat(){
+/** Đang gõ trong ô "Sửa rồi duyệt" (hộp sửa đang mở hoặc con trỏ nằm trong vùng) -> đừng vẽ lại, kẻo mất chữ đang gõ. */
+function dangSuaDeXuat(el){
+  if (!el) return false;
+  if (el.querySelector('.dx-sua:not([hidden])')) return true;
+  const a = document.activeElement;
+  return !!(a && a !== document.body && el.contains(a));
+}
+
+function veModalDeXuat(ep){
   const body = document.getElementById('deXuatBody');
   if (!body || !window.HoSoAI) return;
+  if (!ep && dangSuaDeXuat(body)) return;
   const theoLead = {};
   leads.forEach(l => { const ds = deXuatCuaLead(l.id); if (ds.length) theoLead[l.id] = ds; });
   const ids = Object.keys(theoLead);
@@ -4626,13 +4638,13 @@ function veModalDeXuat(){
   }).join('') : '<div class="list-empty">Không còn đề xuất nào.</div>';
 }
 
-function veLaiPhanDeXuat(){
+function veLaiPhanDeXuat(ep){
   const n = leads.reduce((s, l) => s + deXuatCuaLead(l.id).length, 0);
   const nut = document.getElementById('nutDeXuat');
   if (nut){ nut.hidden = !n || !window.HoSoAI; document.getElementById('nutDeXuatSo').textContent = n; }
   const ov = document.getElementById('deXuatOverlay');
-  if (ov && ov.classList.contains('show')) veModalDeXuat();
-  if (typeof veKhoiHoSo === 'function' && currentLeadId) veKhoiHoSo(currentLeadId);
+  if (ov && ov.classList.contains('show')) veModalDeXuat(ep);
+  if (typeof veKhoiHoSo === 'function' && currentLeadId) veKhoiHoSo(currentLeadId, ep);
 }
 
 
@@ -4662,7 +4674,7 @@ function dongHoSo(){
   hoSoUnsub = null; hoSoBrief = undefined;
 }
 
-function veKhoiHoSo(leadId){
+function veKhoiHoSo(leadId, ep){
   const khoi = document.getElementById('hoSoBlock');
   const dx = document.getElementById('hoSoDeXuat');
   if (!khoi || !dx) return;
@@ -4670,7 +4682,7 @@ function veKhoiHoSo(leadId){
   if (!window.HoSoAI || hoSoLoi){ vo.style.display = 'none'; return; }
   vo.style.display = '';
   const lead = leads.find(l => l.id === leadId);
-  dx.innerHTML = deXuatCuaLead(leadId).map(p => HoSoAI.veTheDeXuat(p, lead)).join('');
+  if (ep || !dangSuaDeXuat(dx)) dx.innerHTML = deXuatCuaLead(leadId).map(p => HoSoAI.veTheDeXuat(p, lead)).join('');
   if (hoSoBrief === undefined){ khoi.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
   const convIds = new Set(zaloConvsOf(leadId).map(c => c.convId));
   const coTin = (convId, msgId) => {
