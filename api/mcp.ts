@@ -647,10 +647,11 @@ export function xetDeXuat(
       : { hanhDong: 'tao' };
   }
   if (giaTriBang(lead[item.field], item.newValue)) return { hanhDong: 'boQua', lyDo: 'Ô đã mang đúng giá trị này' };
-  if (cuaLead.some((p) => p.type === 'field' && p.field === item.field && p.status === 'bo' && giaTriBang(p.newValue, item.newValue))) {
+  if (cuaLead.some((p) => p.type === 'field' && p.field === item.field && p.status === 'bo' && !p.boLyDo && giaTriBang(p.newValue, item.newValue))) {
     return { hanhDong: 'boQua', lyDo: 'Trân đã bỏ đề xuất này trước đây' };
   }
   const dangCho = cuaLead.find((p) => p.type === 'field' && p.field === item.field && p.status === 'cho');
+  if (dangCho && giaTriBang(dangCho.newValue, item.newValue)) return { hanhDong: 'boQua', lyDo: 'Đang chờ duyệt' };
   return dangCho ? { hanhDong: 'thay', idCu: dangCho.id } : { hanhDong: 'tao' };
 }
 
@@ -1305,7 +1306,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Ngữ cảnh lead để cập nhật hồ sơ',
         description:
-          'Trả các ô hiện tại của lead, việc chưa xong, hồ sơ khách hiện có, và TIN MỚI kể từ lần phân tích trước (tối đa 400 tin/đợt, cũ nhất trước; còn nữa thì có conLai > 0 — lưu hồ sơ rồi gọi lại). Kèm cursorDeXuat (giá trị con trỏ được phép lưu), đề xuất đang chờ và các giá trị Trân đã bỏ. lamLai=true để đọc lại từ đầu.',
+          'Trả các ô hiện tại của lead, việc chưa xong, hồ sơ khách hiện có, và TIN MỚI kể từ lần phân tích trước (tối đa 400 tin/đợt, cũ nhất trước; còn nữa thì có conLai > 0 — lưu hồ sơ rồi gọi lại). Kèm cursorDeXuat (giá trị con trỏ được phép lưu), đề xuất đang chờ và các giá trị Trân đã bỏ. lamLai=true để đọc lại từ đầu (chỉ dùng ở đợt đầu tiên khi dựng lại hồ sơ; các đợt sau bỏ lamLai). Nếu cursorDeXuat là null (tin mới đầu tiên chưa có nội dung) thì KHÔNG gọi save_lead_brief với con trỏ mới — giữ nguyên cursorAt hiện tại của hồ sơ (hoặc 0 nếu chưa có hồ sơ). Nếu gọi lại lead_context mà cursorDeXuat không tiến lên thì dừng lead đó.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
           lamLai: z.boolean().optional().describe('Đọc lại toàn bộ tin từ đầu để dựng lại hồ sơ'),
@@ -1329,7 +1330,7 @@ const mcpHandler = createMcpHandler(
           conLai,
           cursorDeXuat,
           deXuatDangCho: cuaLead.filter((p) => p.status === 'cho'),
-          daBo: cuaLead.filter((p) => p.status === 'bo' && p.type === 'field').map((p) => ({ field: p.field, newValue: p.newValue })),
+          daBo: cuaLead.filter((p) => p.status === 'bo' && !p.boLyDo && p.type === 'field').map((p) => ({ field: p.field, newValue: p.newValue })),
         });
       }
     );
@@ -1408,8 +1409,12 @@ const mcpHandler = createMcpHandler(
           if (item.type === 'field') {
             const sai = kiemTraGiaTriO(item.field, item.newValue);
             if (sai) { boQua.push({ item, lyDo: sai }); continue; }
-          } else if (!brief?.loiHua?.[item.huaId]) {
-            boQua.push({ item, lyDo: `Không có lời hứa ${item.huaId} trong hồ sơ — lưu hồ sơ trước` }); continue;
+          } else {
+            if (!/^h_[a-z0-9]{8}$/.test(item.huaId) || !Object.hasOwn(brief?.loiHua || {}, item.huaId)) {
+              boQua.push({ item, lyDo: `Không có lời hứa ${item.huaId} trong hồ sơ — lưu hồ sơ trước` }); continue;
+            }
+            const saiHan = kiemTraGiaTriO('weddingDate', item.due);
+            if (saiHan) { boQua.push({ item, lyDo: `Hạn việc không hợp lệ: ${saiHan}` }); continue; }
           }
           if (loi.length) { boQua.push({ item, lyDo: loi.join('; ') }); continue; }
 
@@ -1465,7 +1470,7 @@ const mcpHandler = createMcpHandler(
               'Với mỗi lead:',
               '1. Gọi lead_context. Nếu conLai > 0 thì làm xong đợt này (bước 2–4) rồi gọi lại lead_context.',
               '2. Đọc tin mới, kết hợp với hồ sơ hiện có (giữ những gì vẫn đúng), viết lại TOÀN BỘ hồ sơ.',
-              '3. Gọi save_lead_brief với cursorAt = cursorDeXuat. Lời hứa đã có thì gửi kèm id cũ. Bị từ chối thì đọc lỗi, sửa đúng chỗ, gọi lại.',
+              '3. Gọi save_lead_brief với cursorAt = cursorDeXuat. Nếu cursorDeXuat là null (tin mới đầu tiên chưa có nội dung) thì KHÔNG gọi save_lead_brief với con trỏ mới — giữ nguyên cursorAt hiện tại của hồ sơ (hoặc 0 nếu chưa có hồ sơ). Nếu gọi lại lead_context mà cursorDeXuat không tiến lên thì dừng lead đó. Chỉ dùng lamLai: true ở đợt đầu tiên khi dựng lại hồ sơ; các đợt sau bỏ lamLai. Lời hứa đã có thì gửi kèm id cũ. Bị từ chối thì đọc lỗi, sửa đúng chỗ, gọi lại.',
               '4. Gọi propose_changes cho: ô của lead mà tin nhắn mâu thuẫn hoặc bổ sung giá trị đang có; và lời hứa còn mở, có hạn, chưa có việc tương ứng (type "todo" với huaId từ hồ sơ vừa lưu).',
               '',
               'Quy tắc:',

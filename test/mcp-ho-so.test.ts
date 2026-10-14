@@ -207,16 +207,18 @@ try {
       { type: 'field', field: 'persona', newValue: 'Có chồng cùng quyết', reason: 'x', evidence: [E('201', 'tầm 45 triệu', 'c2')] },
       { type: 'todo', huaId: idHua, todoText: 'Gửi phim mẫu Signature', due: '2026-10-14', reason: 'Mình đã hứa', evidence: [E('102', 'gửi chị phim mẫu')] },
       { type: 'todo', huaId: 'h_khongcoo', todoText: 'x', due: '2026-10-14', reason: 'x', evidence: [E('102', 'gửi chị phim mẫu')] },
+      { type: 'todo', huaId: idHua, todoText: 'x', due: '2026-13-45', reason: 'x', evidence: [E('102', 'gửi chị phim mẫu')] },
     ] });
     const j = r.json;
     check('tao 2 de xuat', j?.taoMoi?.length === 2, r.text);
-    check('bo qua 5 muc', j?.boQua?.length === 5, r.text);
+    check('bo qua 6 muc', j?.boQua?.length === 6, r.text);
     const lyDo = (j?.boQua || []).map((b: any) => b.lyDo).join(' | ');
     check('ly do: gia tri da dung', /đúng giá trị/.test(lyDo), lyDo);
     check('ly do: o khong duoc phep', /không nằm trong danh sách/.test(lyDo), lyDo);
     check('ly do: sai kieu', /số nguyên/.test(lyDo), lyDo);
     check('ly do: trich dan lead khac', /không thuộc lead/.test(lyDo), lyDo);
     check('ly do: loi hua khong ton tai', /lời hứa/.test(lyDo), lyDo);
+    check('ly do: han viec sai ngay', /Hạn việc/.test(lyDo), lyDo);
 
     const ds = await doc('aiDataTest/proposals');
     const f = Object.entries(ds || {}).find(([, p]: any) => p.field === 'weddingDate') as any;
@@ -236,10 +238,28 @@ try {
     const boLai = await callTool('propose_changes', { lead: 'L1', items: [
       { type: 'field', field: 'weddingDate', newValue: '2026-12-12', reason: 'lại', evidence: [E('101', 'cưới 12/12')] },
     ] });
-    check('khong de xuat lai gia tri da bi bo', boLai.json?.boQua?.length === 1 && /đã bỏ/.test(boLai.json.boQua[0].lyDo), boLai.text);
+    check('gia tri bi CHINH Claude thay the thi de xuat lai duoc (tao)', boLai.json?.taoMoi?.length === 1 && !boLai.json?.boQua?.length, boLai.text);
+
+    // Trân bấm Bỏ (status bo, KHÔNG có boLyDo) -> không đề xuất lại
+    const ds2b = await doc('aiDataTest/proposals');
+    const idChon = Object.entries(ds2b || {}).find(([, p]: any) => p.field === 'weddingDate' && p.status === 'cho')?.[0] as string;
+    await db(`aiDataTest/proposals/${idChon}`, { method: 'PATCH', body: JSON.stringify({ status: 'bo', decidedAt: new Date().toISOString() }) });
+    const boLai2 = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-12', reason: 'lại', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    check('khong de xuat lai gia tri Tran da bo', boLai2.json?.boQua?.length === 1 && /đã bỏ/.test(boLai2.json.boQua[0].lyDo), boLai2.text);
+
+    // cùng giá trị với đề xuất đang chờ -> không "thay"
+    const cho1 = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-14', reason: 'x', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    const cho2 = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-14', reason: 'x', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    check('cung gia tri dang cho: bo qua Dang cho duyet', cho1.json?.taoMoi?.length === 1 && cho2.json?.boQua?.length === 1 && /Đang chờ duyệt/.test(cho2.json.boQua[0].lyDo), cho2.text);
 
     const ctx3 = await callTool('lead_context', { lead: 'L1' });
-    check('lead_context tra de xuat dang cho + da bo', ctx3.json?.deXuatDangCho?.length === 2 && ctx3.json?.daBo?.some((b: any) => b.newValue === '2026-12-12'), ctx3.text.slice(-400));
+    check('lead_context tra de xuat dang cho + da bo', ctx3.json?.deXuatDangCho?.length === 2 && ctx3.json?.daBo?.some((b: any) => b.newValue === '2026-12-12') && !ctx3.json.daBo.some((b: any) => b.newValue === '2026-12-13'), ctx3.text.slice(-400));
 
     const hai = await callTool('propose_changes', { lead: 'L1', items: [
       { type: 'field', field: 'objection', newValue: 'Sợ đắt', reason: 'a', evidence: [E('101', 'cưới 12/12')] },

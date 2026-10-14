@@ -147,12 +147,15 @@ console.log('\n>> xetDeXuat');
   const ds: S.DeXuat[] = [
     { id: 'f_a', leadId: 'L1', type: 'field', field: 'package', newValue: 'Signature', status: 'cho', reason: '', evidence: [], createdAt: '' },
     { id: 'f_b', leadId: 'L1', type: 'field', field: 'phone', newValue: '0901', status: 'bo', reason: '', evidence: [], createdAt: '' },
+    { id: 'f_c', leadId: 'L1', type: 'field', field: 'email', newValue: 'a@b.vn', status: 'bo', boLyDo: 'Thay bằng đề xuất mới', reason: '', evidence: [], createdAt: '' },
     { id: 'todo_h_1', leadId: 'L1', type: 'todo', huaId: 'h_1', status: 'duyet', reason: '', evidence: [], createdAt: '' },
   ];
   eq('gia tri da dung', S.xetDeXuat({ type: 'field', field: 'weddingDate', newValue: '2026-12-12' }, lead, ds).hanhDong, 'boQua');
   eq('da bi bo dung gia tri', S.xetDeXuat({ type: 'field', field: 'phone', newValue: '0901' }, lead, ds).hanhDong, 'boQua');
   eq('bo roi nhung gia tri khac -> tao', S.xetDeXuat({ type: 'field', field: 'phone', newValue: '0902' }, lead, ds).hanhDong, 'tao');
   eq('dang cho cung o -> thay', S.xetDeXuat({ type: 'field', field: 'package', newValue: 'Standard' }, lead, ds), { hanhDong: 'thay', idCu: 'f_a' });
+  eq('Claude tu thay the (co boLyDo) -> de xuat lai duoc', S.xetDeXuat({ type: 'field', field: 'email', newValue: 'a@b.vn' }, lead, ds).hanhDong, 'tao');
+  eq('cung gia tri dang cho -> boQua', S.xetDeXuat({ type: 'field', field: 'package', newValue: 'Signature' }, lead, ds), { hanhDong: 'boQua', lyDo: 'Đang chờ duyệt' });
   eq('todo da co', S.xetDeXuat({ type: 'todo', huaId: 'h_1' }, lead, ds).hanhDong, 'boQua');
   eq('todo moi', S.xetDeXuat({ type: 'todo', huaId: 'h_2' }, lead, ds).hanhDong, 'tao');
 }
