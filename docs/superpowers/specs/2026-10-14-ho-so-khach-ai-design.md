@@ -85,6 +85,7 @@ Evidence = { convId, msgId, quote }   // quote: đoạn ngắn nguyên văn tron
   ít nhất 1 evidence.
 - `loiHua` là object theo id (không phải mảng) để patch từng lời hứa không lệch chỉ số.
   Lời hứa mới Claude gửi không có id → server cấp `h_<random>`.
+- `loiHua` gửi lên dạng mảng; server lưu dạng object theo id.
 
 ### `proposals/<proposalId>` — hàng chờ đề xuất
 
@@ -135,7 +136,7 @@ Ghi bằng `patchPath` (không PUT đè nhánh).
 ### `list_stale_leads` (readOnlyHint)
 
 Lead đang mở (không Won/Lost) có hội thoại gắn kèm, và **chưa có hồ sơ** hoặc có tin với
-`at > cursorAt`. Trả `{ leadId, name, stageName, tinMoi, tinMoiNhatLuc }`, xếp tin mới nhất trước.
+`at > cursorAt`. Trả `{ leadId, name, stageName, chuaCoHoSo, tinMoiNhatLuc }`, xếp tin mới nhất trước. Dựa trên `zalo/meta/<convId>.lastAt`, không đọc tin.
 
 ### `lead_context(lead)` (readOnlyHint)
 
@@ -148,6 +149,7 @@ Lead đang mở (không Won/Lost) có hội thoại gắn kèm, và **chưa có 
   `conLai: <số tin>` — Claude lưu rồi gọi lại.
 - `cursorDeXuat`: `at` lớn nhất được phép đặt làm con trỏ = tin cuối trong đợt trả về, **nhưng dừng
   trước tin đầu tiên còn thiếu nội dung** (tin `text` chưa đọc được trên Zalo web) để lần sau đọc bù.
+  Tin thiếu nội dung cũ hơn 3 ngày không chặn con trỏ (coi như không bao giờ có chữ).
 - Đề xuất đang `cho` của lead + danh sách `(field, newValue)` đã `bo`.
 
 ### `save_lead_brief(lead, brief, cursorAt, lamLai?)`

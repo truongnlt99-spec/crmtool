@@ -478,6 +478,177 @@ function zaloConvsOfLead(z: ZaloStore, leadId: string): Array<[string, ZaloLink]
   return Object.entries(z.links).filter(([, l]) => l && l.status === 'lead' && l.leadId === leadId);
 }
 
+/* ===================== Hồ sơ khách AI: hàm thuần (export để test) ===================== */
+// Spec: docs/superpowers/specs/2026-10-14-ho-so-khach-ai-design.md
+
+/** Kho dữ liệu AI tương ứng kho CRM: crmData -> aiData, crmData_users/<uid> -> aiData_users/<uid>, crmDataTest -> aiDataTest. */
+export function aiRootFromDataRoot(dataRoot: string): string {
+  return dataRoot.replace(/^crmData/, 'aiData');
+}
+
+/** Kho AI của request hiện tại. */
+function aiRoot(): string {
+  return aiRootFromDataRoot(dataRoot());
+}
+
+export const TOI_DA_TIN = 400;
+/** Tin thiếu nội dung cũ hơn mốc này coi như không bao giờ có chữ (chỉ đọc trên điện thoại). */
+export const KET_TIN_THIEU_MS = 3 * 24 * 3600_000;
+
+/**
+ * Các ô của lead Claude được phép đề xuất sửa. CHÉP Ở 2 NƠI: đây và web/ho-so-ai.js
+ * (app không import được file trong api/). Sửa một bên thì sửa cả hai — test/ho-so-ai.test.ts
+ * chạy cùng bộ ca trên cả hai.
+ */
+export const FIELD_WHITELIST = [
+  'weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth',
+  'phone', 'facebook', 'schedule', 'persona', 'objection',
+] as const;
+
+/** null = hợp lệ; chuỗi = lý do sai. */
+export function kiemTraGiaTriO(field: string, v: unknown): string | null {
+  const chuoi = (min: number, max: number) =>
+    typeof v === 'string' && v.trim().length >= min && v.length <= max
+      ? null
+      : `"${field}" phải là chữ ${min}–${max} ký tự`;
+  switch (field) {
+    case 'weddingDate': {
+      if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return 'Ngày cưới phải dạng YYYY-MM-DD';
+      const d = new Date(v + 'T00:00:00Z');
+      return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v ? null : `Ngày ${v} không có thật`;
+    }
+    case 'package':
+      return (PACKAGES as readonly string[]).includes(v as string) ? null : `Gói phải là một trong: ${PACKAGES.join(', ')}`;
+    case 'revenueExpected':
+      return typeof v === 'number' && Number.isInteger(v) && v >= 0 ? null : 'Doanh thu dự kiến phải là số nguyên ≥ 0';
+    case 'expectedCloseMonth':
+      return typeof v === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) ? null : 'Tháng chốt phải dạng YYYY-MM';
+    case 'phone':
+    case 'facebook':
+      return chuoi(1, 100);
+    case 'schedule':
+    case 'persona':
+    case 'objection':
+      return chuoi(1, 2000);
+    default:
+      return `Ô "${field}" không nằm trong danh sách được đề xuất`;
+  }
+}
+
+export function giaTriBang(a: unknown, b: unknown): boolean {
+  const rong = (x: unknown) => x === null || x === undefined || x === '';
+  if (rong(a) && rong(b)) return true;
+  if (rong(a) || rong(b)) return false;
+  if (typeof a === 'number' || typeof b === 'number') return Number(a) === Number(b);
+  return String(a).trim() === String(b).trim();
+}
+
+export function chuanHoaChu(s: string): string {
+  return String(s || '').normalize('NFC').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+export function trichDanKhop(quote: string, noiDung: string): boolean {
+  const q = chuanHoaChu(quote);
+  return q.length >= 4 && chuanHoaChu(noiDung).includes(q);
+}
+
+export type Evidence = { convId: string; msgId: string; quote: string };
+export type TinPhang = { convId: string; msgId: string; at: number; thieu: boolean; from: string; text: string };
+
+/** Nội dung dùng để khớp trích dẫn: chữ + tên file + tiêu đề link (không lấy phần trích tin khác). */
+function noiDungTin(m: ZaloMsg): string {
+  const h = hienThiZalo(m);
+  return [h.text, h.fileName, h.linkTitle].filter(Boolean).join('\n');
+}
+
+/** Gộp tin mọi hội thoại của lead, chỉ tin có at > sauAt, xếp theo (at, convId, msgId). */
+export function gopTin(
+  theoConv: Record<string, Record<string, ZaloMsg>>,
+  tenConv: Record<string, string>,
+  sauAt: number
+): TinPhang[] {
+  const ds: TinPhang[] = [];
+  for (const [convId, msgs] of Object.entries(theoConv)) {
+    for (const [msgId, m] of Object.entries(msgs || {})) {
+      const at = Number(m.at);
+      if (!Number.isFinite(at) || at <= sauAt) continue;
+      const h = hienThiZalo(m);
+      ds.push({
+        convId,
+        msgId,
+        at,
+        thieu: h.thieu,
+        from: m.fromMe ? 'Mình' : (tenNguoiGuiZalo(m, convId, tenConv[convId] || '') || 'Khách'),
+        text: h.thieu
+          ? '(chưa có nội dung — tin chưa được mở trên Zalo web)'
+          : (h.chip ? `[${h.chip}]${h.text ? ' ' + h.text : ''}` : h.text) + (h.fileName ? ` (file: ${h.fileName})` : '') + (h.linkTitle ? ` (link: ${h.linkTitle})` : ''),
+      });
+    }
+  }
+  return ds.sort((a, b) => a.at - b.at || a.convId.localeCompare(b.convId) || a.msgId.localeCompare(b.msgId));
+}
+
+/**
+ * Cắt một đợt tin cho Claude. Không bao giờ cắt giữa nhóm tin cùng `at` (đợt sau lọc at > cursor
+ * sẽ bỏ sót). Con trỏ đề xuất dừng TRƯỚC tin đầu tiên còn thiếu nội dung, trừ tin thiếu đã quá
+ * KET_TIN_THIEU_MS (coi như không bao giờ có chữ).
+ */
+export function tinhDotTin(tin: TinPhang[], toiDa: number, now: number): { dot: TinPhang[]; conLai: number; cursorDeXuat: number | null } {
+  let dot = tin.slice(0, toiDa);
+  if (tin.length > toiDa) {
+    const atKe = tin[toiDa].at;
+    const catLui = dot.filter((t) => t.at !== atKe);
+    dot = catLui.length ? catLui : tin.filter((t) => t.at === atKe);
+  }
+  let cursorDeXuat: number | null = null;
+  for (const t of dot) {
+    if (t.thieu && now - t.at < KET_TIN_THIEU_MS) break;
+    cursorDeXuat = t.at;
+  }
+  return { dot, conLai: tin.length - dot.length, cursorDeXuat };
+}
+
+/** Lỗi của từng bằng chứng; mảng rỗng = hợp lệ. `theoConv` chỉ chứa hội thoại của CHÍNH lead đó. */
+export function kiemTraBangChung(evs: Evidence[], theoConv: Record<string, Record<string, ZaloMsg>>, nhan: string): string[] {
+  const loi: string[] = [];
+  for (const ev of evs) {
+    const conv = theoConv[ev.convId];
+    if (!conv) { loi.push(`${nhan}: hội thoại ${ev.convId} không thuộc lead này`); continue; }
+    const m = conv[ev.msgId];
+    if (!m) { loi.push(`${nhan}: không có tin ${ev.msgId} trong hội thoại ${ev.convId}`); continue; }
+    if (!trichDanKhop(ev.quote, noiDungTin(m))) loi.push(`${nhan}: trích dẫn "${ev.quote}" không khớp nội dung tin ${ev.msgId}`);
+  }
+  return loi;
+}
+
+export type DeXuat = {
+  id: string; leadId: string; type: 'field' | 'todo';
+  field?: string; oldValue?: unknown; newValue?: unknown;
+  todoText?: string; due?: string; huaId?: string;
+  reason: string; evidence: Evidence[];
+  status: 'cho' | 'duyet' | 'bo'; createdAt: string; decidedAt?: string;
+  giaTriDuyet?: unknown; boLyDo?: string;
+};
+
+/** Bốn quy tắc chống trùng của spec. `cuaLead` = mọi đề xuất (mọi trạng thái) của lead đó. */
+export function xetDeXuat(
+  item: { type: 'field'; field: string; newValue: unknown } | { type: 'todo'; huaId: string },
+  lead: Record<string, unknown>,
+  cuaLead: DeXuat[]
+): { hanhDong: 'tao' } | { hanhDong: 'thay'; idCu: string } | { hanhDong: 'boQua'; lyDo: string } {
+  if (item.type === 'todo') {
+    return cuaLead.some((p) => p.id === `todo_${item.huaId}`)
+      ? { hanhDong: 'boQua', lyDo: 'Đã có đề xuất việc cho lời hứa này' }
+      : { hanhDong: 'tao' };
+  }
+  if (giaTriBang(lead[item.field], item.newValue)) return { hanhDong: 'boQua', lyDo: 'Ô đã mang đúng giá trị này' };
+  if (cuaLead.some((p) => p.type === 'field' && p.field === item.field && p.status === 'bo' && giaTriBang(p.newValue, item.newValue))) {
+    return { hanhDong: 'boQua', lyDo: 'Trân đã bỏ đề xuất này trước đây' };
+  }
+  const dangCho = cuaLead.find((p) => p.type === 'field' && p.field === item.field && p.status === 'cho');
+  return dangCho ? { hanhDong: 'thay', idCu: dangCho.id } : { hanhDong: 'tao' };
+}
+
 function boDauZalo(s: unknown): string {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
 }
