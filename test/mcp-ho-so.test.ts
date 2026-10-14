@@ -240,6 +240,14 @@ try {
 
     const ctx3 = await callTool('lead_context', { lead: 'L1' });
     check('lead_context tra de xuat dang cho + da bo', ctx3.json?.deXuatDangCho?.length === 2 && ctx3.json?.daBo?.some((b: any) => b.newValue === '2026-12-12'), ctx3.text.slice(-400));
+
+    const hai = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'objection', newValue: 'Sợ đắt', reason: 'a', evidence: [E('101', 'cưới 12/12')] },
+      { type: 'field', field: 'objection', newValue: 'Chê xa', reason: 'b', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    const ds3 = await doc('aiDataTest/proposals');
+    const ob = Object.values(ds3 || {}).filter((p: any) => p.field === 'objection' && p.leadId === 'L1' && p.status === 'cho');
+    check('hai de xuat cung o trong mot lan goi: khong loi, con 1 ban moi nhat', !hai.isError && hai.json?.taoMoi?.length === 1 && ob.length === 1 && (ob[0] as any).newValue === 'Chê xa', hai.text);
   }
 
   // Task 4, 5, 6 nối tiếp các khối test vào đây.

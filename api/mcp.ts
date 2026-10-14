@@ -1420,7 +1420,14 @@ const mcpHandler = createMcpHandler(
           const p: DeXuat = item.type === 'field'
             ? { id, leadId: l.id, type: 'field', field: item.field, oldValue: (l as any)[item.field] ?? null, newValue: item.newValue, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now }
             : { id, leadId: l.id, type: 'todo', todoText: item.todoText, due: item.due, huaId: item.huaId, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now };
-          if (xet.hanhDong === 'thay') {
+          if (xet.hanhDong === 'thay' && Object.hasOwn(patch, xet.idCu)) {
+            // bản cũ vừa tạo trong CHÍNH lần gọi này: bỏ hẳn, không ghi đường con (tránh PATCH chồng đường dẫn)
+            delete patch[xet.idCu];
+            const i = taoMoi.findIndex((x) => x.id === xet.idCu);
+            if (i >= 0) taoMoi.splice(i, 1);
+            const j = cuaLead.findIndex((x) => x.id === xet.idCu);
+            if (j >= 0) cuaLead.splice(j, 1);
+          } else if (xet.hanhDong === 'thay') {
             patch[`${xet.idCu}/status`] = 'bo';
             patch[`${xet.idCu}/boLyDo`] = 'Thay bằng đề xuất mới';
             patch[`${xet.idCu}/decidedAt`] = now;
