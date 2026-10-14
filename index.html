@@ -135,9 +135,12 @@
 <script type="module">
   // Dùng chung logic với extension Zalo (chip chờ trả lời, nhãn loại tin).
   import * as ZaloMap from './extension/lib/zalo-map.js';
-  // Logic thuần của view "Danh sách" (lọc/sắp xếp/xuất) — test bằng Node ở test/bang-lead.test.ts
-  import * as BangLead from './web/bang-lead.js';
   window.ZaloMap = ZaloMap;
+</script>
+<script type="module">
+  // Logic thuần của view "Danh sách" (lọc/sắp xếp/xuất) — test bằng Node ở test/bang-lead.test.ts.
+  // Module riêng: nạp lỗi thì chỉ mất bảng Danh sách, không kéo theo ZaloMap.
+  import * as BangLead from './web/bang-lead.js';
   window.BangLead = BangLead;
   if (document.body && document.body.dataset.view === 'list' && window.renderBangLead) window.renderBangLead();
 </script>
@@ -3263,7 +3266,7 @@ function setView(view){
 const BANG_CAI_DAT_KEY = 'bangLeadCaiDat';
 let bangCaiDat = null;      // { an, rong, sapXep, loc } — nạp lười vì module nạp sau script này
 let bangDangSua = null;     // { id, khoa } khi đang sửa một ô -> hoãn vẽ lại để không mất chữ đang gõ
-let bangCanVeLai = false;
+let bangHenMoLead = null;    // hẹn mở chi tiết khi bấm tên; bấm đúp thì huỷ để sửa tên
 
 function caiDatBang(){
   if (!bangCaiDat){
@@ -3296,7 +3299,7 @@ function rongCot(c){ return caiDatBang().rong[c.khoa] || c.rong; }
 function oBangHtml(c, lead, ctx){
   const v = window.BangLead.layGiaTri(c.khoa, lead, ctx);
   switch (c.khoa){
-    case 'name': return `<button type="button" class="bang-ten" onclick="openLead('${lead.id}')" title="${esc(v)}">${esc(v)}</button>`;
+    case 'name': return `<button type="button" class="bang-ten" onclick="bamTenBang('${lead.id}', event)" title="${esc(v)}">${esc(v)}</button>`;
     case 'package': {
       if (!v) return '—';
       const p = PACKAGE_STYLE[v] || PACKAGE_STYLE['Standard'];
@@ -3307,7 +3310,7 @@ function oBangHtml(c, lead, ctx){
       return `<span class="badge-pkg badge-leadtype" style="background:${t.bg}; color:${t.fg}">${esc(v)}</span>`;
     }
     case 'status': { const s = leadStatus(lead); return `<span class="status-text ${s.type}">${esc(s.label)}</span>`; }
-    case 'todos': { const t = lead.todos || []; return t.length ? `${t.filter(x => x.done).length}/${t.length}` : '—'; }
+    case 'todos': { const t = window.BangLead.mang(lead.todos); return t.length ? `${t.filter(x => x.done).length}/${t.length}` : '—'; }
     case 'lastNote': {
       if (!v) return '—';
       const ngan = v.length > 80 ? v.slice(0, 80) + '…' : v;
@@ -3321,14 +3324,19 @@ function oBangHtml(c, lead, ctx){
   if (c.kieu === 'so') return esc(formatMoney(v));
   return esc(v);
 }
+// Bấm tên = mở chi tiết (chờ một nhịp); bấm đúp = sửa tên (suaOBang huỷ lịch mở)
+function bamTenBang(id, ev){
+  clearTimeout(bangHenMoLead);
+  if (ev && ev.detail > 1) return;
+  bangHenMoLead = setTimeout(() => openLead(id), 250);
+}
 function oSuaDuoc(c, lead){ return !!c.sua && (!c.suaKhi || c.suaKhi(lead)); }
 
 function renderBangLead(){
   const scroll = document.getElementById('bangScroll');
   if (!scroll || !window.BangLead) return;
   if (!document.getElementById('viewList').classList.contains('active')) return;
-  if (bangDangSua){ bangCanVeLai = true; return; }
-  bangCanVeLai = false;
+  if (bangDangSua) return;   // luuOBang/huyOBang luôn vẽ lại khi xong
   const B = window.BangLead, cd = caiDatBang(), ctx = ctxBang();
   const cot = cotDangHien();
   const dong = dongDangHien();
@@ -3434,10 +3442,11 @@ function moMenuLoc(khoa, nut){
     loc = `<label><input type="checkbox" ${chon.length === ds.length ? 'checked' : ''} onchange="chonTatCaLocBang('${khoa}', this.checked)"> <b>Chọn tất cả</b></label>
       ${ds.map((v, i) => `<label><input type="checkbox" data-gt="${esc(v)}" ${chon.includes(v) ? 'checked' : ''} onchange="tickLocBang('${khoa}')"> ${v ? esc(v) : '<i>(Trống)</i>'}</label>`).join('')}`;
   } else {
-    const loai = c.kieu === 'ngay' ? 'date' : c.kieu === 'thang' ? 'month' : 'text';
-    const doc = c.kieu === 'so' ? `inputmode="numeric" oninput="formatMoneyInput(this)"` : '';
-    const gt = v => (v === undefined || v === '' ? '' : c.kieu === 'so' ? moneyDisplay(v) : esc(v));
-    loc = `<div>Từ</div><input class="field-input" type="${loai}" data-dau="tu" ${doc} value="${gt(dk.tu)}" onchange="khoangLocBang('${khoa}')">
+    const tien = c.khoa === 'revenueExpected' || c.khoa === 'revenueActual';
+    const loai = c.kieu === 'ngay' ? 'date' : c.kieu === 'thang' ? 'month' : tien ? 'text' : c.kieu === 'so' ? 'number' : 'text';
+    const doc = tien ? `inputmode="numeric" oninput="formatMoneyInput(this)"` : c.kieu === 'so' ? 'min="0" step="1"' : '';
+    const gt = v => (v === undefined || v === '' ? '' : tien ? moneyDisplay(v) : esc(v));
+    loc = `${c.khoa === 'todos' ? '<div><i>Lọc theo số việc chưa xong</i></div>' : ''}<div>Từ</div><input class="field-input" type="${loai}" data-dau="tu" ${doc} value="${gt(dk.tu)}" onchange="khoangLocBang('${khoa}')">
       <div>Đến</div><input class="field-input" type="${loai}" data-dau="den" ${doc} value="${gt(dk.den)}" onchange="khoangLocBang('${khoa}')">`;
   }
   m.dataset.khoa = khoa;
@@ -3469,7 +3478,8 @@ function khoangLocBang(khoa){
   const doc = dau => {
     const el = document.querySelector(`#bangMenu input[data-dau="${dau}"]`);
     if (!el || !el.value) return undefined;
-    return c.kieu === 'so' ? moneyInputValue(el) : el.value;
+    if (c.khoa === 'revenueExpected' || c.khoa === 'revenueActual') return moneyInputValue(el);
+    return c.kieu === 'so' ? Number(el.value) : el.value;
   };
   const tu = doc('tu'), den = doc('den');
   capNhatLocBang(khoa, tu === undefined && den === undefined ? null : { ...(tu !== undefined && { tu }), ...(den !== undefined && { den }) });
@@ -3507,6 +3517,7 @@ function batDauKeoCot(ev, khoa){
   const x0 = ev.clientX, w0 = col.getBoundingClientRect().width || parseInt(col.style.width, 10);
   const t0 = table.getBoundingClientRect().width;
   let w = w0;
+  try { ev.target.setPointerCapture(ev.pointerId); } catch(e){}
   const di = e => {
     w = Math.max(60, Math.round(w0 + e.clientX - x0));
     col.style.width = w + 'px';
@@ -3515,16 +3526,19 @@ function batDauKeoCot(ev, khoa){
   const tha = () => {
     window.removeEventListener('pointermove', di);
     window.removeEventListener('pointerup', tha);
+    window.removeEventListener('pointercancel', tha);
     caiDatBang().rong[khoa] = w;
     luuCaiDatBang();
   };
   window.addEventListener('pointermove', di);
   window.addEventListener('pointerup', tha);
+  window.addEventListener('pointercancel', tha);   // thả chuột ngoài cửa sổ / cử chỉ chạm bị huỷ
 }
 
 function suaOBang(id, khoa, td){
   const lead = leads.find(l => l.id === id);
   const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  clearTimeout(bangHenMoLead);
   if (!lead || !c || !oSuaDuoc(c, lead) || bangDangSua) return;
   bangDangSua = { id, khoa };
   const truong = khoa;   // khoá cột trùng tên trường lead với mọi cột sửa được
@@ -4862,7 +4876,7 @@ function submitAddLead(){
   };
   leads.unshift(lead);
   closeAddLead();
-  setView('pipeline');
+  setView(document.body.dataset.view === 'list' ? 'list' : 'pipeline');   // đang ở bảng thì ở lại bảng
   scheduleSave();
 }
 
@@ -5524,7 +5538,8 @@ function renderSidebarStats(){
 /* ======================= MASTER RENDER ======================= */
 function renderAll(){
   renderPipeline();
-  renderBangLead();
+  // Lỗi trong bảng không được chặn Dashboard/thanh bên/Hội thoại vẽ tiếp
+  try { renderBangLead(); } catch(e){ console.error('renderBangLead', e); }
   renderDashboard();
   renderSidebarStats();
   renderConversations();

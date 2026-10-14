@@ -136,5 +136,13 @@ check('loc: giu dung dang, loc chu trong chon', JSON.stringify(cd.loc) === JSON.
 const cd2 = B.docCaiDat(JSON.stringify({ sapXep: { khoa: 'name', chieu: 'tang' } }));
 check('sapXep hop le giu nguyen, thieu an -> mac dinh', cd2.sapXep.khoa === 'name' && cd2.sapXep.chieu === 'tang' && cd2.an.length === 4);
 
+console.log('\n>> du lieu sai kieu tu RTDB (mang luu thanh object)');
+const LECH = { id: 'Z', name: 'Lệch', stage: 'leadin', tags: { 0: 'VIP', 1: 'Gấp' }, todos: { 0: { done: true }, 1: { done: false } }, notesList: { 0: { text: 'a' }, 1: { text: 'b' } } };
+check('tags object -> noi gia tri', B.layGiaTri('tags', LECH, ctx) === 'VIP, Gấp');
+check('todos object -> dem viec chua xong', B.layGiaTri('todos', LECH, ctx) === 1);
+check('notesList object -> ghi chu cuoi', B.layGiaTri('lastNote', LECH, ctx) === 'b');
+check('dongXuat todos object -> x/y', B.dongXuat([LECH], ['todos'], ctx).dong[0][0] === '1/2');
+check('tags chuoi -> giu chuoi', B.layGiaTri('tags', { tags: 'VIP' }, ctx) === 'VIP');
+
 console.log(`\n${pass} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

@@ -8,6 +8,8 @@ export const TRANG_THAI = ['Trễ hẹn', 'Hôm nay', 'Còn hạn', 'Chưa hẹn
 const ngay = v => (v ? String(v).slice(0, 10) : '');
 const so = v => (v === null || v === undefined || v === '' || isNaN(Number(v)) ? null : Number(v));
 const chuaXongWon = l => l.stage !== 'won' && l.stage !== 'lost';
+// RTDB có thể trả mảng về dạng object {0:..,1:..}; chuỗi (tag cũ) coi là một phần tử.
+export const mang = v => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : v ? [v] : []);
 
 export function boDau(s){
   return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -41,9 +43,9 @@ export const COT = [
   { khoa:'wonAt',              tieuDe:'Ngày Won',          kieu:'ngay',  rong:110,                 lay: l => ngay(l.wonAt) },
   { khoa:'lostAt',             tieuDe:'Ngày Lost',         kieu:'ngay',  rong:110,                 lay: l => ngay(l.lostAt) },
   { khoa:'lostReason',         tieuDe:'Lý do Lost',        kieu:'chon',  rong:150,                 lay: l => l.lostReason || '' },
-  { khoa:'tags',               tieuDe:'Tag',               kieu:'chu',   rong:130,                 lay: l => (l.tags || []).join(', ') },
-  { khoa:'todos',              tieuDe:'Việc',              kieu:'so',    rong:110,                 lay: l => (l.todos && l.todos.length ? l.todos.filter(t => !t.done).length : null) },
-  { khoa:'lastNote',           tieuDe:'Ghi chú gần nhất',  kieu:'chu',   rong:220,                 lay: l => { const n = l.notesList || []; return n.length ? String(n[n.length - 1].text || '') : ''; } },
+  { khoa:'tags',               tieuDe:'Tag',               kieu:'chu',   rong:130,                 lay: l => mang(l.tags).join(', ') },
+  { khoa:'todos',              tieuDe:'Việc',              kieu:'so',    rong:110,                 lay: l => { const t = mang(l.todos); return t.length ? t.filter(x => !x.done).length : null; } },
+  { khoa:'lastNote',           tieuDe:'Ghi chú gần nhất',  kieu:'chu',   rong:220,                 lay: l => { const n = mang(l.notesList); return n.length ? String(n[n.length - 1].text || '') : ''; } },
   { khoa:'zalo',               tieuDe:'Zalo',              kieu:'chon',  rong:80,                  lay: (l, c) => (c.coZalo(l) ? 'Có' : 'Không') },
 ];
 const COT_MAP = Object.fromEntries(COT.map(c => [c.khoa, c]));
@@ -141,7 +143,7 @@ export function dongXuat(leads, khoaHien, ctx){
     kieu: cot.map(kieuXuat),
     dong: leads.map(l => cot.map(c => {
       if (c.khoa === 'todos'){
-        const t = l.todos || [];
+        const t = mang(l.todos);
         return t.length ? `${t.filter(x => x.done).length}/${t.length}` : null;
       }
       const v = c.lay(l, ctx);
