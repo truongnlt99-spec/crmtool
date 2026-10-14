@@ -97,5 +97,44 @@ check('gia tri duy nhat (co rong, sap xep)', JSON.stringify(B.giaTriDuyNhat(LEAD
 check('gia tri duy nhat status theo thu tu', JSON.stringify(B.giaTriDuyNhat(LEADS, 'status', ctx)) === JSON.stringify(['Trễ hẹn', 'Hôm nay', 'Won', 'Lost']));
 check('dem cot dang loc', B.soCotDangLoc({ a: { chua: 'x' }, b: { chua: ' ' }, c: { chon: [] }, d: { tu: '', den: '' }, e: { den: 5 } }) === 3);
 
+console.log('\n>> dongXuat');
+const x = B.dongXuat([LEADS[0], LEADS[3]], ['name', 'weddingDate', 'expectedCloseMonth', 'revenueExpected', 'stage', 'todos', 'status'], ctx);
+check('tieu de theo cot', JSON.stringify(x.tieuDe) === JSON.stringify(['Tên', 'Ngày cưới', 'Tháng dự kiến chốt', 'DT dự kiến', 'Giai đoạn', 'Việc chưa xong', 'Trạng thái hẹn']));
+check('kieu theo cot, todos la chu', JSON.stringify(x.kieu) === JSON.stringify(['chu', 'ngay', 'thang', 'so', 'chu', 'chu', 'chu']), JSON.stringify(x.kieu));
+const d0 = x.dong[0];
+check('ngay la Date dia phuong', d0[1] instanceof Date && d0[1].getFullYear() === 2026 && d0[1].getMonth() === 11 && d0[1].getDate() === 1 && d0[1].getHours() === 0);
+check('thang rong -> null', x.dong[0][2] === null);
+check('tien la so', d0[3] === 30000000);
+check('giai doan la ten', d0[4] === 'Lead in');
+check('todos x/y', d0[5] === '1/2');
+check('trang thai la chu', d0[6] === 'Trễ hẹn');
+const d1 = x.dong[1];
+check('rong -> null', d1[1] === null && d1[3] === null && d1[5] === null);
+const xc = B.dongXuat([LEADS[2]], ['expectedCloseMonth'], ctx);
+check('thang 2026-11 -> 1/11/2026', xc.dong[0][0] instanceof Date && xc.dong[0][0].getMonth() === 10 && xc.dong[0][0].getDate() === 1);
+check('khoa la bi bo qua', B.dongXuat([LEADS[0]], ['name', 'khongCo'], ctx).tieuDe.length === 1);
+check('giu thu tu dong', B.dongXuat([LEADS[1], LEADS[0]], ['name'], ctx).dong.map((r: any) => r[0]).join('|') === 'Trần Minh|Nguyễn Thị Hằng');
+
+console.log('\n>> cai dat');
+const md = B.macDinhCaiDat();
+check('mac dinh an 4 cot', JSON.stringify(md.an) === JSON.stringify(['createdAt', 'wonAt', 'lostAt', 'lostReason']));
+check('mac dinh sap xep ngay tao moi nhat', md.sapXep.khoa === 'createdAt' && md.sapXep.chieu === 'giam');
+check('mac dinh la ban sao moi', B.macDinhCaiDat().an !== md.an);
+check('null -> mac dinh', JSON.stringify(B.docCaiDat(null)) === JSON.stringify(md));
+check('json hong -> mac dinh', JSON.stringify(B.docCaiDat('{hong')) === JSON.stringify(md));
+check('khong phai object -> mac dinh', JSON.stringify(B.docCaiDat('[1,2]')) === JSON.stringify(md));
+const cd = B.docCaiDat(JSON.stringify({
+  an: ['phone', 'name', 'khongCo', 5],
+  rong: { phone: 150, name: 20, khongCo: 99, facebook: 'x' },
+  sapXep: { khoa: 'xyz', chieu: 'giam' },
+  loc: { package: { chon: ['Unique', 3] }, khongCo: { chua: 'x' }, phone: { chua: '09' }, weddingDate: { tu: '2026-01-01' }, facebook: 'sai' },
+}));
+check('an: bo name + khoa la', JSON.stringify(cd.an) === JSON.stringify(['phone']), JSON.stringify(cd.an));
+check('rong: toi thieu 60, bo khoa la/kieu sai', JSON.stringify(cd.rong) === JSON.stringify({ phone: 150, name: 60 }), JSON.stringify(cd.rong));
+check('sapXep khoa la -> mac dinh', cd.sapXep.khoa === 'createdAt' && cd.sapXep.chieu === 'giam');
+check('loc: giu dung dang, loc chu trong chon', JSON.stringify(cd.loc) === JSON.stringify({ package: { chon: ['Unique'] }, phone: { chua: '09' }, weddingDate: { tu: '2026-01-01' } }), JSON.stringify(cd.loc));
+const cd2 = B.docCaiDat(JSON.stringify({ sapXep: { khoa: 'name', chieu: 'tang' } }));
+check('sapXep hop le giu nguyen, thieu an -> mac dinh', cd2.sapXep.khoa === 'name' && cd2.sapXep.chieu === 'tang' && cd2.an.length === 4);
+
 console.log(`\n${pass} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

@@ -127,3 +127,64 @@ export function soCotDangLoc(boLoc){
     return coGiaTri(dk.tu) || coGiaTri(dk.den);
   }).length;
 }
+
+// Một dòng xuất Excel: giá trị kiểu thật để SheetJS ghi số/ngày đúng (không phải chữ).
+function ngayThat(s){
+  const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?/.exec(s || '');
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, m[3] ? Number(m[3]) : 1) : null;
+}
+export function dongXuat(leads, khoaHien, ctx){
+  const cot = khoaHien.map(k => COT_MAP[k]).filter(Boolean);
+  const kieuXuat = c => (c.khoa === 'todos' || c.kieu === 'chon' ? 'chu' : c.kieu);
+  return {
+    tieuDe: cot.map(c => c.tieuDe),
+    kieu: cot.map(kieuXuat),
+    dong: leads.map(l => cot.map(c => {
+      if (c.khoa === 'todos'){
+        const t = l.todos || [];
+        return t.length ? `${t.filter(x => x.done).length}/${t.length}` : null;
+      }
+      const v = c.lay(l, ctx);
+      if (rong(v)) return null;
+      if (c.kieu === 'ngay' || c.kieu === 'thang') return ngayThat(v);
+      return v;
+    })),
+  };
+}
+
+export const MAC_DINH_AN = ['createdAt', 'wonAt', 'lostAt', 'lostReason'];
+export function macDinhCaiDat(){
+  return { an: MAC_DINH_AN.slice(), rong: {}, sapXep: { khoa: 'createdAt', chieu: 'giam' }, loc: {} };
+}
+
+const laObject = v => v && typeof v === 'object' && !Array.isArray(v);
+function locHopLe(dk){
+  if (!laObject(dk)) return null;
+  if (typeof dk.chua === 'string') return { chua: dk.chua };
+  if (Array.isArray(dk.chon)) return { chon: dk.chon.filter(x => typeof x === 'string') };
+  const r = {};
+  if (typeof dk.tu === 'string' || typeof dk.tu === 'number') r.tu = dk.tu;
+  if (typeof dk.den === 'string' || typeof dk.den === 'number') r.den = dk.den;
+  return Object.keys(r).length ? r : null;
+}
+
+// Cài đặt bảng đọc từ localStorage: hỏng / khác phiên bản / khoá cột lạ → bỏ phần sai, phần thiếu lấy mặc định.
+export function docCaiDat(chuoi){
+  const md = macDinhCaiDat();
+  let o;
+  try { o = JSON.parse(chuoi); } catch (e) { return md; }
+  if (!laObject(o)) return md;
+  const an = Array.isArray(o.an) ? o.an.filter(k => typeof k === 'string' && COT_MAP[k] && k !== 'name') : md.an;
+  const rongCot = {};
+  if (laObject(o.rong)) for (const [k, v] of Object.entries(o.rong)){
+    if (COT_MAP[k] && typeof v === 'number' && isFinite(v)) rongCot[k] = Math.max(60, Math.round(v));
+  }
+  const sx = laObject(o.sapXep) && COT_MAP[o.sapXep.khoa] && (o.sapXep.chieu === 'tang' || o.sapXep.chieu === 'giam')
+    ? { khoa: o.sapXep.khoa, chieu: o.sapXep.chieu } : md.sapXep;
+  const loc = {};
+  if (laObject(o.loc)) for (const [k, dk] of Object.entries(o.loc)){
+    const h = COT_MAP[k] && locHopLe(dk);
+    if (h) loc[k] = h;
+  }
+  return { an, rong: rongCot, sapXep: sx, loc };
+}
