@@ -80,7 +80,10 @@ try {
   console.log('\n>> Dung sandbox');
   await db('aiDataTest', { method: 'DELETE' });
   await db('crmDataTest', { method: 'PUT', body: JSON.stringify({
-    leads: { L1: { id: 'L1', name: 'Huyền Nguyễn', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' } },
+    leads: {
+      L1: { id: 'L1', name: 'Huyền Nguyễn', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' },
+      L2: { id: 'L2', name: 'Mai Anh', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' },
+    },
     planRevenue: 1, planLeads: 1,
   }) });
 
@@ -105,7 +108,17 @@ try {
   check('de xuat ngay cuoi', ds1.some((p) => p.field === 'weddingDate' && p.newValue === '2026-12-24'));
   check('de xuat goi Standard', ds1.some((p) => p.field === 'package' && p.newValue === 'Standard'));
   const viec = ds1.find((p) => p.type === 'todo');
-  check('viec nhac han uu dai', viec?.id === `todo_bguu${HAN.replace(/-/g, '')}` && viec?.due === mod.congNgay(HAN, -2), JSON.stringify(viec));
+  check('viec nhac han uu dai', viec?.id === `todo_bguu${HAN.replace(/-/g, '')}_L1` && viec?.due === mod.congNgay(HAN, -2), JSON.stringify(viec));
+
+  // Hai lead cùng hạn ưu đãi: việc nhắc của lead này KHÔNG được ghi đè lên lead kia
+  const rB = await callTool('save_quote', { lead: 'L2', baoGia: MAU });
+  const tatCa = (await doc('aiDataTest/proposals')) || {};
+  const viecA = tatCa[`todo_bguu${HAN.replace(/-/g, '')}_L1`];
+  const viecB = tatCa[`todo_bguu${HAN.replace(/-/g, '')}_L2`];
+  check('2 lead cung han: moi lead giu viec nhac rieng', !rB.isError && viecA?.leadId === 'L1' && viecB?.leadId === 'L2', JSON.stringify({ viecA, viecB }).slice(0, 300));
+  // Dọn đề xuất của L2 để các bước sau chỉ đếm của L1
+  await db('aiDataTest/proposals', { method: 'PATCH', body: JSON.stringify(Object.fromEntries(
+    Object.entries(tatCa).filter(([, p]: any) => p.leadId === 'L2').map(([id]) => [id, null]))) });
 
   // Review Focus 5: lưu lại y nguyên -> không đề xuất trùng
   const r2 = await callTool('save_quote', { lead: 'L1', baoGia: MAU });

@@ -98,7 +98,7 @@ Mô tả tool nói rõ: dùng **sau khi Trân làm xong báo giá trên claude.a
    - `package` = gói của buổi cưới **nếu** khớp một gói của app (so không dấu, không phân biệt hoa
      thường, bỏ tiền tố "gói": "Gói Standard" → `Standard`; không khớp thì không đề xuất);
    - việc (`type: 'todo'`): "Nhắc khách ưu đãi hết hạn dd/mm", `due` = `hanUuDai − 2 ngày`
-     (nhưng không trước hôm nay); bỏ qua nếu `hanUuDai` đã qua. Id tất định theo ngày hạn: `todo_bguu<YYYYMMDD>` (bản báo giá mới cùng hạn không sinh việc trùng).
+     (nhưng không trước hôm nay); bỏ qua nếu `hanUuDai` đã qua. Id tất định theo ngày hạn và lead: `todo_bguu<YYYYMMDD>_<leadId>` (bản báo giá mới cùng hạn không sinh việc trùng).
    - Mỗi đề xuất mang `nguon: { loai: 'baoGia', baoGiaId, taoLuc }` và `evidence: []`;
      `reason`: "Theo báo giá ngày dd/mm".
 4. Trả về: id báo giá, số đề xuất đã tạo / bỏ qua (kèm lý do).

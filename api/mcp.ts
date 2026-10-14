@@ -847,7 +847,7 @@ export type MucDeXuatBaoGia =
   | { type: 'todo'; huaId: string; todoText: string; due: string };
 
 /** Đề xuất sinh từ một báo giá: doanh thu, ngày cưới, gói, việc nhắc trước hạn ưu đãi 2 ngày. */
-export function deXuatTuBaoGia(bg: BaoGia, homNay: string): MucDeXuatBaoGia[] {
+export function deXuatTuBaoGia(bg: BaoGia, homNay: string, leadId: string): MucDeXuatBaoGia[] {
   const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: bg.tongSauUuDai }];
   const cuoi = bg.buoi.find((b) => b.loai === 'cuoi');
   if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
@@ -857,7 +857,8 @@ export function deXuatTuBaoGia(bg: BaoGia, homNay: string): MucDeXuatBaoGia[] {
     const truoc2 = congNgay(bg.hanUuDai, -2);
     ds.push({
       type: 'todo',
-      huaId: 'bguu' + bg.hanUuDai.replace(/-/g, ''),
+      // Kèm leadId: đề xuất của mọi lead nằm chung một nhánh proposals, hai lead cùng hạn không được trùng id
+      huaId: 'bguu' + bg.hanUuDai.replace(/-/g, '') + '_' + leadId,
       todoText: `Nhắc khách ưu đãi hết hạn ${ddmm(bg.hanUuDai)}`,
       due: truoc2 < homNay ? homNay : truoc2,
     });
@@ -1633,7 +1634,7 @@ const mcpHandler = createMcpHandler(
         const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
         const homNay = todayISO();
         const chung = { reason: `Theo báo giá ngày ${ddmm(homNay)}`, evidence: [], nguon: { loai: 'baoGia' as const, baoGiaId, taoLuc } };
-        for (const m of deXuatTuBaoGia(bg, homNay)) {
+        for (const m of deXuatTuBaoGia(bg, homNay, l.id)) {
           if (m.type === 'field') {
             themDeXuat(lo, l, m, { type: 'field', field: m.field, newValue: m.newValue },
               { ...chung, type: 'field', field: m.field, oldValue: (l as any)[m.field] ?? null, newValue: m.newValue });
