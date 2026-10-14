@@ -3538,7 +3538,10 @@ function suaOBang(id, khoa, td){
     case 'so':    html = `<input class="bang-input" type="text" inputmode="numeric" value="${moneyDisplay(v)}" oninput="formatMoneyInput(this)">`; break;
     case 'chon': {
       const ds = (khoa === 'package' ? PACKAGES : LEAD_TYPES).map(p => ({ v: p, t: p }));
-      html = `<select class="bang-input">${opt(ds, khoa === 'leadType' ? leadTypeOf(lead) : v)}</select>`; break;
+      const hienTai = khoa === 'leadType' ? leadTypeOf(lead) : (v || '');
+      // Giá trị cũ/trống không có trong danh sách: thêm vào đầu để ô hiện đúng, mở rồi bỏ đi không bị đổi
+      if (!ds.some(o => o.v === hienTai)) ds.unshift({ v: hienTai, t: hienTai || '—' });
+      html = `<select class="bang-input">${opt(ds, hienTai)}</select>`; break;
     }
     case 'giaidoan': html = `<select class="bang-input">${opt(STAGES.map(s => ({ v: s.id, t: s.name })), lead.stage)}</select>`; break;
   }
@@ -3550,7 +3553,10 @@ function suaOBang(id, khoa, td){
     if (e.key === 'Enter'){ e.preventDefault(); luuOBang(el); }
     else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); huyOBang(); }
   });
-  if (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'month') el.addEventListener('change', () => luuOBang(el));
+  // Giá trị ban đầu trong ô sửa: rời ô mà không đổi gì thì không ghi (kể cả khi dữ liệu cũ sai định dạng nên ô hiện trống)
+  bangDangSua.goc = el.value;
+  // Chỉ dropdown lưu ngay khi chọn. Ô ngày/tháng: Chrome bắn `change` ngay khi gõ phím tạo ra ngày hợp lệ -> chỉ lưu khi Enter/rời ô
+  if (el.tagName === 'SELECT') el.addEventListener('change', () => luuOBang(el));
   el.addEventListener('blur', () => luuOBang(el));
 }
 function ketThucSuaBang(){
@@ -3563,7 +3569,7 @@ function huyOBang(){
 }
 function luuOBang(el){
   if (!bangDangSua) return;           // Enter rồi blur: chỉ lưu một lần
-  const { id, khoa } = bangDangSua;
+  const { id, khoa, goc } = bangDangSua;
   const lead = leads.find(l => l.id === id);
   const c = window.BangLead.COT.find(x => x.khoa === khoa);
   ketThucSuaBang();
@@ -3578,7 +3584,7 @@ function luuOBang(el){
   else if (c.sua === 'chu') moi = el.value.trim();
   else moi = el.value || null;
   const cu = khoa === 'leadType' ? leadTypeOf(lead) : (lead[khoa] ?? (c.sua === 'so' ? 0 : c.sua === 'chu' ? '' : null));
-  if ((khoa === 'name' && !moi) || moi === cu){ renderBangLead(); return; }
+  if (el.value === goc || (khoa === 'name' && !moi) || moi === cu){ renderBangLead(); return; }
   onFieldChange(id, khoa, moi);       // ghi + vẽ lại Pipeline/bảng + scheduleSave() như sửa ở chi tiết lead
 }
 
