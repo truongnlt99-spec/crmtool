@@ -24,6 +24,10 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và link "chia sẻ chỉ
   - tin file / link xem trước / ảnh có chú thích → `attachmentFromMessage()` gom chữ nhìn thấy trong cả bong bóng + `href`, **cố ý không dựa vào tên class** (Zalo đổi class liên tục) và ngắt dòng theo thẻ khối (DOM thật bị minify, không ngắt thì tên file dính liền dung lượng).
   - Test chạy Chrome thật: `npm run test:zalo-dom` (đọc DOM) và `npm run test:crm-chat` (chạy đúng hàm vẽ bong bóng trích từ `index.html`, có cả test chống XSS).
 - **`extension/lib/zalo-map.js`** — hàm thuần dùng chung với `index.html` (nạp bằng `<script type="module">`) và test Node; sửa logic chip/nhãn ở đây. `hienThiTin()` là quy tắc hiện một tin nhắn và bị **chép lại ở 2 nơi không import được**: `api/mcp.ts` (`hienThiZalo`) và `xem.html` — sửa một chỗ thì sửa cả ba.
+- **`web/bang-lead.js`** — logic thuần của view "Danh sách" (bảng lead kiểu Excel): định nghĩa cột, lọc,
+  sắp xếp, dòng tổng, dòng xuất Excel, đọc cài đặt. `index.html` nạp bằng `<script type="module">`
+  (`window.BangLead`); phần giao diện nằm ở khối `RENDER: DANH SÁCH` trong `index.html`. Thêm cột mới:
+  thêm vào `COT` ở đây, rồi (nếu cần hiển thị đặc biệt) vào `oBangHtml()`.
 - **`firebase-rules.json`** (có `_huong_dan`) và **`firebase-rules-deploy.json`** (chỉ `rules`) —
   Security Rules sống trong repo để đọc/ghi chú. **Phải dán tay** `firebase-rules-deploy.json` vào
   Firebase Console → Realtime Database → Rules → Publish; đổi rules trong repo KHÔNG tự có hiệu lực.
@@ -64,6 +68,7 @@ npm run test:zalo-db     # test/zalo-rtdb.test.ts — cách ghi của extension 
 npm run test:zalo-dom    # test/zalo-dom.test.ts — đọc DOM Zalo (chạy Chrome ngầm, KHÔNG cần mạng)
 npm run test:crm-chat    # test/crm-bong-bong.test.html — hàm vẽ bong bóng chat của index.html (Chrome ngầm)
 npm run test:zalo-tinh   # test/zalo-ext-static.test.ts — kiểm tra tĩnh extension (thiếu import, manifest, ký tự lạ)
+npm run test:bang        # test/bang-lead.test.ts — logic thuần bảng Danh sách (lọc/sắp xếp/xuất), KHÔNG chạm Firebase
 npm run test:mcp-zalo    # test/mcp-hoi-thoai.test.ts — tool MCP đọc hội thoại Zalo (sandbox crmDataTest + zaloTest)
 ```
 

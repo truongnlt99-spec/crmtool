@@ -137,6 +137,13 @@
   import * as ZaloMap from './extension/lib/zalo-map.js';
   window.ZaloMap = ZaloMap;
 </script>
+<script type="module">
+  // Logic thuần của view "Danh sách" (lọc/sắp xếp/xuất) — test bằng Node ở test/bang-lead.test.ts.
+  // Module riêng: nạp lỗi thì chỉ mất bảng Danh sách, không kéo theo ZaloMap.
+  import * as BangLead from './web/bang-lead.js';
+  window.BangLead = BangLead;
+  if (document.body && document.body.dataset.view === 'list' && window.renderBangLead) window.renderBangLead();
+</script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
    màu sáng một nhịp rồi mới đổi sang tối — rất chói mắt khi mở app ban đêm. */
@@ -795,6 +802,43 @@
   body[data-view="conversations"] .topbar-search,
   body[data-view="conversations"] #filterPackage,
   body[data-view="conversations"] #filterStatus{display:none;}
+  /* ---------- View Danh sách (bảng lead kiểu Excel) ---------- */
+  /* Bảng có lọc theo cột riêng -> ẩn lọc gói/trạng thái của Pipeline; ô tìm vẫn dùng chung */
+  body[data-view="list"] #filterPackage,
+  body[data-view="list"] #filterStatus{display:none;}
+  .bang-wrap{display:flex; flex-direction:column; min-height:0; flex:1; padding:14px 22px 18px; gap:10px;}
+  .bang-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .bang-loc-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-2); background:var(--primary-soft); border-radius:999px; padding:4px 10px;}
+  .bang-loc-chip button{background:none; border:0; color:var(--primary); font-weight:600; cursor:pointer; padding:0;}
+  .bang-scroll{flex:1; min-height:0; overflow:auto; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface);}
+  table.bang{border-collapse:separate; border-spacing:0; table-layout:fixed; font-size:13px; color:var(--text);}
+  .bang th, .bang td{border-bottom:1px solid var(--border); border-right:1px solid var(--border); padding:7px 9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:left; background:var(--surface);}
+  .bang thead th{position:sticky; top:0; z-index:2; background:var(--well); font-weight:600; font-size:12.5px; color:var(--text-2); user-select:none;}
+  .bang tfoot td{position:sticky; bottom:0; z-index:2; background:var(--well); font-weight:600;}
+  .bang th:first-child, .bang td:first-child{position:sticky; left:0; z-index:1;}
+  .bang thead th:first-child, .bang tfoot td:first-child{z-index:3;}
+  .bang tbody tr:hover td{background:var(--well);}
+  .bang .so{text-align:right; font-variant-numeric:tabular-nums;}
+  .bang td.sua-duoc{cursor:cell;}
+  .bang-th{display:flex; align-items:center; gap:4px; position:relative;}
+  .bang-th-ten{flex:1; overflow:hidden; text-overflow:ellipsis; cursor:pointer;}
+  .bang-th-loc{background:none; border:0; color:var(--text-3); cursor:pointer; padding:0 2px; font-size:12px; line-height:1;}
+  .bang-th-loc.on{color:var(--primary);}
+  .bang-resize{position:absolute; right:-9px; top:-7px; bottom:-7px; width:8px; cursor:col-resize; touch-action:none;}
+  .bang-ten{background:none; border:0; padding:0; font:inherit; font-weight:600; color:var(--text); cursor:pointer; text-align:left; max-width:100%; overflow:hidden; text-overflow:ellipsis;}
+  .bang-ten:hover{color:var(--primary); text-decoration:underline;}
+  .bang-trong{padding:40px 16px; text-align:center; color:var(--text-2); display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .bang-menu{position:fixed; z-index:80; min-width:220px; max-width:300px; max-height:60vh; overflow:auto; background:var(--surface); border:1px solid var(--border); border-radius:var(--r-md); box-shadow:var(--sh-md); padding:8px; font-size:13px; color:var(--text);}
+  .bang-menu button.bang-menu-muc{display:block; width:100%; text-align:left; background:none; border:0; padding:7px 8px; border-radius:6px; cursor:pointer; color:var(--text); font:inherit;}
+  .bang-menu button.bang-menu-muc:hover{background:var(--well);}
+  .bang-menu label{display:flex; align-items:center; gap:8px; padding:5px 8px; cursor:pointer;}
+  .bang-menu hr{border:0; border-top:1px solid var(--border); margin:6px 0;}
+  .bang-menu .field-input{width:100%; min-height:34px; padding:6px 9px; margin:3px 0;}
+  .bang .bang-input{width:100%; min-height:0; padding:3px 5px; font:inherit; color:var(--text); background:var(--surface); border:1px solid var(--primary); border-radius:4px;}
+  @media (max-width:760px){
+    #navList{display:none;}            /* điện thoại: vào bảng qua tấm "Khác" */
+    .bang-wrap{padding:10px 10px 12px;}
+  }
   @media (max-width:820px){
     .conv-wrap{grid-template-columns:minmax(0,1fr); padding:12px;}
     .conv-wrap .conv-chatcol{display:none;}
@@ -1912,6 +1956,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 4v5.5a2 2 0 0 0 .59 1.41L11 15v5M18 4v5.5a2 2 0 0 1-.59 1.41L13 15"/></svg>
         <span>Pipeline</span>
       </button>
+      <button class="nav-item" id="navList" onclick="setView('list')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>
+        <span>Danh sách</span>
+      </button>
       <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
         <span>Dashboard</span>
@@ -2038,6 +2086,15 @@
           <span class="sr-only">Đang tải dữ liệu…</span>
         </div>
       </div>
+    </section>
+
+    <!-- ============ DANH SÁCH VIEW (bảng lead kiểu Excel) ============ -->
+    <section class="view" id="viewList">
+      <div class="bang-wrap">
+        <div class="bang-toolbar" id="bangToolbar"></div>
+        <div class="bang-scroll" id="bangScroll"></div>
+      </div>
+      <div class="bang-menu" id="bangMenu" hidden></div>
     </section>
 
     <!-- ============ HỘI THOẠI VIEW (tất cả hội thoại Zalo đã gắn lead) ============ -->
@@ -2281,6 +2338,7 @@
       <h3 id="menuKhacTitle">Khác</h3>
     </div>
     <div class="modal-body menu-khac-body">
+      <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); setView('list')"><span>Danh sách lead (bảng)</span><span class="menu-khac-meta">›</span></button>
       <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); openRemindersModal()">
         <span>Nhắc nhở</span><span class="menu-khac-meta" id="menuKhacNhacNho"></span>
       </button>
@@ -3187,6 +3245,7 @@ function toggleSidebar(){
 }
 const VIEWS = {
   pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Pipeline',  sub:'Theo dõi lead theo từng giai đoạn' },
+  list:          { el:'viewList',          nav:'navList',          title:'Danh sách', sub:'Tất cả lead dạng bảng' },
   dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Dashboard', sub:'Báo cáo tổng quan theo tháng' },
   conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tất cả hội thoại Zalo đã gắn lead' },
 };
@@ -3201,6 +3260,382 @@ function setView(view){
   document.getElementById('pageTitleSub').textContent = VIEWS[view].sub;
   renderAll();
 }
+
+/* ======================= RENDER: DANH SÁCH ======================= */
+// Bảng lead kiểu Excel. Logic thuần (lọc/sắp xếp/tổng/xuất) ở web/bang-lead.js (window.BangLead).
+const BANG_CAI_DAT_KEY = 'bangLeadCaiDat';
+let bangCaiDat = null;      // { an, rong, sapXep, loc } — nạp lười vì module nạp sau script này
+let bangDangSua = null;     // { id, khoa } khi đang sửa một ô -> hoãn vẽ lại để không mất chữ đang gõ
+let bangHenMoLead = null;    // hẹn mở chi tiết khi bấm tên; bấm đúp thì huỷ để sửa tên
+
+function caiDatBang(){
+  if (!bangCaiDat){
+    let s = null;
+    try { s = localStorage.getItem(BANG_CAI_DAT_KEY); } catch(e){}
+    bangCaiDat = window.BangLead.docCaiDat(s);
+  }
+  return bangCaiDat;
+}
+function luuCaiDatBang(){
+  try { localStorage.setItem(BANG_CAI_DAT_KEY, JSON.stringify(bangCaiDat)); } catch(e){}
+}
+function ctxBang(){
+  return {
+    leadStatus, leadTypeOf,
+    stageName: id => (STAGE_MAP[id] || {}).name || id || '',
+    coZalo: l => zaloConvsOf(l.id).length > 0,
+  };
+}
+function cotDangHien(){
+  const an = caiDatBang().an;
+  return window.BangLead.COT.filter(c => c.khoa === 'name' || !an.includes(c.khoa));
+}
+function dongDangHien(){
+  const B = window.BangLead, cd = caiDatBang(), ctx = ctxBang();
+  return B.sapXep(B.locLead(leads, cd.loc, searchQuery, ctx), cd.sapXep, ctx);
+}
+function rongCot(c){ return caiDatBang().rong[c.khoa] || c.rong; }
+
+function oBangHtml(c, lead, ctx){
+  const v = window.BangLead.layGiaTri(c.khoa, lead, ctx);
+  switch (c.khoa){
+    case 'name': return `<button type="button" class="bang-ten" onclick="bamTenBang('${lead.id}', event)" title="${esc(v)}">${esc(v)}</button>`;
+    case 'package': {
+      if (!v) return '—';
+      const p = PACKAGE_STYLE[v] || PACKAGE_STYLE['Standard'];
+      return `<span class="badge-pkg" style="background:${p.bg}; color:${p.fg}">${esc(v)}</span>`;
+    }
+    case 'leadType': {
+      const t = LEAD_TYPE_STYLE[v] || LEAD_TYPE_STYLE['Lead công ty'];
+      return `<span class="badge-pkg badge-leadtype" style="background:${t.bg}; color:${t.fg}">${esc(v)}</span>`;
+    }
+    case 'status': { const s = leadStatus(lead); return `<span class="status-text ${s.type}">${esc(s.label)}</span>`; }
+    case 'todos': { const t = window.BangLead.mang(lead.todos); return t.length ? `${t.filter(x => x.done).length}/${t.length}` : '—'; }
+    case 'lastNote': {
+      if (!v) return '—';
+      const ngan = v.length > 80 ? v.slice(0, 80) + '…' : v;
+      return `<span title="${esc(v)}">${esc(ngan)}</span>`;
+    }
+    case 'zalo': return v === 'Có' ? 'Có' : '—';
+  }
+  if (v === null || v === '') return '—';
+  if (c.kieu === 'ngay') return esc(formatDate(v));
+  if (c.kieu === 'thang') return esc(formatMonthYear(v));
+  if (c.kieu === 'so') return esc(formatMoney(v));
+  return esc(v);
+}
+// Bấm tên = mở chi tiết (chờ một nhịp); bấm đúp = sửa tên (suaOBang huỷ lịch mở)
+function bamTenBang(id, ev){
+  clearTimeout(bangHenMoLead);
+  if (ev && ev.detail > 1) return;
+  bangHenMoLead = setTimeout(() => openLead(id), 250);
+}
+function oSuaDuoc(c, lead){ return !!c.sua && (!c.suaKhi || c.suaKhi(lead)); }
+
+function renderBangLead(){
+  const scroll = document.getElementById('bangScroll');
+  if (!scroll || !window.BangLead) return;
+  if (!document.getElementById('viewList').classList.contains('active')) return;
+  if (bangDangSua) return;   // luuOBang/huyOBang luôn vẽ lại khi xong
+  const B = window.BangLead, cd = caiDatBang(), ctx = ctxBang();
+  const cot = cotDangHien();
+  const dong = dongDangHien();
+  const soLoc = B.soCotDangLoc(cd.loc);
+
+  document.getElementById('bangToolbar').innerHTML = `
+    <button type="button" class="btn btn-secondary" onclick="moMenuCot(this)">Cột ▾</button>
+    <button type="button" class="btn btn-secondary" onclick="xuatExcelBang()">Xuất Excel</button>
+    ${soLoc ? `<span class="bang-loc-chip">Đang lọc ${soLoc} cột · <button type="button" onclick="xoaLocBang()">Xoá lọc</button></span>` : ''}
+  `;
+
+  if (!leads.length){
+    scroll.innerHTML = `<div class="bang-trong">Chưa có lead nào.<button type="button" class="btn btn-primary" onclick="openAddLead()">+ Thêm lead</button></div>`;
+    return;
+  }
+  if (!dong.length){
+    scroll.innerHTML = `<div class="bang-trong">Không có lead khớp bộ lọc.<button type="button" class="btn btn-ghost" onclick="xoaLocBang()">Xoá lọc</button></div>`;
+    return;
+  }
+
+  const tong = B.tinhTong(dong);
+  const tongRong = cot.reduce((s, c) => s + rongCot(c), 0);
+  const thHtml = c => {
+    const sx = cd.sapXep.khoa === c.khoa ? (cd.sapXep.chieu === 'tang' ? ' ▲' : ' ▼') : '';
+    const dangLoc = cd.loc[c.khoa] && B.soCotDangLoc({ x: cd.loc[c.khoa] });
+    return `<th data-khoa="${c.khoa}"><div class="bang-th">
+      <span class="bang-th-ten" onclick="doiSapXepBang('${c.khoa}')" title="${esc(c.tieuDe)}">${esc(c.tieuDe)}${sx}</span>
+      <button type="button" class="bang-th-loc${dangLoc ? ' on' : ''}" aria-label="Lọc cột ${esc(c.tieuDe)}" onclick="moMenuLoc('${c.khoa}', this)">▾</button>
+      <span class="bang-resize" onpointerdown="batDauKeoCot(event,'${c.khoa}')"></span>
+    </div></th>`;
+  };
+  const tfootO = c => {
+    if (c.khoa === 'name') return `<td>${tong.soLead} lead</td>`;
+    if (c.khoa === 'revenueExpected') return `<td class="so">${esc(formatMoney(tong.duKien))}</td>`;
+    if (c.khoa === 'revenueActual') return `<td class="so">${esc(formatMoney(tong.thucTe))}</td>`;
+    return '<td></td>';
+  };
+  scroll.innerHTML = `
+    <table class="bang" style="width:${tongRong}px">
+      <colgroup>${cot.map(c => `<col data-khoa="${c.khoa}" style="width:${rongCot(c)}px">`).join('')}</colgroup>
+      <thead><tr>${cot.map(thHtml).join('')}</tr></thead>
+      <tbody>${dong.map(l => `<tr data-id="${l.id}">${cot.map(c =>
+        `<td data-khoa="${c.khoa}" class="${c.kieu === 'so' ? 'so' : ''}${oSuaDuoc(c, l) ? ' sua-duoc' : ''}" ondblclick="suaOBang('${l.id}','${c.khoa}',this)">${oBangHtml(c, l, ctx)}</td>`
+      ).join('')}</tr>`).join('')}</tbody>
+      <tfoot><tr>${cot.map(tfootO).join('')}</tr></tfoot>
+    </table>`;
+}
+
+function doiSapXepBang(khoa){
+  const cd = caiDatBang();
+  cd.sapXep = { khoa, chieu: cd.sapXep.khoa === khoa && cd.sapXep.chieu === 'tang' ? 'giam' : 'tang' };
+  luuCaiDatBang();
+  renderBangLead();
+}
+function xoaLocBang(){
+  caiDatBang().loc = {};
+  luuCaiDatBang();
+  searchQuery = '';
+  const s = document.getElementById('searchInput'); if (s) s.value = '';
+  dongMenuBang();
+  renderPipeline();
+  renderBangLead();
+}
+
+function dongMenuBang(){
+  const m = document.getElementById('bangMenu');
+  if (m){ m.hidden = true; m.innerHTML = ''; m.dataset.khoa = ''; }
+}
+function datViTriMenu(m, nut){
+  const r = nut.getBoundingClientRect();
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  m.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+}
+// Đóng menu khi bấm ra ngoài / Esc
+document.addEventListener('pointerdown', e => {
+  const m = document.getElementById('bangMenu');
+  if (m && !m.hidden && !m.contains(e.target) && !e.target.closest('.bang-th-loc, .bang-toolbar')) dongMenuBang();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') dongMenuBang(); });
+
+function capNhatLocBang(khoa, dk){
+  const cd = caiDatBang();
+  if (dk) cd.loc[khoa] = dk; else delete cd.loc[khoa];
+  luuCaiDatBang();
+  renderBangLead();   // chỉ vẽ lại bảng, không vẽ lại menu -> ô nhập trong menu giữ focus
+}
+
+function moMenuLoc(khoa, nut){
+  const m = document.getElementById('bangMenu');
+  if (!m.hidden && m.dataset.khoa === khoa){ dongMenuBang(); return; }
+  const B = window.BangLead, cd = caiDatBang();
+  const c = B.COT.find(x => x.khoa === khoa);
+  const dk = cd.loc[khoa] || {};
+  let loc = '';
+  if (c.kieu === 'chu'){
+    loc = `<input class="field-input" placeholder="Chứa…" value="${esc(dk.chua || '')}"
+      oninput="capNhatLocBang('${khoa}', this.value.trim() ? {chua:this.value} : null)">`;
+  } else if (c.kieu === 'chon'){
+    const ds = B.giaTriDuyNhat(leads, khoa, ctxBang());
+    const chon = Array.isArray(dk.chon) ? dk.chon : ds;
+    loc = `<label><input type="checkbox" ${chon.length === ds.length ? 'checked' : ''} onchange="chonTatCaLocBang('${khoa}', this.checked)"> <b>Chọn tất cả</b></label>
+      ${ds.map((v, i) => `<label><input type="checkbox" data-gt="${esc(v)}" ${chon.includes(v) ? 'checked' : ''} onchange="tickLocBang('${khoa}')"> ${v ? esc(v) : '<i>(Trống)</i>'}</label>`).join('')}`;
+  } else {
+    const tien = c.khoa === 'revenueExpected' || c.khoa === 'revenueActual';
+    const loai = c.kieu === 'ngay' ? 'date' : c.kieu === 'thang' ? 'month' : tien ? 'text' : c.kieu === 'so' ? 'number' : 'text';
+    const doc = tien ? `inputmode="numeric" oninput="formatMoneyInput(this)"` : c.kieu === 'so' ? 'min="0" step="1"' : '';
+    const gt = v => (v === undefined || v === '' ? '' : tien ? moneyDisplay(v) : esc(v));
+    loc = `${c.khoa === 'todos' ? '<div><i>Lọc theo số việc chưa xong</i></div>' : ''}<div>Từ</div><input class="field-input" type="${loai}" data-dau="tu" ${doc} value="${gt(dk.tu)}" onchange="khoangLocBang('${khoa}')">
+      <div>Đến</div><input class="field-input" type="${loai}" data-dau="den" ${doc} value="${gt(dk.den)}" onchange="khoangLocBang('${khoa}')">`;
+  }
+  m.dataset.khoa = khoa;
+  m.innerHTML = `
+    <button type="button" class="bang-menu-muc" onclick="datSapXepBang('${khoa}','tang')">Sắp xếp A → Z</button>
+    <button type="button" class="bang-menu-muc" onclick="datSapXepBang('${khoa}','giam')">Sắp xếp Z → A</button>
+    <hr>${loc}<hr>
+    <button type="button" class="bang-menu-muc" onclick="capNhatLocBang('${khoa}', null); dongMenuBang()">Xoá lọc cột này</button>`;
+  datViTriMenu(m, nut);
+}
+function datSapXepBang(khoa, chieu){
+  caiDatBang().sapXep = { khoa, chieu };
+  luuCaiDatBang(); dongMenuBang(); renderBangLead();
+}
+function tickLocBang(khoa){
+  const m = document.getElementById('bangMenu');
+  const hop = [...m.querySelectorAll('input[data-gt]')];
+  const chon = hop.filter(h => h.checked).map(h => h.dataset.gt);
+  const tatCa = m.querySelector('input:not([data-gt])');
+  if (tatCa) tatCa.checked = chon.length === hop.length;
+  capNhatLocBang(khoa, chon.length === hop.length ? null : { chon });
+}
+function chonTatCaLocBang(khoa, bat){
+  document.querySelectorAll('#bangMenu input[data-gt]').forEach(h => { h.checked = bat; });
+  capNhatLocBang(khoa, bat ? null : { chon: [] });
+}
+function khoangLocBang(khoa){
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  const doc = dau => {
+    const el = document.querySelector(`#bangMenu input[data-dau="${dau}"]`);
+    if (!el || !el.value) return undefined;
+    if (c.khoa === 'revenueExpected' || c.khoa === 'revenueActual') return moneyInputValue(el);
+    return c.kieu === 'so' ? Number(el.value) : el.value;
+  };
+  const tu = doc('tu'), den = doc('den');
+  capNhatLocBang(khoa, tu === undefined && den === undefined ? null : { ...(tu !== undefined && { tu }), ...(den !== undefined && { den }) });
+}
+
+function moMenuCot(nut){
+  const m = document.getElementById('bangMenu');
+  if (!m.hidden && m.dataset.khoa === '__cot'){ dongMenuBang(); return; }
+  const an = caiDatBang().an;
+  m.dataset.khoa = '__cot';
+  m.innerHTML = window.BangLead.COT.map(c => `<label><input type="checkbox" ${c.khoa === 'name' ? 'checked disabled' : (an.includes(c.khoa) ? '' : 'checked')}
+      onchange="anHienCotBang('${c.khoa}', this.checked)"> ${esc(c.tieuDe)}</label>`).join('')
+    + `<hr><button type="button" class="bang-menu-muc" onclick="khoiPhucCotBang()">Khôi phục mặc định</button>`;
+  datViTriMenu(m, nut);
+}
+function anHienCotBang(khoa, hien){
+  const cd = caiDatBang();
+  cd.an = cd.an.filter(k => k !== khoa);
+  if (!hien) cd.an.push(khoa);
+  luuCaiDatBang(); renderBangLead();
+}
+function khoiPhucCotBang(){
+  const cd = caiDatBang();
+  cd.an = window.BangLead.MAC_DINH_AN.slice();
+  cd.rong = {};
+  luuCaiDatBang(); dongMenuBang(); renderBangLead();
+}
+
+// Kéo mép phải tiêu đề để đổi độ rộng cột (chuột + cảm ứng qua pointer events)
+function batDauKeoCot(ev, khoa){
+  ev.preventDefault(); ev.stopPropagation();
+  const col = document.querySelector(`#bangScroll col[data-khoa="${khoa}"]`);
+  const table = document.querySelector('#bangScroll table.bang');
+  if (!col || !table) return;
+  const x0 = ev.clientX, w0 = col.getBoundingClientRect().width || parseInt(col.style.width, 10);
+  const t0 = table.getBoundingClientRect().width;
+  let w = w0;
+  try { ev.target.setPointerCapture(ev.pointerId); } catch(e){}
+  const di = e => {
+    w = Math.max(60, Math.round(w0 + e.clientX - x0));
+    col.style.width = w + 'px';
+    table.style.width = (t0 + w - w0) + 'px';
+  };
+  const tha = () => {
+    window.removeEventListener('pointermove', di);
+    window.removeEventListener('pointerup', tha);
+    window.removeEventListener('pointercancel', tha);
+    caiDatBang().rong[khoa] = w;
+    luuCaiDatBang();
+  };
+  window.addEventListener('pointermove', di);
+  window.addEventListener('pointerup', tha);
+  window.addEventListener('pointercancel', tha);   // thả chuột ngoài cửa sổ / cử chỉ chạm bị huỷ
+}
+
+function suaOBang(id, khoa, td){
+  const lead = leads.find(l => l.id === id);
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  clearTimeout(bangHenMoLead);
+  if (!lead || !c || !oSuaDuoc(c, lead) || bangDangSua) return;
+  bangDangSua = { id, khoa };
+  const truong = khoa;   // khoá cột trùng tên trường lead với mọi cột sửa được
+  const v = lead[truong];
+  const opt = (ds, chon) => ds.map(o => `<option value="${esc(o.v)}" ${o.v === chon ? 'selected' : ''}>${esc(o.t)}</option>`).join('');
+  let html;
+  switch (c.sua){
+    case 'chu':   html = `<input class="bang-input" type="text" value="${esc(v || '')}">`; break;
+    case 'ngay':  html = `<input class="bang-input" type="date" value="${esc(v || '')}">`; break;
+    case 'thang': html = `<input class="bang-input" type="month" value="${esc(v || '')}">`; break;
+    case 'so':    html = `<input class="bang-input" type="text" inputmode="numeric" value="${moneyDisplay(v)}" oninput="formatMoneyInput(this)">`; break;
+    case 'chon': {
+      const ds = (khoa === 'package' ? PACKAGES : LEAD_TYPES).map(p => ({ v: p, t: p }));
+      const hienTai = khoa === 'leadType' ? leadTypeOf(lead) : (v || '');
+      // Giá trị cũ/trống không có trong danh sách: thêm vào đầu để ô hiện đúng, mở rồi bỏ đi không bị đổi
+      if (!ds.some(o => o.v === hienTai)) ds.unshift({ v: hienTai, t: hienTai || '—' });
+      html = `<select class="bang-input">${opt(ds, hienTai)}</select>`; break;
+    }
+    case 'giaidoan': html = `<select class="bang-input">${opt(STAGES.map(s => ({ v: s.id, t: s.name })), lead.stage)}</select>`; break;
+  }
+  td.innerHTML = html;
+  const el = td.firstElementChild;
+  el.focus();
+  if (el.select && el.type === 'text') el.select();
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); luuOBang(el); }
+    else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); huyOBang(); }
+  });
+  // Giá trị ban đầu trong ô sửa: rời ô mà không đổi gì thì không ghi (kể cả khi dữ liệu cũ sai định dạng nên ô hiện trống)
+  bangDangSua.goc = el.value;
+  // Chỉ dropdown lưu ngay khi chọn. Ô ngày/tháng: Chrome bắn `change` ngay khi gõ phím tạo ra ngày hợp lệ -> chỉ lưu khi Enter/rời ô
+  if (el.tagName === 'SELECT') el.addEventListener('change', () => luuOBang(el));
+  el.addEventListener('blur', () => luuOBang(el));
+}
+function ketThucSuaBang(){
+  bangDangSua = null;
+}
+function huyOBang(){
+  if (!bangDangSua) return;
+  ketThucSuaBang();
+  renderBangLead();
+}
+function luuOBang(el){
+  if (!bangDangSua) return;           // Enter rồi blur: chỉ lưu một lần
+  const { id, khoa, goc } = bangDangSua;
+  const lead = leads.find(l => l.id === id);
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  ketThucSuaBang();
+  if (!lead || !c){ renderBangLead(); return; }
+  if (c.sua === 'giaidoan'){
+    renderBangLead();                  // ô về giá trị hiện tại; Won/Lost chỉ đổi khi bấm xác nhận
+    if (el.value !== lead.stage) moveLeadToStage(id, el.value);
+    return;
+  }
+  let moi;
+  if (c.sua === 'so') moi = moneyInputValue(el);
+  else if (c.sua === 'chu') moi = el.value.trim();
+  else moi = el.value || null;
+  const cu = khoa === 'leadType' ? leadTypeOf(lead) : (lead[khoa] ?? (c.sua === 'so' ? 0 : c.sua === 'chu' ? '' : null));
+  if (el.value === goc || (khoa === 'name' && !moi) || moi === cu){ renderBangLead(); return; }
+  onFieldChange(id, khoa, moi);       // ghi + vẽ lại Pipeline/bảng + scheduleSave() như sửa ở chi tiết lead
+}
+
+// SheetJS chỉ nạp khi bấm "Xuất Excel" để không làm nặng lần mở app
+const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+let sheetJsDangNap = null;
+function napSheetJs(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!sheetJsDangNap){
+    sheetJsDangNap = new Promise((ok, loi) => {
+      const s = document.createElement('script');
+      s.src = SHEETJS_URL;
+      s.onload = () => (window.XLSX ? ok(window.XLSX) : loi(new Error('XLSX trống')));
+      s.onerror = () => { sheetJsDangNap = null; s.remove(); loi(new Error('Không tải được SheetJS')); };
+      document.head.appendChild(s);
+    });
+  }
+  return sheetJsDangNap;
+}
+async function xuatExcelBang(){
+  let XLSX;
+  try { XLSX = await napSheetJs(); }
+  catch(e){ alert('Không tải được công cụ xuất Excel, kiểm tra mạng rồi thử lại.'); return; }
+  const cot = cotDangHien();
+  const { tieuDe, kieu, dong } = window.BangLead.dongXuat(dongDangHien(), cot.map(c => c.khoa), ctxBang());
+  const ws = XLSX.utils.aoa_to_sheet([tieuDe, ...dong], { cellDates: true });
+  const dinhDang = { so: '#,##0', ngay: 'dd/mm/yyyy', thang: 'mm/yyyy' };
+  dong.forEach((r, i) => r.forEach((v, j) => {
+    const o = ws[XLSX.utils.encode_cell({ r: i + 1, c: j })];
+    if (o && v !== null && dinhDang[kieu[j]]) o.z = dinhDang[kieu[j]];
+  }));
+  ws['!cols'] = cot.map(c => ({ wch: Math.max(8, Math.round(rongCot(c) / 7)) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Danh sách lead');
+  XLSX.writeFile(wb, `Danh-sach-lead-${todayISO()}.xlsx`);
+}
+
 
 /* ======================= RENDER: PIPELINE ======================= */
 function renderPipeline(){
@@ -3783,6 +4218,7 @@ function onFieldChange(id, field, value){
   }
   if (field === 'deadline') veChipDauChiTiet(lead);
   renderPipeline();
+  renderBangLead();
   if (document.getElementById('viewDashboard').classList.contains('active')) renderDashboard();
   scheduleSave();
 }
@@ -4441,12 +4877,12 @@ function submitAddLead(){
   };
   leads.unshift(lead);
   closeAddLead();
-  setView('pipeline');
+  setView(document.body.dataset.view === 'list' ? 'list' : 'pipeline');   // đang ở bảng thì ở lại bảng
   scheduleSave();
 }
 
 /* ======================= FILTER / SEARCH HANDLERS ======================= */
-function onSearch(v){ searchQuery = v; renderPipeline(); }
+function onSearch(v){ searchQuery = v; renderPipeline(); renderBangLead(); }
 function onFilterPackage(v){ filterPackage = v; renderPipeline(); }
 function onFilterStatus(v){ filterStatus = v; filterTag = ''; renderPipeline(); }
 
@@ -5103,6 +5539,8 @@ function renderSidebarStats(){
 /* ======================= MASTER RENDER ======================= */
 function renderAll(){
   renderPipeline();
+  // Lỗi trong bảng không được chặn Dashboard/thanh bên/Hội thoại vẽ tiếp
+  try { renderBangLead(); } catch(e){ console.error('renderBangLead', e); }
   renderDashboard();
   renderSidebarStats();
   renderConversations();
@@ -5249,7 +5687,16 @@ async function saveToCloud(){
 
 // Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
 // để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
+// RTDB có thể trả mảng về dạng object {0:..,1:..} (ghi tay trên Console, client khác...);
+// tag cũ có thể là chuỗi. Chuẩn hoá về mảng thật ngay lúc nạp để Pipeline/Dashboard/thanh bên
+// không vỡ — và để notesList dạng object không bị nhánh bên dưới thay bằng mảng rỗng (mất ghi chú).
 function migrateLead(l){
+  for (const k of ['tags', 'todos', 'notesList', 'activityLog']){
+    const v = l[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)) l[k] = Object.values(v);
+    else if (k === 'tags' && typeof v === 'string' && v.trim()) l[k] = [v.trim()];
+  }
+
   // Lead cũ chưa có "Loại lead" -> mặc định là "Lead công ty" (có thể sửa lại trong chi tiết lead)
   if (!l.leadType) l.leadType = 'Lead công ty';
 

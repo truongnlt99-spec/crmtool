@@ -17,6 +17,7 @@
     "test:scope-share": "node test/scope-share.test.ts",
     "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
     "test:zalo-tinh": "node test/zalo-ext-static.test.ts",
+    "test:bang": "node test/bang-lead.test.ts",
     "test:zalo-dom": "node test/zalo-dom.test.ts",
     "test:zalo-db": "node test/zalo-rtdb.test.ts",
     "test:mcp-zalo": "node test/mcp-hoi-thoai.test.ts",
