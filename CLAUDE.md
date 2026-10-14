@@ -24,6 +24,7 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và link "chia sẻ chỉ
   - tin file / link xem trước / ảnh có chú thích → `attachmentFromMessage()` gom chữ nhìn thấy trong cả bong bóng + `href`, **cố ý không dựa vào tên class** (Zalo đổi class liên tục) và ngắt dòng theo thẻ khối (DOM thật bị minify, không ngắt thì tên file dính liền dung lượng).
   - Test chạy Chrome thật: `npm run test:zalo-dom` (đọc DOM) và `npm run test:crm-chat` (chạy đúng hàm vẽ bong bóng trích từ `index.html`, có cả test chống XSS).
 - **`extension/lib/zalo-map.js`** — hàm thuần dùng chung với `index.html` (nạp bằng `<script type="module">`) và test Node; sửa logic chip/nhãn ở đây. `hienThiTin()` là quy tắc hiện một tin nhắn và bị **chép lại ở 2 nơi không import được**: `api/mcp.ts` (`hienThiZalo`) và `xem.html` — sửa một chỗ thì sửa cả ba.
+- **`web/ho-so-ai.js`** — logic thuần của hồ sơ khách AI + hàng chờ đề xuất (whitelist ô, đối soát, vẽ HTML có escape). `FIELD_WHITELIST` / `kiemTraGiaTriO` / `giaTriBang` **chép ở 2 nơi**: đây và `api/mcp.ts` — sửa một chỗ thì sửa cả hai (`npm run test:ho-so` chạy cùng bộ ca trên cả hai). Claude chỉ ghi vào `aiData*`; thay đổi vào lead chỉ xảy ra khi Trân bấm Duyệt trong app.
 - **`web/bang-lead.js`** — logic thuần của view "Danh sách" (bảng lead kiểu Excel): định nghĩa cột, lọc,
   sắp xếp, dòng tổng, dòng xuất Excel, đọc cài đặt. `index.html` nạp bằng `<script type="module">`
   (`window.BangLead`); phần giao diện nằm ở khối `RENDER: DANH SÁCH` trong `index.html`. Thêm cột mới:
@@ -42,6 +43,7 @@ Mỗi tài khoản có kho riêng, chặn bằng rules theo UID:
 | Cấu hình share + khoá MCP | `appConfig` | `appConfig_users/<uid>` |
 | Nhật ký truy cập link | `shareLog` | `shareLog_users/<uid>` |
 | Dữ liệu extension Zalo | `zalo` | `zalo_users/<uid>` |
+| Hồ sơ khách + đề xuất do Claude ghi | `aiData` | `aiData_users/<uid>` |
 
 - `OWNER_UID = 7ePgCPmzxHdEAEazHo9IkyKf2rw2`. Hằng này lặp ở **4 nơi phải khớp nhau**: `api/mcp.ts` (`OWNER_UID`), `index.html` (`OLD_OWNER_UID`), `extension/lib/config.js` (`OWNER_UID`) và `firebase-rules*.json`. Đổi một chỗ là phải đổi cả bốn.
 - **Token chia sẻ và khoá MCP tự mang UID**: dạng `<uid>.<random>`. Backend `resolveScope()` tách
@@ -70,6 +72,9 @@ npm run test:crm-chat    # test/crm-bong-bong.test.html — hàm vẽ bong bóng
 npm run test:zalo-tinh   # test/zalo-ext-static.test.ts — kiểm tra tĩnh extension (thiếu import, manifest, ký tự lạ)
 npm run test:bang        # test/bang-lead.test.ts — logic thuần bảng Danh sách (lọc/sắp xếp/xuất), KHÔNG chạm Firebase
 npm run test:mcp-zalo    # test/mcp-hoi-thoai.test.ts — tool MCP đọc hội thoại Zalo (sandbox crmDataTest + zaloTest)
+npm run test:ho-so       # test/ho-so-ai.test.ts — hàm thuần hồ sơ AI (server + web), KHÔNG chạm Firebase
+npm run test:mcp-ho-so   # test/mcp-ho-so.test.ts — tool + prompt hồ sơ AI (sandbox crmDataTest + zaloTest + aiDataTest)
+npm run test:ho-so-ui    # test/ho-so-ai.test.html — vẽ tab Hồ sơ + thẻ đề xuất, chống XSS (Chrome ngầm)
 ```
 
 Chạy một test lẻ: `node test/<tên>.test.ts`.
