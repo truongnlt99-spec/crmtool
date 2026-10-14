@@ -223,6 +223,10 @@ Extension đọc tin nhắn trên **chat.zalo.me** (không phải Zalo PC) và �
 Dán `firebase-rules-deploy.json` vào Firebase Console → Realtime Database → Rules → **Publish** (thêm nhánh `zalo`, `zalo_users`).
 Kiểm chứng: `curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/zalo.json?shallow=true"` → `Permission denied`.
 
+**Hồ sơ khách AI (từ 2026-10):** rules có thêm nhánh `aiData`, `aiData_users` — dán lại `firebase-rules-deploy.json` → **Publish**.
+Kiểm chứng: `curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/aiData.json?shallow=true"` → `Permission denied`.
+Dùng: trên claude.ai (connector CRM) chọn prompt **cap-nhat-ho-so**, hoặc gõ "Cập nhật hồ sơ khách <tên>"; duyệt đề xuất trong app (nút "Đề xuất của Claude").
+
 ### Bước 3.2 — Cài extension (dạng unpacked)
 1. Tải repo về máy (hoặc `git pull` nếu đã có).
 2. Chrome → `chrome://extensions` → bật **Developer mode** (góc phải trên).

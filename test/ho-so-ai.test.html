@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test tab Ho so + the de xuat</title>
+<!-- Chay bang: npm run test:ho-so-ui (node test/zalo-dom.test.ts test/ho-so-ai.test.html) -->
+<body>
+<div id="box"></div>
+<script type="module">
+import * as W from '../web/ho-so-ai.js';
+
+const ket = [];
+const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
+const box = document.getElementById('box');
+const ev = (quote, msgId = '10', convId = 'c1') => ({ convId, msgId, quote });
+const XSS = '<img src=x onerror="window.__bi=1">';
+
+const brief = {
+  nhuCau: { text: 'Phóng sự tự nhiên, lễ gia tiên sáng + tiệc tối', evidence: [ev('lễ gia tiên')] },
+  nganSach: { text: XSS, evidence: [ev(XSS)] },
+  nguoiQuyetDinh: { text: 'chưa rõ', evidence: [] },
+  objection: { text: 'Sợ giá cao', evidence: [ev('mắc quá', '11', 'cMat')] },
+  doNong: { muc: 'nong', lyDo: 'Hỏi số tài khoản', evidence: [ev('số tài khoản')] },
+  buocTiep: 'Gửi hợp đồng',
+  loiHua: {
+    h_1: { ai: 'minh', noiDung: 'Gửi phim mẫu', han: '2026-10-10', trangThai: 'mo', evidence: [ev('gửi phim mẫu')] },
+    h_2: { ai: 'khach', noiDung: 'Báo lại cuối tuần', han: '2026-10-18', trangThai: 'mo', evidence: [ev('cuối tuần')] },
+    h_3: { ai: 'minh', noiDung: 'Gửi báo giá', han: null, trangThai: 'xong', evidence: [ev('báo giá')] },
+  },
+  cursorAt: 1, updatedAt: '2026-10-14T03:00:00Z',
+};
+const coTin = (convId, msgId) => convId !== 'cMat';
+
+/* 1. Hồ sơ: đủ phần, độ nóng, lời hứa chia 2 cột */
+box.innerHTML = W.veHoSo(brief, { homNay: '2026-10-14', coTin, tinMoi: 3, tenLead: 'Lan' });
+check('chip do nong', box.querySelector('.hs-nong.nong') && /Nóng/.test(box.innerText), box.innerText.slice(0, 200));
+check('cot minh hua co 2 loi hua', box.querySelectorAll('.hs-hua-minh .hs-hua').length === 2);
+check('cot khach hua co 1 loi hua', box.querySelectorAll('.hs-hua-khach .hs-hua').length === 1);
+check('loi hua qua han to do', !!box.querySelector('.hs-hua.quaHan'));
+check('loi hua xong gach', !!box.querySelector('.hs-hua.xong'));
+check('chan tab bao tin moi', /3 tin mới chưa phân tích/.test(box.innerText), box.innerText);
+check('chip nguon bam duoc', !!box.querySelector('.hs-nguon[onclick*="xemNguon"]'));
+check('nguon khong con', /nguồn không còn/.test(box.innerText));
+
+/* 2. Review Focus 5: chữ khách gõ không chạy mã */
+check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 300));
+check('van hien nguyen van', box.innerText.includes('<img src=x'), box.innerText);
+
+/* 3. Chưa có hồ sơ: trạng thái trống + câu mẫu */
+box.innerHTML = W.veHoSo(null, { homNay: '2026-10-14', coTin, tinMoi: 0, tenLead: 'Lan "Ngọc"' });
+check('trang thai trong', /Chưa có hồ sơ/.test(box.innerText), box.innerText);
+check('cau mau co ten lead', box.innerText.includes('Cập nhật hồ sơ khách Lan "Ngọc"'), box.innerText);
+
+/* 4. Thẻ đề xuất ô */
+const lead = { id: 'L1', weddingDate: null, package: 'Unique' };
+const p = { id: 'f_abc', leadId: 'L1', type: 'field', field: 'weddingDate', oldValue: null, newValue: '2026-12-12',
+  reason: 'Khách nói ' + XSS, evidence: [ev('cưới 12/12')], status: 'cho', createdAt: '' };
+box.innerHTML = W.veTheDeXuat(p, lead);
+check('the: nhan o + gia tri', /Ngày cưới/.test(box.innerText) && /12\/12\/2026/.test(box.innerText) && /\(trống\)/.test(box.innerText), box.innerText);
+check('the: 3 nut', ['duyetDeXuat', 'moSuaDeXuat', 'boDeXuat'].every((f) => box.querySelector(`[onclick*="${f}"]`)));
+check('the: ly do khong chay ma', !box.querySelector('img') && box.innerText.includes('<img'), box.innerHTML.slice(0, 300));
+check('the: khong canh bao khi o chua doi', !box.querySelector('.dx-canh-bao'));
+check('the: o sua kieu date', !!box.querySelector('.dx-sua input[type="date"]'));
+
+/* 5. Ô đã đổi từ lúc đề xuất -> cảnh báo */
+box.innerHTML = W.veTheDeXuat(p, { ...lead, weddingDate: '2026-11-01' });
+check('canh bao o da doi', !!box.querySelector('.dx-canh-bao'));
+
+/* 6. Thẻ đề xuất việc */
+box.innerHTML = W.veTheDeXuat({ ...p, id: 'todo_h_1', type: 'todo', field: undefined, todoText: 'Gửi phim mẫu', due: '2026-10-15', huaId: 'h_1' }, lead);
+check('the viec: noi dung + han', /Gửi phim mẫu/.test(box.innerText) && /15\/10\/2026/.test(box.innerText), box.innerText);
+
+/* 7. Id lạ (có dấu nháy) không được đưa vào onclick */
+box.innerHTML = W.veTheDeXuat({ ...p, id: "x');window.__bi=1;('" }, lead);
+check('id la: khong co nut', !box.querySelector('[onclick*="DeXuat"]') && !box.innerHTML.includes('__bi=1;'), box.innerHTML.slice(0, 300));
+box.innerHTML = W.veHoSo({ ...brief, nhuCau: { text: 'a', evidence: [ev('abcd', "1');window.__bi=1;('")] } }, { homNay: '2026-10-14', coTin: () => true, tinMoi: 0, tenLead: 'L' });
+check('msgId la: chip nguon khong bam duoc', !box.querySelector('.hs-nhu-cau .hs-nguon[onclick]'));
+
+/* 8. Gói: ô sửa là select đủ gói */
+box.innerHTML = W.veTheDeXuat({ ...p, field: 'package', newValue: 'Signature', oldValue: 'Unique' }, lead);
+check('o sua goi la select', box.querySelectorAll('.dx-sua select option').length === W.PACKAGES.length);
+
+check('khong co ma nao chay', window.__bi === undefined);
+window.__ketQua = ket;
+</script>
+</body>

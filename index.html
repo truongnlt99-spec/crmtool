@@ -13,7 +13,7 @@
 <!-- ============ FIREBASE (Realtime Database) ============ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-app.js";
-  import { getDatabase, ref, get, set, update, onValue, query, limitToLast } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
+  import { getDatabase, ref, get, set, update, onValue, query, limitToLast, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-database.js";
   import {
     getAuth, setPersistence, browserLocalPersistence,
     signInWithEmailAndPassword, onAuthStateChanged, signOut
@@ -59,6 +59,11 @@
   function zaloBase(){
     const uid = auth.currentUser && auth.currentUser.uid;
     return (!uid || uid === OLD_OWNER_UID) ? 'zalo' : 'zalo_users/' + uid;
+  }
+  // Hồ sơ khách + hàng chờ đề xuất do Claude ghi (MCP), tách theo tài khoản giống crmData.
+  function aiBase(){
+    const uid = auth.currentUser && auth.currentUser.uid;
+    return (!uid || uid === OLD_OWNER_UID) ? 'aiData' : 'aiData_users/' + uid;
   }
   function currentUid(){
     return (auth.currentUser && auth.currentUser.uid) || '';
@@ -117,7 +122,7 @@
 
   window.__firebase = {
     db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
-    appConfigBase, shareLogBase, currentUid, zaloBase, query, limitToLast,
+    appConfigBase, shareLogBase, currentUid, zaloBase, aiBase, query, limitToLast, orderByChild, equalTo,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -143,6 +148,13 @@
   import * as BangLead from './web/bang-lead.js';
   window.BangLead = BangLead;
   if (document.body && document.body.dataset.view === 'list' && window.renderBangLead) window.renderBangLead();
+</script>
+<script type="module">
+  // Logic thuần hồ sơ khách AI + hàng chờ đề xuất — test ở test/ho-so-ai.test.ts và test/ho-so-ai.test.html.
+  // Module riêng: nạp lỗi thì chỉ mất phần AI.
+  import * as HoSoAI from './web/ho-so-ai.js';
+  window.HoSoAI = HoSoAI;
+  if (window.veLaiPhanDeXuat) window.veLaiPhanDeXuat();
 </script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
@@ -1472,7 +1484,8 @@
     .detail-tab[aria-selected="true"]{background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm);}
     #drawerBody[data-tab="viec"] [data-tab-of]:not([data-tab-of="viec"]),
     #drawerBody[data-tab="hoithoai"] [data-tab-of]:not([data-tab-of="hoithoai"]),
-    #drawerBody[data-tab="thongtin"] [data-tab-of]:not([data-tab-of="thongtin"]){display:none;}
+    #drawerBody[data-tab="thongtin"] [data-tab-of]:not([data-tab-of="thongtin"]),
+    #drawerBody[data-tab="hoso"] [data-tab-of]:not([data-tab-of="hoso"]){display:none;}
     .detail-col-main{gap:12px;}
     .block-package{grid-template-columns:minmax(0,1fr);}
     .stepper{flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;}
@@ -1793,6 +1806,44 @@
   .zalo-who{color:var(--zl-phu); font-weight:700;}
   .zalo-time{color:var(--zl-phu);}
   .zalo-day{background:var(--zl-kh); color:var(--zl-phu); box-shadow:var(--zl-bong);}
+
+  /* ===== Hồ sơ khách AI + đề xuất ===== */
+  .nut-de-xuat{gap:6px;}
+  .nut-de-xuat[hidden]{display:none;}
+  .nut-de-xuat-so{background:var(--blush); color:#fff; border-radius:999px; padding:0 7px; font-size:12px; line-height:18px;}
+  .card-dx{color:var(--purple); font-size:13px;}
+  .dx-the{border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:8px 0; background:var(--surface-2);}
+  .dx-tieu-de{font-size:14px;}
+  .dx-cu{color:var(--ink-faint); text-decoration:line-through;}
+  .dx-canh-bao{color:var(--amber); font-size:12px; margin-top:4px;}
+  .dx-ly-do{color:var(--ink-soft, var(--ink-faint)); font-size:13px; margin-top:4px;}
+  .dx-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+  .dx-sua{display:flex; gap:6px; margin-top:8px; align-items:flex-start;}
+  .dx-sua[hidden]{display:none;}
+  .dx-nhom-lead{margin-bottom:14px;}
+  .dx-ten-lead{background:none; border:none; padding:0; font-weight:600; cursor:pointer; color:inherit;}
+  .hs-nguon{border:none; background:var(--purple-soft); color:var(--purple); border-radius:999px; padding:1px 8px; font-size:12px; cursor:pointer; margin:2px 2px 0 0;}
+  .hs-nguon.mat{background:var(--gray-tag-soft); color:var(--gray-tag); cursor:default;}
+  .block-hoso .hs-dau{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .hs-nong{border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600;}
+  .hs-nong.nong{background:var(--blush); color:#fff;}
+  .hs-nong.am{background:var(--amber-soft); color:var(--amber);}
+  .hs-nong.nguoi{background:var(--slate-soft); color:var(--slate);}
+  .hs-buoc-tiep{margin:8px 0; font-size:14px;}
+  .hs-nhom{margin:10px 0;}
+  .hs-nhan{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:2px;}
+  .hs-chu{font-size:14px; white-space:pre-wrap;}
+  .hs-hua-cot{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;}
+  @media (max-width:760px){ .hs-hua-cot{grid-template-columns:1fr;} }
+  .hs-hua{border-left:3px solid var(--border); padding:4px 8px; margin:6px 0; font-size:14px;}
+  .hs-hua.quaHan{border-left-color:var(--blush);}
+  .hs-hua.quaHan .hs-han{color:var(--blush); font-weight:600;}
+  .hs-hua.xong{opacity:.6; text-decoration:line-through;}
+  .hs-han{font-size:12px; color:var(--ink-faint);}
+  .hs-chan{font-size:12px; color:var(--ink-faint); margin-top:12px;}
+  .hs-trong{text-align:center; padding:12px 0;}
+  .hs-cau-mau{margin-top:8px; border:1px dashed var(--border); background:none; border-radius:10px; padding:8px 12px; cursor:pointer; color:inherit;}
+  .zalo-row.zalo-flash .zalo-bubble{outline:2px solid var(--purple); outline-offset:2px; transition:outline-color .3s;}
 </style>
 </head>
 <body>
@@ -2059,6 +2110,7 @@
 
       <div class="topbar-spacer"></div>
 
+      <button type="button" class="btn btn-secondary nut-de-xuat" id="nutDeXuat" hidden onclick="moModalDeXuat()">Đề xuất của Claude <span class="nut-de-xuat-so" id="nutDeXuatSo">0</span></button>
       <span class="sync-status" id="syncStatus"><span class="sync-dot"></span>Đang kết nối...</span>
 
       <button class="btn btn-primary" onclick="openAddLead()">
@@ -2214,6 +2266,18 @@
 </div>
 
 <!-- ============ MODAL: Lost reason ============ -->
+<div class="modal-overlay" id="deXuatOverlay">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <h3>Đề xuất của Claude</h3>
+      <p>Claude đọc hội thoại và đề xuất. Không có gì thay đổi cho tới khi em duyệt.</p>
+    </div>
+    <div class="modal-body" id="deXuatBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="dongModalDeXuat()">Đóng</button>
+    </div>
+  </div>
+</div>
 <div class="modal-overlay" id="lostReasonOverlay">
   <div class="modal">
     <div class="modal-header">
@@ -3776,6 +3840,7 @@ function cardHtml(lead){
         <div class="card-name">${esc(lead.name)}</div>
         <div class="card-top-right">
           ${tag}
+          ${deXuatCuaLead(lead.id).length ? '<span class="card-dx" title="Có đề xuất của Claude chờ duyệt">✦</span>' : ''}
           <button class="card-move-btn" onclick="event.stopPropagation(); openQuickMove('${lead.id}')" title="Chuyển giai đoạn nhanh">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>
           </button>
@@ -3809,6 +3874,7 @@ const DONG_MODAL = {
   shareOverlay: () => closeShareModal(),       mcpOverlay: () => closeMcpModal(),
   revenueListOverlay: () => closeRevenueListModal(), todoCompletedOverlay: () => closeTodoCompletedModal(),
   quickMoveOverlay: () => closeQuickMove(),    menuKhacOverlay: () => dongMenuKhac(),
+  deXuatOverlay: () => dongModalDeXuat(),
 };
 function ganNutDongModal(){
   Object.keys(DONG_MODAL).forEach(id => {
@@ -4027,10 +4093,16 @@ function openLead(id){
       <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')">Việc &amp; ghi chú</button>
       <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại</button>
       <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
+      <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ</button>
     </div>
 
     <div class="detail-grid">
       <div class="detail-col detail-col-main">
+        <div class="detail-block block-hoso" data-tab-of="hoso">
+          <div class="block-head"><h3 class="block-title">✦ Hồ sơ khách <span class="block-meta">do Claude soạn</span></h3></div>
+          <div id="hoSoDeXuat"></div>
+          <div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div>
+        </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
           <div class="field-group">
@@ -4139,6 +4211,7 @@ function openLead(id){
   openZaloChat(id);
   initAutoGrowTextareas();
   chonTabChiTiet(tabChiTiet);
+  moHoSo(id);
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
 }
@@ -4412,6 +4485,7 @@ function closeDrawer(){
   document.getElementById('drawer').classList.remove('open');
   currentLeadId = null;
   closeZaloChat();
+  dongHoSo();
 }
 function deleteCurrentLead(){
   if (!currentLeadId) return;
@@ -4438,6 +4512,207 @@ let zaloMsgs = {};           // convId -> [tin] | { error:true }
 let zaloActiveConv = null;
 let zaloQuery = '';
 let zaloOpenFor = '';        // "<leadId>:<convIds>" để biết khi nào cần nghe lại
+
+/* ======================= HỒ SƠ KHÁCH AI: hàng chờ đề xuất ======================= */
+// Spec: docs/superpowers/specs/2026-10-14-ho-so-khach-ai-design.md
+// Logic thuần ở web/ho-so-ai.js (window.HoSoAI). Dữ liệu ở aiData — KHÔNG nằm trong crmData,
+// nên không đụng luồng đồng bộ onValue(dataRef)/saveToCloud().
+let aiDeXuat = {};               // { id: đề xuất } — chỉ status 'cho'
+const aiDangDuyet = new Set();   // đã duyệt trong máy, chờ bản máy chủ của lead mang giá trị
+const aiDaGuiDuyet = new Set();  // đã gửi status 'duyet' lên, chờ listener gỡ khỏi danh sách
+
+function initAI(){
+  const f = window.__firebase;
+  const q = f.query(f.refAt(f.aiBase() + '/proposals'), f.orderByChild('status'), f.equalTo('cho'));
+  // Rules chưa dán -> lỗi quyền: ẩn phần AI, KHÔNG báo lỗi đồng bộ CRM.
+  f.onValue(q, s => {
+    aiDeXuat = s.val() || {};
+    Object.keys(aiDeXuat).forEach(id => { aiDeXuat[id].id = id; });
+    doiSoatDeXuat();
+    veLaiPhanDeXuat();
+    if (!uiIsBusy()) renderPipeline();
+  }, e => { console.warn('Không đọc được aiData/proposals:', e); aiDeXuat = {}; veLaiPhanDeXuat(); });
+}
+
+function deXuatCuaLead(leadId){
+  return Object.values(aiDeXuat).filter(p => p.leadId === leadId && !aiDangDuyet.has(p.id) && leads.some(l => l.id === p.leadId));
+}
+
+/** Lead theo BẢN GỐC (máy chủ đã XÁC NHẬN ghi — saveToCloud chỉ dời banGoc sau khi await thành công).
+ *  Không dùng lastSyncedRaw: SDK bắn onValue ngay với bản ghi lạc quan, trước khi máy chủ nhận. */
+function leadTrenMayChu(id){
+  try { return banGoc.leads[id] ? JSON.parse(banGoc.leads[id]) : null; } catch(e){ return null; }
+}
+
+/** Đề xuất mà bản máy chủ của lead đã mang giá trị -> đánh dấu duyet (đúng thứ tự: lead trước, trạng thái sau). */
+function doiSoatDeXuat(){
+  if (!window.HoSoAI || !window.__firebase) return;
+  Object.values(aiDeXuat).forEach(p => {
+    if (aiDaGuiDuyet.has(p.id)) return;
+    if (!HoSoAI.daApDung(p, leadTrenMayChu(p.leadId))) return;
+    aiDaGuiDuyet.add(p.id);
+    const f = window.__firebase;
+    f.update(f.refAt(`${f.aiBase()}/proposals/${p.id}`), { status: 'duyet', decidedAt: new Date().toISOString() })
+      .catch(e => { aiDaGuiDuyet.delete(p.id); console.warn('Không ghi được trạng thái đề xuất:', e); });
+  });
+}
+
+function apDungDeXuat(p, giaTri){
+  const lead = leads.find(l => l.id === p.leadId);
+  if (!lead) return false;
+  if (p.type === 'field'){
+    const loi = HoSoAI.kiemTraGiaTriO(p.field, giaTri);
+    if (loi){ alert(loi); return false; }
+    logActivity(lead, `Duyệt đề xuất của Claude: ${HoSoAI.NHAN_O[p.field]} → ${HoSoAI.hienGiaTri(p.field, giaTri)}`);
+    onFieldChange(lead.id, p.field, giaTri);    // tự renderPipeline + scheduleSave
+  } else {
+    lead.todos = lead.todos || [];
+    lead.todos.push({ id: newTodoId(), text: p.todoText, done: false, dueDate: p.due || null, completedAt: null, tuDeXuat: p.id });
+    syncLeadDeadline(lead);
+    logActivity(lead, `Duyệt đề xuất của Claude: thêm việc "${p.todoText}"${p.due ? ` (hạn ${formatDate(p.due)})` : ''}`);
+    scheduleSave();
+  }
+  aiDangDuyet.add(p.id);
+  if (currentLeadId === lead.id) openLead(lead.id);
+  renderAll();
+  veLaiPhanDeXuat(true);
+  return true;
+}
+
+function duyetDeXuat(id){
+  if (aiDangDuyet.has(id)) return;
+  const p = aiDeXuat[id];
+  if (p) apDungDeXuat(p, p.newValue);
+}
+
+function moSuaDeXuat(id){
+  document.querySelectorAll(`[data-dx="${id}"] .dx-sua`).forEach(el => { el.hidden = !el.hidden; });
+}
+
+function duyetDeXuatSua(id, btn){
+  if (aiDangDuyet.has(id)) return;
+  const p = aiDeXuat[id];
+  if (!p) return;
+  const o = btn.parentElement.querySelector('input, select, textarea');
+  let v = o ? o.value : '';
+  if (p.field === 'revenueExpected') v = v === '' ? NaN : Number(v);
+  const loi = HoSoAI.kiemTraGiaTriO(p.field, v);
+  if (loi){ alert(loi); return; }
+  // Ghi giaTriDuyet TRƯỚC để đối soát nhận ra giá trị đã sửa (kể cả sau khi tải lại trang)
+  const f = window.__firebase;
+  f.update(f.refAt(`${f.aiBase()}/proposals/${id}`), { giaTriDuyet: v })
+    .then(() => { if (aiDangDuyet.has(id)) return; p.giaTriDuyet = v; apDungDeXuat(p, v); })
+    .catch(e => alert('Không lưu được: ' + (e && e.message || e)));
+}
+
+function boDeXuat(id){
+  const f = window.__firebase;
+  aiDangDuyet.add(id);
+  veLaiPhanDeXuat(true);
+  f.update(f.refAt(`${f.aiBase()}/proposals/${id}`), { status: 'bo', decidedAt: new Date().toISOString() })
+    .catch(e => { aiDangDuyet.delete(id); veLaiPhanDeXuat(true); alert('Không bỏ được: ' + (e && e.message || e)); });
+}
+
+function moModalDeXuat(){ veModalDeXuat(); document.getElementById('deXuatOverlay').classList.add('show'); }
+function dongModalDeXuat(){ document.getElementById('deXuatOverlay').classList.remove('show'); }
+
+/** Đang gõ trong ô "Sửa rồi duyệt" (hộp sửa đang mở hoặc con trỏ nằm trong vùng) -> đừng vẽ lại, kẻo mất chữ đang gõ. */
+function dangSuaDeXuat(el){
+  if (!el) return false;
+  if (el.querySelector('.dx-sua:not([hidden])')) return true;
+  const a = document.activeElement;
+  return !!(a && a !== document.body && el.contains(a));
+}
+
+function veModalDeXuat(ep){
+  const body = document.getElementById('deXuatBody');
+  if (!body || !window.HoSoAI) return;
+  if (!ep && dangSuaDeXuat(body)) return;
+  const theoLead = {};
+  leads.forEach(l => { const ds = deXuatCuaLead(l.id); if (ds.length) theoLead[l.id] = ds; });
+  const ids = Object.keys(theoLead);
+  body.innerHTML = ids.length ? ids.map(id => {
+    const lead = leads.find(l => l.id === id);
+    return `<div class="dx-nhom-lead"><button type="button" class="dx-ten-lead" onclick="dongModalDeXuat(); openLead('${id}'); chonTabChiTiet('hoso')">${esc(lead.name)}</button>
+      ${theoLead[id].map(p => HoSoAI.veTheDeXuat(p, lead)).join('')}</div>`;
+  }).join('') : '<div class="list-empty">Không còn đề xuất nào.</div>';
+}
+
+function veLaiPhanDeXuat(ep){
+  const n = leads.reduce((s, l) => s + deXuatCuaLead(l.id).length, 0);
+  const nut = document.getElementById('nutDeXuat');
+  if (nut){ nut.hidden = !n || !window.HoSoAI; document.getElementById('nutDeXuatSo').textContent = n; }
+  const ov = document.getElementById('deXuatOverlay');
+  if (ov && ov.classList.contains('show')) veModalDeXuat(ep);
+  if (typeof veKhoiHoSo === 'function' && currentLeadId) veKhoiHoSo(currentLeadId, ep);
+}
+
+
+/* ----- Tab "Hồ sơ" trong chi tiết lead ----- */
+let hoSoUnsub = null;
+let hoSoBrief = null;        // undefined = đang tải, null = chưa có, object = hồ sơ
+let hoSoLoi = false;
+
+function moHoSo(leadId){
+  dongHoSo();
+  hoSoBrief = undefined; hoSoLoi = false;
+  const f = window.__firebase;
+  if (!f || !f.aiBase) return;
+  hoSoUnsub = f.onValue(f.refAt(`${f.aiBase()}/briefs/${leadId}`), s => {
+    hoSoBrief = s.val() || null;
+    if (currentLeadId === leadId) veKhoiHoSo(leadId);
+  }, e => {
+    console.warn('Không đọc được aiData/briefs:', e);
+    hoSoLoi = true;
+    if (currentLeadId === leadId) veKhoiHoSo(leadId);
+  });
+  veKhoiHoSo(leadId);
+}
+
+function dongHoSo(){
+  if (hoSoUnsub){ try { hoSoUnsub(); } catch(e){} }
+  hoSoUnsub = null; hoSoBrief = undefined;
+}
+
+function veKhoiHoSo(leadId, ep){
+  const khoi = document.getElementById('hoSoBlock');
+  const dx = document.getElementById('hoSoDeXuat');
+  if (!khoi || !dx) return;
+  const vo = khoi.closest('.block-hoso');
+  if (!window.HoSoAI || hoSoLoi){ vo.style.display = 'none'; return; }
+  vo.style.display = '';
+  const lead = leads.find(l => l.id === leadId);
+  if (ep || !dangSuaDeXuat(dx)) dx.innerHTML = deXuatCuaLead(leadId).map(p => HoSoAI.veTheDeXuat(p, lead)).join('');
+  if (hoSoBrief === undefined){ khoi.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
+  const convIds = new Set(zaloConvsOf(leadId).map(c => c.convId));
+  const coTin = (convId, msgId) => {
+    if (!convIds.has(convId)) return false;
+    const ds = zaloMsgs[convId];
+    // Hội thoại chưa tải xong (hoặc tin cũ hơn 500 tin cuối): coi là còn, bấm vào vẫn mở đúng hội thoại
+    return !Array.isArray(ds) || ds.length >= 500 || ds.some(m => m.id === msgId);
+  };
+  const tinMoi = HoSoAI.demTinMoi(
+    Object.fromEntries([...convIds].map(c => [c, Array.isArray(zaloMsgs[c]) ? zaloMsgs[c] : []])),
+    hoSoBrief ? hoSoBrief.cursorAt : 0
+  );
+  khoi.innerHTML = HoSoAI.veHoSo(hoSoBrief, { homNay: todayISO(), coTin, tinMoi, tenLead: lead ? lead.name : '' });
+}
+
+/** Chip nguồn: mở tab Hội thoại đúng hội thoại, cuộn tới tin và tô sáng. */
+function xemNguon(convId, msgId){
+  if (!currentLeadId) return;
+  chonTabChiTiet('hoithoai');
+  pickZaloConv(currentLeadId, convId);
+  const tim = (lan) => {
+    const row = [...document.querySelectorAll('#zaloList .zalo-row')].find(r => r.dataset.msgId === msgId);
+    if (row){
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      row.classList.add('zalo-flash');
+      setTimeout(() => row.classList.remove('zalo-flash'), 2000);
+    } else if (lan < 10) setTimeout(() => tim(lan + 1), 150);   // hội thoại còn đang tải
+  };
+  tim(0);
+}
 
 function initZalo(){
   const f = window.__firebase;
@@ -4489,6 +4764,7 @@ function openZaloChat(leadId){
     const un = f.onValue(q, s => {
       zaloMsgs[c.convId] = Object.entries(s.val() || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.at || 0) - (b.at || 0));
       if (currentLeadId === leadId) renderZaloList();
+      if (currentLeadId === leadId && typeof veKhoiHoSo === 'function') veKhoiHoSo(leadId);
     }, e => {
       console.warn('Không tải được hội thoại Zalo:', e);
       zaloMsgs[c.convId] = { error: true };
@@ -4567,7 +4843,7 @@ function renderZaloMessages(box, data, hoiThoai, query){
     // Có tiêu đề trang (Zalo đã tải sẵn) thì hiện tiêu đề cho dễ đọc, link vẫn trỏ đúng URL
     const link = url ? `<div class="zalo-link"><a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(h.linkTitle || url)}</a></div>` : '';
     const quote = m.quote ? `<div class="zalo-quote">${esc(m.quote.title)}${m.quote.title ? ': ' : ''}${esc(m.quote.text)}</div>` : '';
-    html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}">`
+    html += `<div class="zalo-row ${m.fromMe ? 'me' : 'kh'}" data-msg-id="${esc(m.id || '')}">`
       + (ten ? `<div class="zalo-who">${esc(ten)}</div>` : '')
       + `<div class="zalo-bubble">${quote}${body}${link}</div>`
       + `<div class="zalo-time">${d.toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' })}</div></div>`;
@@ -5544,6 +5820,7 @@ function renderAll(){
   renderDashboard();
   renderSidebarStats();
   renderConversations();
+  try { doiSoatDeXuat(); veLaiPhanDeXuat(); } catch(e){ console.error('deXuat', e); }
 }
 
 /* ======================= CLOUD SYNC (Firebase Realtime Database) ======================= */
@@ -5679,6 +5956,8 @@ async function saveToCloud(){
     if ('planLeads' in thayDoi)   banGoc.planLeads   = thayDoi.planLeads;
     chuSoHuuDangXet.forEach(id => chuSoHuuChuaLuu.delete(id));
     setSyncStatus('saved');
+    // Lead vừa lên máy chủ -> đề xuất nào đã được áp dụng thì đánh dấu duyệt (hồ sơ khách AI)
+    try { if (typeof doiSoatDeXuat === 'function') doiSoatDeXuat(); } catch(e){ console.warn('doiSoatDeXuat', e); }
   } catch(e){
     console.error('Firebase save error:', e);
     setSyncStatus('error');
@@ -5885,6 +6164,8 @@ async function initCloudSync(){
     });
     // Hội thoại Zalo là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
     try { initZalo(); } catch(e){ console.warn('Không khởi động được phần hội thoại Zalo:', e); }
+    // Hồ sơ khách AI là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
+    try { initAI(); } catch(e){ console.warn('Không khởi động được phần hồ sơ AI:', e); }
   } catch(e){
     console.error('Firebase init error:', e);
     // cloudLoaded vẫn là false -> chốt an toàn trong saveToCloud sẽ chặn mọi lệnh ghi,
