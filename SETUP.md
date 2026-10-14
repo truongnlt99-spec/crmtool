@@ -209,7 +209,9 @@ Còn một trường hợp: app và Claude cùng sửa **chính một lead** tr�
 
 **Đọc:** `list_leads`, `get_lead` (kèm tóm tắt Zalo), `dashboard_summary`, `upcoming_deadlines`, `list_todos`, `list_conversations`, `get_conversation`
 
-**Ghi:** `create_lead`, `update_lead`, `move_stage`, `add_note`, `add_todo`, `complete_todo`
+**Ghi:** `create_lead`, `update_lead`, `move_stage`, `add_note`, `delete_note`, `add_todo`, `complete_todo`
+
+**Đề xuất của Claude:** `list_proposals` (xem), `approve_proposal` (duyệt, có thể sửa giá trị rồi duyệt), `reject_proposal` (bỏ) — chỉ khi người dùng bảo trong chat
 
 ---
 
