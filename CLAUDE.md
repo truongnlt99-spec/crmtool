@@ -25,6 +25,7 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và link "chia sẻ chỉ
   - Test chạy Chrome thật: `npm run test:zalo-dom` (đọc DOM) và `npm run test:crm-chat` (chạy đúng hàm vẽ bong bóng trích từ `index.html`, có cả test chống XSS).
 - **`extension/lib/zalo-map.js`** — hàm thuần dùng chung với `index.html` (nạp bằng `<script type="module">`) và test Node; sửa logic chip/nhãn ở đây. `hienThiTin()` là quy tắc hiện một tin nhắn và bị **chép lại ở 2 nơi không import được**: `api/mcp.ts` (`hienThiZalo`) và `xem.html` — sửa một chỗ thì sửa cả ba.
 - **`web/ho-so-ai.js`** — logic thuần của hồ sơ khách AI + hàng chờ đề xuất (whitelist ô, đối soát, vẽ HTML có escape). `FIELD_WHITELIST` / `kiemTraGiaTriO` / `giaTriBang` **chép ở 2 nơi**: đây và `api/mcp.ts` — sửa một chỗ thì sửa cả hai (`npm run test:ho-so` chạy cùng bộ ca trên cả hai). Claude chỉ ghi vào `aiData*`; thay đổi vào lead chỉ xảy ra khi Trân duyệt — bấm Duyệt trong app, hoặc bảo Claude trong chat (`approve_proposal` / `reject_proposal`; prompt `cap-nhat-ho-so` cấm Claude tự gọi hai tool này).
+- **`web/bao-gia.js`** — logic thuần khối "Báo giá" trong chi tiết lead. Báo giá Trân làm trên claude.ai được lưu qua tool MCP `save_quote` vào **chính lead** (`leads/<id>/baoGia/<baoGiaId>`, bản mới nhất = `taoLuc` lớn nhất). Server kiểm tra phép tính và tự sinh đề xuất (doanh thu, ngày cưới, gói, việc nhắc hạn ưu đãi) vào hàng chờ — `save_quote` không sửa ô nào của lead.
 - **`web/bang-lead.js`** — logic thuần của view "Danh sách" (bảng lead kiểu Excel): định nghĩa cột, lọc,
   sắp xếp, dòng tổng, dòng xuất Excel, đọc cài đặt. `index.html` nạp bằng `<script type="module">`
   (`window.BangLead`); phần giao diện nằm ở khối `RENDER: DANH SÁCH` trong `index.html`. Thêm cột mới:
@@ -75,6 +76,9 @@ npm run test:mcp-zalo    # test/mcp-hoi-thoai.test.ts — tool MCP đọc hội 
 npm run test:ho-so       # test/ho-so-ai.test.ts — hàm thuần hồ sơ AI (server + web), KHÔNG chạm Firebase
 npm run test:mcp-ho-so   # test/mcp-ho-so.test.ts — tool + prompt hồ sơ AI (sandbox crmDataTest + zaloTest + aiDataTest)
 npm run test:ho-so-ui    # test/ho-so-ai.test.html — vẽ tab Hồ sơ + thẻ đề xuất, chống XSS (Chrome ngầm)
+npm run test:bao-gia     # test/bao-gia.test.ts — hàm thuần báo giá (phép tính, khớp gói, đề xuất), KHÔNG chạm Firebase
+npm run test:mcp-bao-gia # test/mcp-bao-gia.test.ts — tool save_quote (sandbox crmDataTest + aiDataTest)
+npm run test:bao-gia-ui  # test/bao-gia.test.html — vẽ khối Báo giá, chống XSS (Chrome ngầm)
 ```
 
 Chạy một test lẻ: `node test/<tên>.test.ts`.

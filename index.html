@@ -156,6 +156,11 @@
   window.HoSoAI = HoSoAI;
   if (window.veLaiPhanDeXuat) window.veLaiPhanDeXuat();
 </script>
+<script type="module">
+  // Khối "Báo giá" trong chi tiết lead — test ở test/bao-gia.test.html. Nạp lỗi thì chỉ mất khối này.
+  import * as BaoGia from './web/bao-gia.js';
+  window.BaoGia = BaoGia;
+</script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
    màu sáng một nhịp rồi mới đổi sang tối — rất chói mắt khi mở app ban đêm. */
@@ -1882,6 +1887,32 @@
   .hs-chan{font-size:12px; color:var(--ink-faint); margin-top:10px;}
   .hs-trong{text-align:center; padding:12px 0;}
   .hs-cau-mau{margin-top:8px; border:1px dashed var(--border); background:none; border-radius:10px; padding:8px 12px; cursor:pointer; color:inherit;}
+  /* Báo giá trong lead */
+  .bg-the{border:1px solid var(--border); border-radius:12px; padding:12px 14px; background:var(--surface-2);}
+  .bg-tieu-de{font-size:15px; font-weight:600;}
+  .bg-meta{font-size:12.5px; color:var(--ink-faint); margin-top:2px;}
+  .bg-buoi{padding:10px 0; border-top:1px solid var(--border); margin-top:10px;}
+  .bg-buoi-dong{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+  .bg-buoi-ten{font-weight:600; font-size:14px;}
+  .bg-gia{font-size:14px; white-space:nowrap;}
+  .bg-gia s, .bg-tong s{color:var(--ink-faint); font-size:12.5px;}
+  .bg-gia b{font-weight:700;}
+  .bg-uu{font-size:12px; color:var(--green-700); background:var(--green-50); border-radius:6px; padding:1px 6px;}
+  .bg-goi{font-size:13px; color:var(--ink-faint); margin-top:3px;}
+  .bg-chi-tiet{margin-top:6px; font-size:13px;}
+  .bg-chi-tiet summary, .bg-ban-cu summary{cursor:pointer; color:var(--ink-faint); font-size:12.5px;}
+  .bg-nhom-nho{margin-top:6px;}
+  .bg-nhom-nho ul, .bg-ghi-chu{margin:2px 0 0 18px; padding:0;}
+  .bg-nhan{font-size:12px; color:var(--ink-faint);}
+  .bg-tong{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-top:10px; padding:10px 12px; border-radius:10px; background:var(--green-50);}
+  .bg-tong b{font-size:17px; font-weight:700; color:var(--green-700);}
+  .bg-tiet-kiem{margin-left:auto; font-size:12.5px; color:var(--green-700);}
+  .bg-han{margin-top:8px; font-size:13px; color:var(--ink-faint);}
+  .bg-han.sap{color:var(--blush); font-weight:600;}
+  .bg-han.het{text-decoration:line-through;}
+  .bg-ghi-chu{margin-top:8px; font-size:13px; color:var(--ink-faint);}
+  .bg-ban-cu{margin-top:10px;}
+  .bg-cu-dong{font-size:13px; padding:4px 0; color:var(--ink-faint);}
   .zalo-row.zalo-flash .zalo-bubble{outline:2px solid var(--purple); outline-offset:2px; transition:outline-color .3s;}
 </style>
 </head>
@@ -4155,6 +4186,13 @@ function openLead(id){
             <button type="button" class="block-collapse" aria-expanded="${hoSoThuGon() ? 'false' : 'true'}" onclick="thuGonHoSo(this)">${hoSoThuGon() ? 'Mở ▾' : 'Thu gọn ▴'}</button>
           </div>
           <div class="block-content"><div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div></div>
+        </div>
+        <div class="detail-block block-bao-gia" data-tab-of="thongtin" ${window.BaoGia && BaoGia.baoGiaMoiNhat(lead) ? '' : 'style="display:none"'}>
+          <div class="block-head">
+            <h3 class="block-title">Báo giá</h3>
+            <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
+          </div>
+          <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO()) : ''}</div>
         </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
