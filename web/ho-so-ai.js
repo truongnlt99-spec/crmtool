@@ -113,7 +113,7 @@ export function veTheDeXuat(p, lead, mo = false){
     ? `Việc: ${esc(p.todoText)}${p.due ? ` · <span class="dx-han">hạn ${esc(ngayVN(p.due))}</span>` : ''}`
     : `${esc(NHAN_O[p.field] || p.field)} → <b>${esc(hienGiaTri(p.field, p.newValue))}</b>`;
   const daDoi = p.type === 'field' && lead && !giaTriBang(lead[p.field], p.oldValue);
-  const hienTai = p.type === 'field' ? `<div class="dx-dong-tt"><span class="dx-nhan">Hiện tại</span>${esc(hienGiaTri(p.field, lead ? lead[p.field] : p.oldValue))}</div>` : '';
+  const hienTai = p.type === 'field' ? `<div class="dx-dong-tt"><span class="dx-nhan">Hiện tại</span><span>${esc(hienGiaTri(p.field, lead ? lead[p.field] : p.oldValue))}</span></div>` : '';
   const nut = idOk ? `
       <div class="dx-nut">
         <button type="button" class="btn btn-primary btn-sm" ${goi('duyetDeXuat', p.id)}>Duyệt</button>
@@ -133,7 +133,7 @@ export function veTheDeXuat(p, lead, mo = false){
     <div class="dx-chi-tiet">
       ${hienTai}
       ${daDoi ? `<div class="dx-canh-bao">Ô này đã đổi từ lúc Claude đề xuất</div>` : ''}
-      <div class="dx-ly-do"><span class="dx-nhan">Lý do</span>${esc(p.reason)} ${chipNguon(p.evidence, () => true)}</div>
+      <div class="dx-ly-do"><span class="dx-nhan">Lý do</span><span>${esc(p.reason)}${chipNguon(p.evidence, () => true)}</span></div>
       ${nut}
     </div>
   </div>`;
