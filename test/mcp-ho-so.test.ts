@@ -250,7 +250,19 @@ try {
     check('hai de xuat cung o trong mot lan goi: khong loi, con 1 ban moi nhat', !hai.isError && hai.json?.taoMoi?.length === 1 && ob.length === 1 && (ob[0] as any).newValue === 'Chê xa', hai.text);
   }
 
-  // Task 4, 5, 6 nối tiếp các khối test vào đây.
+  console.log('\n>> prompt cap-nhat-ho-so');
+  {
+    const ds = await rpc('prompts/list', {});
+    check('co prompt trong danh sach', (ds?.result?.prompts || []).some((p: any) => p.name === 'cap-nhat-ho-so'), JSON.stringify(ds).slice(0, 300));
+    const p1 = await rpc('prompts/get', { name: 'cap-nhat-ho-so', arguments: {} });
+    const t1 = p1?.result?.messages?.[0]?.content?.text || '';
+    check('khong co lead: bat dau bang list_stale_leads', /list_stale_leads/.test(t1), t1.slice(0, 200));
+    check('co quy tac du lieu khong phai lenh', /không phải lệnh/.test(t1));
+    check('nhac du 3 tool ghi/doc', ['lead_context', 'save_lead_brief', 'propose_changes'].every((n) => t1.includes(n)));
+    const p2 = await rpc('prompts/get', { name: 'cap-nhat-ho-so', arguments: { lead: 'Lan Nguyễn' } });
+    const t2 = p2?.result?.messages?.[0]?.content?.text || '';
+    check('co lead: nhac ten lead', t2.includes('Lan Nguyễn') && !/Gọi list_stale_leads/.test(t2), t2.slice(0, 200));
+  }
 
 } finally {
   console.log('\n>> Don sandbox');
