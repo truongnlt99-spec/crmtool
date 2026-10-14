@@ -1818,22 +1818,28 @@
   .dx-ds{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface-2);}
   .dx-ds:empty{display:none;}
   .dx-dong + .dx-dong{border-top:1px solid var(--border);}
-  .dx-hang{display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; min-height:44px;}
+  #deXuatOverlay .modal{width:760px; max-width:calc(100vw - 32px); max-height:86vh;}
+  .dx-hang{display:flex; align-items:flex-start; gap:10px; padding:12px 14px; cursor:pointer; min-height:48px;}
   .dx-hang:hover{background:var(--well);}
-  .dx-loai{flex:none; width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; background:var(--purple-soft); color:var(--purple);}
+  .dx-loai{flex:none; width:26px; height:26px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; background:var(--purple-soft); color:var(--purple);}
   .dx-loai.viec{background:var(--green-50); color:var(--green-700);}
-  .dx-tom{flex:1; min-width:0; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dx-tom{flex:1; min-width:0; font-size:15px; line-height:1.45; padding-top:3px; white-space:normal; overflow-wrap:anywhere;}
   .dx-tom b{font-weight:600;}
   .dx-han{color:var(--ink-faint);}
-  .dx-co-doi{flex:none; width:18px; height:18px; border-radius:999px; background:var(--amber-soft); color:var(--amber); font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;}
+  .dx-co-doi{flex:none; margin-top:4px; width:18px; height:18px; border-radius:999px; background:var(--amber-soft); color:var(--amber); font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;}
   .dx-nhanh{flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--green-700); font-size:15px; cursor:pointer;}
   .dx-nhanh:hover{background:var(--green-50); border-color:var(--green-700);}
-  .dx-mui{flex:none; color:var(--ink-faint); font-size:12px; transition:transform .15s;}
+  .dx-mui{flex:none; margin-top:7px; color:var(--ink-faint); font-size:12px; transition:transform .15s;}
   .dx-dong.mo .dx-mui{transform:rotate(180deg);}
-  .dx-chi-tiet{display:none; padding:2px 12px 12px 46px; font-size:13px;}
+  .dx-chi-tiet{display:none; padding:0 14px 14px 50px; font-size:14px;}
   .dx-dong.mo .dx-chi-tiet{display:block;}
-  .dx-nhan{display:inline-block; min-width:64px; margin-right:6px; color:var(--ink-faint); font-size:12px;}
-  .dx-dong-tt, .dx-ly-do{margin-top:4px; line-height:1.5;}
+  .dx-nhan{color:var(--ink-faint); font-size:12.5px; padding-top:1px;}
+  .dx-dong-tt, .dx-ly-do{display:grid; grid-template-columns:72px minmax(0,1fr); gap:8px; margin-top:6px; line-height:1.5; overflow-wrap:anywhere;}
+  @media (max-width:760px){
+    .dx-chi-tiet{padding:0 14px 14px 14px;}
+    .dx-dong-tt, .dx-ly-do{grid-template-columns:1fr; gap:2px;}
+    #deXuatOverlay .modal{width:100%; max-width:100%; max-height:88vh;}
+  }
   .dx-canh-bao{margin-top:6px; padding:6px 8px; border-radius:8px; background:var(--amber-soft); color:var(--amber); font-size:12px;}
   .dx-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
   .dx-sua{display:flex; gap:6px; margin-top:8px; align-items:flex-start;}
