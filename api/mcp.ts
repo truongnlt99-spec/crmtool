@@ -654,6 +654,39 @@ export function xetDeXuat(
   return dangCho ? { hanhDong: 'thay', idCu: dangCho.id } : { hanhDong: 'tao' };
 }
 
+/* ===================== Hồ sơ khách AI: nạp dữ liệu ===================== */
+
+type LoiHuaLuu = { ai: 'minh' | 'khach'; noiDung: string; han: string | null; trangThai: 'mo' | 'xong'; evidence: Evidence[] };
+type NhomLuu = { text: string; evidence: Evidence[] };
+type Brief = {
+  nhuCau: NhomLuu; nganSach: NhomLuu; nguoiQuyetDinh: NhomLuu; objection: NhomLuu;
+  doNong: { muc: 'nong' | 'am' | 'nguoi'; lyDo: string; evidence: Evidence[] };
+  buocTiep: string; loiHua?: Record<string, LoiHuaLuu>; cursorAt: number; updatedAt: string;
+};
+
+async function napBrief(leadId: string): Promise<Brief | null> {
+  return (await readPath<Brief | null>(`${aiRoot()}/briefs/${leadId}`)) || null;
+}
+
+async function napDeXuat(): Promise<DeXuat[]> {
+  const raw = (await readPath<Record<string, DeXuat> | null>(`${aiRoot()}/proposals`)) || {};
+  return Object.entries(raw).map(([id, p]) => ({ ...p, id }));
+}
+
+/** Tin của mọi hội thoại gắn với lead — CHỈ của lead đó (để kiểm tra trích dẫn không mượn lead khác). */
+async function napTinLead(z: ZaloStore, leadId: string) {
+  const convs = zaloConvsOfLead(z, leadId);
+  const theoConv: Record<string, Record<string, ZaloMsg>> = {};
+  const tenConv: Record<string, string> = {};
+  await Promise.all(convs.map(async ([convId, link]) => {
+    theoConv[convId] = (await readPath<Record<string, ZaloMsg> | null>(`${zaloRoot()}/msgs/${convId}`)) || {};
+    tenConv[convId] = link.name || '';
+  }));
+  return { theoConv, tenConv };
+}
+
+const O_LEAD_CHO_CLAUDE = ['weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth', 'phone', 'facebook', 'schedule', 'persona', 'objection'] as const;
+
 function boDauZalo(s: unknown): string {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
 }
@@ -1197,6 +1230,69 @@ const mcpHandler = createMcpHandler(
         return ok({
           lead: { id: lead.id, name: lead.name, stageName: STAGE_NAME[lead.stage] || lead.stage },
           conversations,
+        });
+      }
+    );
+
+    server.registerTool(
+      'list_stale_leads',
+      {
+        title: 'Lead cần cập nhật hồ sơ',
+        description:
+          'Lead đang mở (không Won/Lost) có hội thoại Zalo, và chưa có hồ sơ khách hoặc có tin mới sau lần Claude phân tích trước. Mới nhắn lên đầu. Dùng bước đầu của prompt "cap-nhat-ho-so".',
+        inputSchema: z.object({}),
+        annotations: { readOnlyHint: true },
+      },
+      async () => {
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+        const briefs = (await readPath<Record<string, Brief> | null>(`${aiRoot()}/briefs`)) || {};
+        const ds = crm.leads
+          .filter((l) => l.stage !== 'won' && l.stage !== 'lost')
+          .map((l) => {
+            const convs = zaloConvsOfLead(z, l.id);
+            if (!convs.length) return null;
+            const lastAt = Math.max(...convs.map(([c]) => Number(z.meta[c]?.lastAt) || 0));
+            const b = briefs[l.id];
+            if (b && lastAt <= (Number(b.cursorAt) || 0)) return null;
+            return { leadId: l.id, name: l.name, stageName: STAGE_NAME[l.stage] || l.stage, chuaCoHoSo: !b, tinMoiNhatLuc: lastAt ? gioVN(lastAt) : null, _at: lastAt };
+          })
+          .filter((x): x is NonNullable<typeof x> => !!x)
+          .sort((a, b) => b._at - a._at)
+          .map(({ _at, ...x }) => x);
+        return ok({ leads: ds });
+      }
+    );
+
+    server.registerTool(
+      'lead_context',
+      {
+        title: 'Ngữ cảnh lead để cập nhật hồ sơ',
+        description:
+          'Trả các ô hiện tại của lead, việc chưa xong, hồ sơ khách hiện có, và TIN MỚI kể từ lần phân tích trước (tối đa 400 tin/đợt, cũ nhất trước; còn nữa thì có conLai > 0 — lưu hồ sơ rồi gọi lại). Kèm cursorDeXuat (giá trị con trỏ được phép lưu), đề xuất đang chờ và các giá trị Trân đã bỏ. lamLai=true để đọc lại từ đầu.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          lamLai: z.boolean().optional().describe('Đọc lại toàn bộ tin từ đầu để dựng lại hồ sơ'),
+        }),
+        annotations: { readOnlyHint: true },
+      },
+      async (args) => {
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+        const l = findLead(crm, args.lead);
+        const [brief, deXuat, { theoConv, tenConv }] = await Promise.all([napBrief(l.id), napDeXuat(), napTinLead(z, l.id)]);
+        const tu = args.lamLai ? 0 : Number(brief?.cursorAt) || 0;
+        const { dot, conLai, cursorDeXuat } = tinhDotTin(gopTin(theoConv, tenConv, tu), TOI_DA_TIN, Date.now());
+        const cuaLead = deXuat.filter((p) => p.leadId === l.id);
+        const lead: Record<string, unknown> = { id: l.id, name: l.name, stageName: STAGE_NAME[l.stage] || l.stage };
+        for (const k of O_LEAD_CHO_CLAUDE) lead[k] = (l as any)[k] ?? null;
+        return ok({
+          lead,
+          viecChuaXong: (l.todos || []).filter((t) => !t.done).map((t) => ({ text: t.text, dueDate: t.dueDate || null })),
+          brief: brief ? { ...brief, loiHua: Object.entries(brief.loiHua || {}).map(([id, h]) => ({ id, ...h })) } : null,
+          tin: dot.map((t) => ({ convId: t.convId, msgId: t.msgId, at: t.at, time: gioVN(t.at), from: t.from, text: t.text })),
+          conLai,
+          cursorDeXuat,
+          deXuatDangCho: cuaLead.filter((p) => p.status === 'cho'),
+          daBo: cuaLead.filter((p) => p.status === 'bo' && p.type === 'field').map((p) => ({ field: p.field, newValue: p.newValue })),
         });
       }
     );
