@@ -133,7 +133,7 @@ try {
     check('chua co ho so', j?.brief === null);
     check('o hien tai', j?.lead?.package === 'Unique' && j?.lead?.stageName === 'Báo giá', JSON.stringify(j?.lead));
     check('chi tin tu c1 va c6', !j?.tin?.some((t: any) => !['c1', 'c6'].includes(t.convId)));
-    check('khong lo tin link khong phai khach', !r.text.includes('901') && !r.text.includes('TIN KHONG PHAI KHACH'));
+    check('khong lo tin link khong phai khach', JSON.stringify((j?.tin || []).map((t: any) => t.msgId).sort()) === JSON.stringify(['101', '102', '103', '104', '105', '601']) && !r.text.includes('TIN KHONG PHAI KHACH'));
   }
 
   // Task 4, 5, 6 nối tiếp các khối test vào đây.
