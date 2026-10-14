@@ -3522,7 +3522,66 @@ function batDauKeoCot(ev, khoa){
   window.addEventListener('pointerup', tha);
 }
 
-function suaOBang(){}
+function suaOBang(id, khoa, td){
+  const lead = leads.find(l => l.id === id);
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  if (!lead || !c || !oSuaDuoc(c, lead) || bangDangSua) return;
+  bangDangSua = { id, khoa };
+  const truong = khoa;   // khoá cột trùng tên trường lead với mọi cột sửa được
+  const v = lead[truong];
+  const opt = (ds, chon) => ds.map(o => `<option value="${esc(o.v)}" ${o.v === chon ? 'selected' : ''}>${esc(o.t)}</option>`).join('');
+  let html;
+  switch (c.sua){
+    case 'chu':   html = `<input class="bang-input" type="text" value="${esc(v || '')}">`; break;
+    case 'ngay':  html = `<input class="bang-input" type="date" value="${esc(v || '')}">`; break;
+    case 'thang': html = `<input class="bang-input" type="month" value="${esc(v || '')}">`; break;
+    case 'so':    html = `<input class="bang-input" type="text" inputmode="numeric" value="${moneyDisplay(v)}" oninput="formatMoneyInput(this)">`; break;
+    case 'chon': {
+      const ds = (khoa === 'package' ? PACKAGES : LEAD_TYPES).map(p => ({ v: p, t: p }));
+      html = `<select class="bang-input">${opt(ds, khoa === 'leadType' ? leadTypeOf(lead) : v)}</select>`; break;
+    }
+    case 'giaidoan': html = `<select class="bang-input">${opt(STAGES.map(s => ({ v: s.id, t: s.name })), lead.stage)}</select>`; break;
+  }
+  td.innerHTML = html;
+  const el = td.firstElementChild;
+  el.focus();
+  if (el.select && el.type === 'text') el.select();
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); luuOBang(el); }
+    else if (e.key === 'Escape'){ e.preventDefault(); e.stopPropagation(); huyOBang(); }
+  });
+  if (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'month') el.addEventListener('change', () => luuOBang(el));
+  el.addEventListener('blur', () => luuOBang(el));
+}
+function ketThucSuaBang(){
+  bangDangSua = null;
+}
+function huyOBang(){
+  if (!bangDangSua) return;
+  ketThucSuaBang();
+  renderBangLead();
+}
+function luuOBang(el){
+  if (!bangDangSua) return;           // Enter rồi blur: chỉ lưu một lần
+  const { id, khoa } = bangDangSua;
+  const lead = leads.find(l => l.id === id);
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  ketThucSuaBang();
+  if (!lead || !c){ renderBangLead(); return; }
+  if (c.sua === 'giaidoan'){
+    renderBangLead();                  // ô về giá trị hiện tại; Won/Lost chỉ đổi khi bấm xác nhận
+    if (el.value !== lead.stage) moveLeadToStage(id, el.value);
+    return;
+  }
+  let moi;
+  if (c.sua === 'so') moi = moneyInputValue(el);
+  else if (c.sua === 'chu') moi = el.value.trim();
+  else moi = el.value || null;
+  const cu = khoa === 'leadType' ? leadTypeOf(lead) : (lead[khoa] ?? (c.sua === 'so' ? 0 : c.sua === 'chu' ? '' : null));
+  if ((khoa === 'name' && !moi) || moi === cu){ renderBangLead(); return; }
+  onFieldChange(id, khoa, moi);       // ghi + vẽ lại Pipeline/bảng + scheduleSave() như sửa ở chi tiết lead
+}
+
 function xuatExcelBang(){}
 
 /* ======================= RENDER: PIPELINE ======================= */
@@ -4106,6 +4165,7 @@ function onFieldChange(id, field, value){
   }
   if (field === 'deadline') veChipDauChiTiet(lead);
   renderPipeline();
+  renderBangLead();
   if (document.getElementById('viewDashboard').classList.contains('active')) renderDashboard();
   scheduleSave();
 }
