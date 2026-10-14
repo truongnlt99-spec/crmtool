@@ -195,6 +195,52 @@ try {
     const luu2 = await doc('aiDataTest/briefs/L1');
     check('giu id loi hua + cap nhat trang thai', !giuId.isError && luu2?.loiHua?.[idCu]?.trangThai === 'xong' && Object.keys(luu2.loiHua).length === 1, JSON.stringify(luu2?.loiHua));
   }
+  console.log('\n>> propose_changes');
+  {
+    const hua = (await callTool('lead_context', { lead: 'L1' })).json?.brief?.loiHua || [];
+    const idHua = hua[0]?.id;
+    const r = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-12', reason: 'Khách nói ngày cưới', evidence: [E('101', 'cưới 12/12')] },
+      { type: 'field', field: 'package', newValue: 'Unique', reason: 'giữ', evidence: [E('102', 'phim mẫu Signature')] },
+      { type: 'field', field: 'stage', newValue: 'won', reason: 'x', evidence: [E('101', 'cưới 12/12')] },
+      { type: 'field', field: 'revenueExpected', newValue: '30tr', reason: 'x', evidence: [E('104', 'báo 30 triệu')] },
+      { type: 'field', field: 'persona', newValue: 'Có chồng cùng quyết', reason: 'x', evidence: [E('201', 'tầm 45 triệu', 'c2')] },
+      { type: 'todo', huaId: idHua, todoText: 'Gửi phim mẫu Signature', due: '2026-10-14', reason: 'Mình đã hứa', evidence: [E('102', 'gửi chị phim mẫu')] },
+      { type: 'todo', huaId: 'h_khongcoo', todoText: 'x', due: '2026-10-14', reason: 'x', evidence: [E('102', 'gửi chị phim mẫu')] },
+    ] });
+    const j = r.json;
+    check('tao 2 de xuat', j?.taoMoi?.length === 2, r.text);
+    check('bo qua 5 muc', j?.boQua?.length === 5, r.text);
+    const lyDo = (j?.boQua || []).map((b: any) => b.lyDo).join(' | ');
+    check('ly do: gia tri da dung', /đúng giá trị/.test(lyDo), lyDo);
+    check('ly do: o khong duoc phep', /không nằm trong danh sách/.test(lyDo), lyDo);
+    check('ly do: sai kieu', /số nguyên/.test(lyDo), lyDo);
+    check('ly do: trich dan lead khac', /không thuộc lead/.test(lyDo), lyDo);
+    check('ly do: loi hua khong ton tai', /lời hứa/.test(lyDo), lyDo);
+
+    const ds = await doc('aiDataTest/proposals');
+    const f = Object.entries(ds || {}).find(([, p]: any) => p.field === 'weddingDate') as any;
+    check('de xuat o: id f_, oldValue null, status cho', !!f && /^f_/.test(f[0]) && f[1].oldValue == null && f[1].status === 'cho', JSON.stringify(f));
+    check('de xuat viec: id todo_<huaId>', !!ds?.[`todo_${idHua}`] && ds[`todo_${idHua}`].due === '2026-10-14', JSON.stringify(ds));
+
+    const lai = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'todo', huaId: idHua, todoText: 'Gửi phim mẫu', due: '2026-10-14', reason: 'lại', evidence: [E('102', 'gửi chị phim mẫu')] },
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-13', reason: 'đổi', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    check('chay lai: viec khong trung', lai.json?.boQua?.length === 1 && /Đã có đề xuất việc/.test(lai.json.boQua[0].lyDo), lai.text);
+    const ds2 = await doc('aiDataTest/proposals');
+    check('cung o dang cho: ban cu thanh bo', ds2?.[f[0]]?.status === 'bo' && ds2[f[0]].boLyDo === 'Thay bằng đề xuất mới', JSON.stringify(ds2?.[f[0]]));
+    const moi = Object.values(ds2 || {}).filter((p: any) => p.field === 'weddingDate' && p.status === 'cho');
+    check('chi con 1 de xuat cho o nay', moi.length === 1 && (moi[0] as any).newValue === '2026-12-13');
+
+    const boLai = await callTool('propose_changes', { lead: 'L1', items: [
+      { type: 'field', field: 'weddingDate', newValue: '2026-12-12', reason: 'lại', evidence: [E('101', 'cưới 12/12')] },
+    ] });
+    check('khong de xuat lai gia tri da bi bo', boLai.json?.boQua?.length === 1 && /đã bỏ/.test(boLai.json.boQua[0].lyDo), boLai.text);
+
+    const ctx3 = await callTool('lead_context', { lead: 'L1' });
+    check('lead_context tra de xuat dang cho + da bo', ctx3.json?.deXuatDangCho?.length === 2 && ctx3.json?.daBo?.some((b: any) => b.newValue === '2026-12-12'), ctx3.text.slice(-400));
+  }
 
   // Task 4, 5, 6 nối tiếp các khối test vào đây.
 

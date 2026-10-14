@@ -1374,6 +1374,71 @@ const mcpHandler = createMcpHandler(
     );
 
     server.registerTool(
+      'propose_changes',
+      {
+        title: 'Đề xuất sửa lead (chờ Trân duyệt)',
+        description:
+          'Tạo đề xuất vào hàng chờ, KHÔNG sửa lead trực tiếp — Trân duyệt trong app. type "field": sửa một trong các ô weddingDate (YYYY-MM-DD), package, revenueExpected (số nguyên VND), expectedCloseMonth (YYYY-MM), phone, facebook, schedule, persona, objection — chỉ khi tin nhắn mâu thuẫn hoặc bổ sung giá trị hiện có. type "todo": tạo việc từ một lời hứa còn mở trong hồ sơ (huaId). Không đề xuất chuyển giai đoạn. Mỗi mục phải có trích dẫn. Trả về mục đã tạo và mục bị bỏ qua kèm lý do.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          items: z.array(z.union([
+            z.object({
+              type: z.literal('field'), field: z.string(), newValue: z.union([z.string(), z.number()]),
+              reason: z.string().min(1).max(500), evidence: z.array(EvidenceZ).min(1).max(5),
+            }).strict(),
+            z.object({
+              type: z.literal('todo'), huaId: z.string(), todoText: z.string().min(1).max(300),
+              due: z.string().regex(NGAY), reason: z.string().min(1).max(500), evidence: z.array(EvidenceZ).min(1).max(5),
+            }).strict(),
+          ])).min(1).max(20),
+        }),
+      },
+      async (args) => {
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+        const l = findLead(crm, args.lead);
+        const [deXuat, brief, { theoConv }] = await Promise.all([napDeXuat(), napBrief(l.id), napTinLead(z, l.id)]);
+        const cuaLead = deXuat.filter((p) => p.leadId === l.id);
+        const now = new Date().toISOString();
+        const patch: Record<string, unknown> = {};
+        const taoMoi: DeXuat[] = [];
+        const boQua: Array<{ item: unknown; lyDo: string }> = [];
+
+        for (const item of args.items) {
+          const loi = kiemTraBangChung(item.evidence, theoConv, 'evidence');
+          if (item.type === 'field') {
+            const sai = kiemTraGiaTriO(item.field, item.newValue);
+            if (sai) { boQua.push({ item, lyDo: sai }); continue; }
+          } else if (!brief?.loiHua?.[item.huaId]) {
+            boQua.push({ item, lyDo: `Không có lời hứa ${item.huaId} trong hồ sơ — lưu hồ sơ trước` }); continue;
+          }
+          if (loi.length) { boQua.push({ item, lyDo: loi.join('; ') }); continue; }
+
+          const xet = xetDeXuat(item.type === 'field' ? { type: 'field', field: item.field, newValue: item.newValue } : { type: 'todo', huaId: item.huaId }, l as any, cuaLead);
+          if (xet.hanhDong === 'boQua') { boQua.push({ item, lyDo: xet.lyDo }); continue; }
+
+          const id = item.type === 'todo' ? `todo_${item.huaId}` : `f_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+          const p: DeXuat = item.type === 'field'
+            ? { id, leadId: l.id, type: 'field', field: item.field, oldValue: (l as any)[item.field] ?? null, newValue: item.newValue, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now }
+            : { id, leadId: l.id, type: 'todo', todoText: item.todoText, due: item.due, huaId: item.huaId, reason: item.reason, evidence: item.evidence, status: 'cho', createdAt: now };
+          if (xet.hanhDong === 'thay') {
+            patch[`${xet.idCu}/status`] = 'bo';
+            patch[`${xet.idCu}/boLyDo`] = 'Thay bằng đề xuất mới';
+            patch[`${xet.idCu}/decidedAt`] = now;
+            const cu = cuaLead.find((x) => x.id === xet.idCu);
+            if (cu) cu.status = 'bo';
+          }
+          const { id: _id, ...luu } = p;
+          patch[id] = luu;
+          cuaLead.push(p);
+          taoMoi.push(p);
+        }
+
+        if (Object.keys(patch).length) await patchPath(`${aiRoot()}/proposals`, patch);
+        return ok({ taoMoi, boQua });
+      }
+    );
+
+    server.registerTool(
       'dashboard_summary',
       {
         title: 'Tổng quan dashboard',
