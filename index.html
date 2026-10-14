@@ -1845,7 +1845,11 @@
   .dx-sua{display:flex; gap:6px; margin-top:8px; align-items:flex-start;}
   .dx-sua[hidden]{display:none;}
   .dx-nhom-lead{margin-bottom:16px;}
-  .dx-ten-lead{background:none; border:none; padding:0 0 6px; font-weight:600; cursor:pointer; color:inherit;}
+  .dx-dau-lead{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .dx-ten-lead{background:none; border:none; padding:0; font-size:15px; font-weight:600; cursor:pointer; color:inherit; text-align:left;}
+  .dx-ten-lead:hover{text-decoration:underline;}
+  .dx-dau-meta{font-size:12.5px; color:var(--ink-faint);}
+  .dx-mo-lead{margin-left:auto; flex:none; white-space:nowrap;}
   /* Chip nguồn: số tròn nhỏ, câu trích ở title */
   .hs-nguon{display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-left:4px; padding:0 4px; border:none; border-radius:999px; background:var(--purple-soft); color:var(--purple); font-size:11px; line-height:1; cursor:pointer; vertical-align:1px;}
   .hs-nguon.mat{background:var(--gray-tag-soft); color:var(--gray-tag); cursor:default;}
@@ -4689,7 +4693,12 @@ function veModalDeXuat(ep){
   const ids = Object.keys(theoLead);
   body.innerHTML = ids.length ? ids.map(id => {
     const lead = leads.find(l => l.id === id);
-    return `<div class="dx-nhom-lead"><button type="button" class="dx-ten-lead" onclick="dongModalDeXuat(); openLead('${id}'); chonTabChiTiet('hoso')">${esc(lead.name)}</button>
+    const moLead = `dongModalDeXuat(); openLead('${id}'); chonTabChiTiet('hoso')`;
+    return `<div class="dx-nhom-lead"><div class="dx-dau-lead">
+        <button type="button" class="dx-ten-lead" onclick="${moLead}">${esc(lead.name)}</button>
+        <span class="dx-dau-meta">${theoLead[id].length} đề xuất</span>
+        <button type="button" class="btn btn-secondary btn-sm dx-mo-lead" onclick="${moLead}">Mở lead ›</button>
+      </div>
       <div class="dx-ds">${theoLead[id].map(p => HoSoAI.veTheDeXuat(p, lead, dxDangMo.has(p.id))).join('')}</div></div>`;
   }).join('') : '<div class="list-empty">Không còn đề xuất nào.</div>';
 }
