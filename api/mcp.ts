@@ -685,6 +685,43 @@ async function napTinLead(z: ZaloStore, leadId: string) {
   return { theoConv, tenConv };
 }
 
+const NGAY = /^\d{4}-\d{2}-\d{2}$/;
+const EvidenceZ = z.object({
+  convId: z.string().min(1).max(80),
+  msgId: z.string().min(1).max(80),
+  quote: z.string().min(4).max(300).describe('Đoạn NGUYÊN VĂN ngắn trong tin'),
+}).strict();
+const NhomZ = z.object({ text: z.string().min(1).max(1500), evidence: z.array(EvidenceZ).max(10) }).strict();
+const LoiHuaZ = z.object({
+  id: z.string().regex(/^h_[a-z0-9]{8}$/).optional().describe('Giữ nguyên id của lời hứa đã có; bỏ trống với lời hứa mới'),
+  ai: z.enum(['minh', 'khach']),
+  noiDung: z.string().min(1).max(500),
+  han: z.string().regex(NGAY).nullable(),
+  trangThai: z.enum(['mo', 'xong']),
+  evidence: z.array(EvidenceZ).min(1).max(5),
+}).strict();
+const BriefInputZ = z.object({
+  nhuCau: NhomZ, nganSach: NhomZ, nguoiQuyetDinh: NhomZ, objection: NhomZ,
+  doNong: z.object({ muc: z.enum(['nong', 'am', 'nguoi']), lyDo: z.string().min(1).max(500), evidence: z.array(EvidenceZ).max(10) }).strict(),
+  buocTiep: z.string().max(300),
+  loiHua: z.array(LoiHuaZ).max(30),
+}).strict();
+
+/** Mọi lỗi của một hồ sơ; mảng rỗng = hợp lệ. */
+export function kiemTraHoSo(b: z.infer<typeof BriefInputZ>, theoConv: Record<string, Record<string, ZaloMsg>>): string[] {
+  const loi: string[] = [];
+  for (const k of ['nhuCau', 'nganSach', 'nguoiQuyetDinh', 'objection'] as const) {
+    const g = b[k];
+    if (chuanHoaChu(g.text) !== 'chưa rõ' && !g.evidence.length) loi.push(`${k}: có nội dung thì phải có ít nhất 1 trích dẫn (không có thì ghi "chưa rõ")`);
+    loi.push(...kiemTraBangChung(g.evidence, theoConv, k));
+  }
+  loi.push(...kiemTraBangChung(b.doNong.evidence, theoConv, 'doNong'));
+  b.loiHua.forEach((h, i) => loi.push(...kiemTraBangChung(h.evidence, theoConv, `loiHua[${i}]`)));
+  return loi;
+}
+
+const taoIdHua = () => 'h_' + Array.from({ length: 8 }, () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]).join('');
+
 const O_LEAD_CHO_CLAUDE = ['weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth', 'phone', 'facebook', 'schedule', 'persona', 'objection'] as const;
 
 function boDauZalo(s: unknown): string {
@@ -1294,6 +1331,45 @@ const mcpHandler = createMcpHandler(
           deXuatDangCho: cuaLead.filter((p) => p.status === 'cho'),
           daBo: cuaLead.filter((p) => p.status === 'bo' && p.type === 'field').map((p) => ({ field: p.field, newValue: p.newValue })),
         });
+      }
+    );
+
+    server.registerTool(
+      'save_lead_brief',
+      {
+        title: 'Lưu hồ sơ khách',
+        description:
+          'Lưu TOÀN BỘ hồ sơ khách (thay bản cũ) và dời con trỏ đã đọc. Mỗi ý có nội dung phải kèm trích dẫn NGUYÊN VĂN {convId, msgId, quote} lấy từ lead_context; không có bằng chứng thì ghi "chưa rõ". cursorAt = cursorDeXuat của lead_context. Lời hứa đã có thì gửi kèm id cũ. Server kiểm tra từng trích dẫn; sai thì từ chối cả lệnh và liệt kê lỗi để sửa.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          brief: BriefInputZ,
+          cursorAt: z.number().int().nonnegative(),
+          lamLai: z.boolean().optional().describe('true khi dựng lại hồ sơ từ đầu (cho phép con trỏ lùi)'),
+        }),
+      },
+      async (args) => {
+        const [crm, z] = await Promise.all([loadCrm(), loadZalo()]);
+        const l = findLead(crm, args.lead);
+        const [cu, { theoConv, tenConv }] = await Promise.all([napBrief(l.id), napTinLead(z, l.id)]);
+        const conTroCu = Number(cu?.cursorAt) || 0;
+
+        const loi = kiemTraHoSo(args.brief, theoConv);
+        if (!args.lamLai && args.cursorAt < conTroCu) loi.push(`Con trỏ không được lùi (hiện ${conTroCu}); muốn dựng lại từ đầu thì truyền lamLai: true`);
+        const { cursorDeXuat } = tinhDotTin(gopTin(theoConv, tenConv, args.lamLai ? 0 : conTroCu), TOI_DA_TIN, Date.now());
+        const tran = cursorDeXuat ?? conTroCu;
+        if (args.cursorAt > tran) loi.push(`Con trỏ ${args.cursorAt} vượt quá tin đã trả (tối đa ${tran}) — dùng cursorDeXuat của lead_context`);
+        if (loi.length) throw new Error(`Chưa lưu hồ sơ "${l.name}". Sửa ${loi.length} lỗi:\n- ${loi.join('\n- ')}`);
+
+        const loiHua: Record<string, LoiHuaLuu> = {};
+        for (const { id, ...h } of args.brief.loiHua) loiHua[id && cu?.loiHua?.[id] ? id : taoIdHua()] = h;
+        const { loiHua: _bo, ...conLai } = args.brief;
+        await patchPath(`${aiRoot()}/briefs/${l.id}`, {
+          ...conLai,
+          loiHua: Object.keys(loiHua).length ? loiHua : null,
+          cursorAt: args.cursorAt,
+          updatedAt: new Date().toISOString(),
+        });
+        return say(`Đã lưu hồ sơ "${l.name}" (${Object.keys(loiHua).length} lời hứa).`);
       }
     );
 

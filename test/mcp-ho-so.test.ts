@@ -136,6 +136,66 @@ try {
     check('khong lo tin link khong phai khach', JSON.stringify((j?.tin || []).map((t: any) => t.msgId).sort()) === JSON.stringify(['101', '102', '103', '104', '105', '601']) && !r.text.includes('TIN KHONG PHAI KHACH'));
   }
 
+  console.log('\n>> save_lead_brief');
+  const E = (msgId: string, quote: string, convId = 'c1') => ({ convId, msgId, quote });
+  const BRIEF = {
+    nhuCau: { text: 'Cưới 12/12', evidence: [E('101', 'cưới 12/12')] },
+    nganSach: { text: 'Đang so với bên báo 30 triệu', evidence: [E('104', 'bên kia báo 30 triệu')] },
+    nguoiQuyetDinh: { text: 'Bàn với chồng', evidence: [E('103', 'bàn với ông xã')] },
+    objection: { text: 'chưa rõ', evidence: [] },
+    doNong: { muc: 'am', lyDo: 'Đang cân nhắc giá', evidence: [E('104', 'báo 30 triệu')] },
+    buocTiep: 'Gửi phim mẫu và so sánh gói',
+    loiHua: [
+      { ai: 'minh', noiDung: 'Gửi phim mẫu Signature', han: '2026-10-14', trangThai: 'mo', evidence: [E('102', 'gửi chị phim mẫu')] },
+      { ai: 'khach', noiDung: 'Báo lại sau khi bàn với chồng', han: '2026-10-18', trangThai: 'mo', evidence: [E('103', 'cuối tuần em bàn')] },
+    ],
+  };
+  {
+    const bia = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 2 * H, brief: {
+      ...BRIEF, nhuCau: { text: 'Cưới 13/12', evidence: [E('101', 'cưới 13/12')] } } });
+    check('tu choi trich dan bia', bia.isError && /không khớp/.test(bia.text), bia.text);
+
+    // Review Focus 3: mượn tin của lead khác
+    const muon = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 2 * H, brief: {
+      ...BRIEF, nganSach: { text: '45 triệu', evidence: [E('201', 'tầm 45 triệu', 'c2')] } } });
+    check('tu choi trich dan cua lead khac', muon.isError && /không thuộc lead/.test(muon.text), muon.text);
+
+    const thieu = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 2 * H, brief: {
+      ...BRIEF, objection: { text: 'Sợ đắt', evidence: [] } } });
+    check('tu choi y khong co bang chung', thieu.isError && /objection/.test(thieu.text), thieu.text);
+
+    const vuot = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 1 * H, brief: BRIEF });
+    check('tu choi con tro vuot cursorDeXuat', vuot.isError && /con trỏ/i.test(vuot.text), vuot.text);
+
+    const ok1 = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 2 * H, brief: BRIEF });
+    check('luu hop le', !ok1.isError, ok1.text);
+    const luu = await doc('aiDataTest/briefs/L1');
+    const hua = Object.entries(luu?.loiHua || {});
+    check('loi hua luu theo id h_', hua.length === 2 && hua.every(([id]) => /^h_[a-z0-9]{8}$/.test(id)), JSON.stringify(luu?.loiHua));
+    check('con tro + updatedAt', luu?.cursorAt === NOW - 2 * H && typeof luu?.updatedAt === 'string');
+
+    // Tin 105 (thiếu nội dung, NOW-1H) mới hơn con trỏ NOW-2H nên L1 vẫn nằm trong danh sách, nhưng đã có hồ sơ.
+    const ds = await callTool('list_stale_leads', {});
+    const l1 = (ds.json?.leads || []).find((l: any) => l.leadId === 'L1');
+    check('L1 van con trong danh sach nhung da co ho so', !!l1 && l1.chuaCoHoSo === false, ds.text);
+
+    const ctx2 = await callTool('lead_context', { lead: 'L1' });
+    check('lan sau chi tra tin sau con tro', ctx2.json?.tin?.length === 1 && ctx2.json?.tin?.[0]?.msgId === '105', ctx2.text.slice(0, 300));
+    check('brief tra ve loiHua dang mang co id', Array.isArray(ctx2.json?.brief?.loiHua) && /^h_/.test(ctx2.json?.brief?.loiHua?.[0]?.id));
+
+    const lui = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 3 * H, brief: BRIEF });
+    check('tu choi con tro lui', lui.isError && /lùi/.test(lui.text), lui.text);
+    const lamLai = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 3 * H, lamLai: true, brief: BRIEF });
+    check('cho phep lui khi lamLai', !lamLai.isError, lamLai.text);
+
+    // giữ id lời hứa cũ khi Claude gửi lại kèm id (đọc lại: lần lamLai ở trên đã cấp id mới)
+    const idCu = (await callTool('lead_context', { lead: 'L1' })).json?.brief?.loiHua?.[0]?.id;
+    const giuId = await callTool('save_lead_brief', { lead: 'L1', cursorAt: NOW - 2 * H, brief: {
+      ...BRIEF, loiHua: [{ ...BRIEF.loiHua[0], id: idCu, trangThai: 'xong' }] } });
+    const luu2 = await doc('aiDataTest/briefs/L1');
+    check('giu id loi hua + cap nhat trang thai', !giuId.isError && luu2?.loiHua?.[idCu]?.trangThai === 'xong' && Object.keys(luu2.loiHua).length === 1, JSON.stringify(luu2?.loiHua));
+  }
+
   // Task 4, 5, 6 nối tiếp các khối test vào đây.
 
 } finally {
