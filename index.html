@@ -3393,9 +3393,137 @@ function xoaLocBang(){
   renderBangLead();
 }
 
-// Stub — Task 4/5/6 thay bằng bản thật
-function moMenuLoc(){}  function moMenuCot(){}  function dongMenuBang(){}
-function batDauKeoCot(){}  function suaOBang(){}  function xuatExcelBang(){}
+function dongMenuBang(){
+  const m = document.getElementById('bangMenu');
+  if (m){ m.hidden = true; m.innerHTML = ''; m.dataset.khoa = ''; }
+}
+function datViTriMenu(m, nut){
+  const r = nut.getBoundingClientRect();
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8)) + 'px';
+  m.style.top = (r.bottom + 4 + h > window.innerHeight ? Math.max(8, r.top - h - 4) : r.bottom + 4) + 'px';
+}
+// Đóng menu khi bấm ra ngoài / Esc
+document.addEventListener('pointerdown', e => {
+  const m = document.getElementById('bangMenu');
+  if (m && !m.hidden && !m.contains(e.target) && !e.target.closest('.bang-th-loc, .bang-toolbar')) dongMenuBang();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') dongMenuBang(); });
+
+function capNhatLocBang(khoa, dk){
+  const cd = caiDatBang();
+  if (dk) cd.loc[khoa] = dk; else delete cd.loc[khoa];
+  luuCaiDatBang();
+  renderBangLead();   // chỉ vẽ lại bảng, không vẽ lại menu -> ô nhập trong menu giữ focus
+}
+
+function moMenuLoc(khoa, nut){
+  const m = document.getElementById('bangMenu');
+  if (!m.hidden && m.dataset.khoa === khoa){ dongMenuBang(); return; }
+  const B = window.BangLead, cd = caiDatBang();
+  const c = B.COT.find(x => x.khoa === khoa);
+  const dk = cd.loc[khoa] || {};
+  let loc = '';
+  if (c.kieu === 'chu'){
+    loc = `<input class="field-input" placeholder="Chứa…" value="${esc(dk.chua || '')}"
+      oninput="capNhatLocBang('${khoa}', this.value.trim() ? {chua:this.value} : null)">`;
+  } else if (c.kieu === 'chon'){
+    const ds = B.giaTriDuyNhat(leads, khoa, ctxBang());
+    const chon = Array.isArray(dk.chon) ? dk.chon : ds;
+    loc = `<label><input type="checkbox" ${chon.length === ds.length ? 'checked' : ''} onchange="chonTatCaLocBang('${khoa}', this.checked)"> <b>Chọn tất cả</b></label>
+      ${ds.map((v, i) => `<label><input type="checkbox" data-gt="${esc(v)}" ${chon.includes(v) ? 'checked' : ''} onchange="tickLocBang('${khoa}')"> ${v ? esc(v) : '<i>(Trống)</i>'}</label>`).join('')}`;
+  } else {
+    const loai = c.kieu === 'ngay' ? 'date' : c.kieu === 'thang' ? 'month' : 'text';
+    const doc = c.kieu === 'so' ? `inputmode="numeric" oninput="formatMoneyInput(this)"` : '';
+    const gt = v => (v === undefined || v === '' ? '' : c.kieu === 'so' ? moneyDisplay(v) : esc(v));
+    loc = `<div>Từ</div><input class="field-input" type="${loai}" data-dau="tu" ${doc} value="${gt(dk.tu)}" onchange="khoangLocBang('${khoa}')">
+      <div>Đến</div><input class="field-input" type="${loai}" data-dau="den" ${doc} value="${gt(dk.den)}" onchange="khoangLocBang('${khoa}')">`;
+  }
+  m.dataset.khoa = khoa;
+  m.innerHTML = `
+    <button type="button" class="bang-menu-muc" onclick="datSapXepBang('${khoa}','tang')">Sắp xếp A → Z</button>
+    <button type="button" class="bang-menu-muc" onclick="datSapXepBang('${khoa}','giam')">Sắp xếp Z → A</button>
+    <hr>${loc}<hr>
+    <button type="button" class="bang-menu-muc" onclick="capNhatLocBang('${khoa}', null); dongMenuBang()">Xoá lọc cột này</button>`;
+  datViTriMenu(m, nut);
+}
+function datSapXepBang(khoa, chieu){
+  caiDatBang().sapXep = { khoa, chieu };
+  luuCaiDatBang(); dongMenuBang(); renderBangLead();
+}
+function tickLocBang(khoa){
+  const m = document.getElementById('bangMenu');
+  const hop = [...m.querySelectorAll('input[data-gt]')];
+  const chon = hop.filter(h => h.checked).map(h => h.dataset.gt);
+  const tatCa = m.querySelector('input:not([data-gt])');
+  if (tatCa) tatCa.checked = chon.length === hop.length;
+  capNhatLocBang(khoa, chon.length === hop.length ? null : { chon });
+}
+function chonTatCaLocBang(khoa, bat){
+  document.querySelectorAll('#bangMenu input[data-gt]').forEach(h => { h.checked = bat; });
+  capNhatLocBang(khoa, bat ? null : { chon: [] });
+}
+function khoangLocBang(khoa){
+  const c = window.BangLead.COT.find(x => x.khoa === khoa);
+  const doc = dau => {
+    const el = document.querySelector(`#bangMenu input[data-dau="${dau}"]`);
+    if (!el || !el.value) return undefined;
+    return c.kieu === 'so' ? moneyInputValue(el) : el.value;
+  };
+  const tu = doc('tu'), den = doc('den');
+  capNhatLocBang(khoa, tu === undefined && den === undefined ? null : { ...(tu !== undefined && { tu }), ...(den !== undefined && { den }) });
+}
+
+function moMenuCot(nut){
+  const m = document.getElementById('bangMenu');
+  if (!m.hidden && m.dataset.khoa === '__cot'){ dongMenuBang(); return; }
+  const an = caiDatBang().an;
+  m.dataset.khoa = '__cot';
+  m.innerHTML = window.BangLead.COT.map(c => `<label><input type="checkbox" ${c.khoa === 'name' ? 'checked disabled' : (an.includes(c.khoa) ? '' : 'checked')}
+      onchange="anHienCotBang('${c.khoa}', this.checked)"> ${esc(c.tieuDe)}</label>`).join('')
+    + `<hr><button type="button" class="bang-menu-muc" onclick="khoiPhucCotBang()">Khôi phục mặc định</button>`;
+  datViTriMenu(m, nut);
+}
+function anHienCotBang(khoa, hien){
+  const cd = caiDatBang();
+  cd.an = cd.an.filter(k => k !== khoa);
+  if (!hien) cd.an.push(khoa);
+  luuCaiDatBang(); renderBangLead();
+}
+function khoiPhucCotBang(){
+  const cd = caiDatBang();
+  cd.an = window.BangLead.MAC_DINH_AN.slice();
+  cd.rong = {};
+  luuCaiDatBang(); dongMenuBang(); renderBangLead();
+}
+
+// Kéo mép phải tiêu đề để đổi độ rộng cột (chuột + cảm ứng qua pointer events)
+function batDauKeoCot(ev, khoa){
+  ev.preventDefault(); ev.stopPropagation();
+  const col = document.querySelector(`#bangScroll col[data-khoa="${khoa}"]`);
+  const table = document.querySelector('#bangScroll table.bang');
+  if (!col || !table) return;
+  const x0 = ev.clientX, w0 = col.getBoundingClientRect().width || parseInt(col.style.width, 10);
+  const t0 = table.getBoundingClientRect().width;
+  let w = w0;
+  const di = e => {
+    w = Math.max(60, Math.round(w0 + e.clientX - x0));
+    col.style.width = w + 'px';
+    table.style.width = (t0 + w - w0) + 'px';
+  };
+  const tha = () => {
+    window.removeEventListener('pointermove', di);
+    window.removeEventListener('pointerup', tha);
+    caiDatBang().rong[khoa] = w;
+    luuCaiDatBang();
+  };
+  window.addEventListener('pointermove', di);
+  window.addEventListener('pointerup', tha);
+}
+
+function suaOBang(){}
+function xuatExcelBang(){}
 
 /* ======================= RENDER: PIPELINE ======================= */
 function renderPipeline(){
