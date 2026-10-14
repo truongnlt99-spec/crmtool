@@ -5686,7 +5686,16 @@ async function saveToCloud(){
 
 // Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
 // để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
+// RTDB có thể trả mảng về dạng object {0:..,1:..} (ghi tay trên Console, client khác...);
+// tag cũ có thể là chuỗi. Chuẩn hoá về mảng thật ngay lúc nạp để Pipeline/Dashboard/thanh bên
+// không vỡ — và để notesList dạng object không bị nhánh bên dưới thay bằng mảng rỗng (mất ghi chú).
 function migrateLead(l){
+  for (const k of ['tags', 'todos', 'notesList', 'activityLog']){
+    const v = l[k];
+    if (v && typeof v === 'object' && !Array.isArray(v)) l[k] = Object.values(v);
+    else if (k === 'tags' && typeof v === 'string' && v.trim()) l[k] = [v.trim()];
+  }
+
   // Lead cũ chưa có "Loại lead" -> mặc định là "Lead công ty" (có thể sửa lại trong chi tiết lead)
   if (!l.leadType) l.leadType = 'Lead công ty';
 
