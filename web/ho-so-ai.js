@@ -83,11 +83,12 @@ export function demTinMoi(msgsTheoConv, cursorAt){
 
 const goi = (ham, ...ids) => ids.every(i => ID_HOP_LE.test(String(i))) ? `onclick="${ham}(${ids.map(i => `'${i}'`).join(',')})"` : '';
 
+// Chip nguồn: số nhỏ ①②…, câu trích nằm trong title; bấm -> nhảy tới tin.
 function chipNguon(evs, coTin){
-  return mang(evs).map(e => {
-    if (!coTin(e.convId, e.msgId)) return `<span class="hs-nguon mat" title="${esc(e.quote)}">nguồn không còn</span>`;
-    return `<button type="button" class="hs-nguon" title="${esc(e.quote)}" ${goi('xemNguon', e.convId, e.msgId)}>“${esc(String(e.quote).slice(0, 40))}”</button>`;
-  }).join(' ');
+  return mang(evs).map((e, i) => {
+    if (!coTin(e.convId, e.msgId)) return `<span class="hs-nguon mat" title="nguồn không còn: ${esc(e.quote)}" aria-label="nguồn không còn">×</span>`;
+    return `<button type="button" class="hs-nguon" title="${esc(e.quote)}" aria-label="Xem tin: ${esc(e.quote)}" ${goi('xemNguon', e.convId, e.msgId)}>${i + 1}</button>`;
+  }).join('');
 }
 
 function oSua(p){
@@ -102,36 +103,70 @@ function oSua(p){
   return `<input class="field-input" type="text" value="${esc(v)}">`;
 }
 
-export function veTheDeXuat(p, lead){
+/**
+ * Một đề xuất = một dòng gọn (tiêu đề + nút ✓ duyệt nhanh). Bấm dòng -> mở chi tiết
+ * (giá trị hiện tại, lý do, nguồn, Duyệt / Sửa rồi duyệt / Bỏ). `mo` = đang mở sẵn.
+ */
+export function veTheDeXuat(p, lead, mo = false){
   const idOk = ID_HOP_LE.test(String(p.id));
-  const tieuDe = p.type === 'todo'
-    ? `Thêm việc: <b>${esc(p.todoText)}</b> · hạn ${esc(p.due ? ngayVN(p.due) : '—')}`
-    : `${esc(NHAN_O[p.field] || p.field)}: <span class="dx-cu">${esc(hienGiaTri(p.field, p.oldValue))}</span> → <b>${esc(hienGiaTri(p.field, p.newValue))}</b>`;
+  const tom = p.type === 'todo'
+    ? `Việc: ${esc(p.todoText)}${p.due ? ` · <span class="dx-han">hạn ${esc(ngayVN(p.due))}</span>` : ''}`
+    : `${esc(NHAN_O[p.field] || p.field)} → <b>${esc(hienGiaTri(p.field, p.newValue))}</b>`;
   const daDoi = p.type === 'field' && lead && !giaTriBang(lead[p.field], p.oldValue);
+  const hienTai = p.type === 'field' ? `<div class="dx-dong-tt"><span class="dx-nhan">Hiện tại</span>${esc(hienGiaTri(p.field, lead ? lead[p.field] : p.oldValue))}</div>` : '';
   const nut = idOk ? `
-    <div class="dx-nut">
-      <button type="button" class="btn btn-primary btn-sm" ${goi('duyetDeXuat', p.id)}>Duyệt</button>
-      ${p.type === 'field' ? `<button type="button" class="btn btn-secondary btn-sm" ${goi('moSuaDeXuat', p.id)}>Sửa rồi duyệt</button>` : ''}
-      <button type="button" class="btn btn-ghost btn-sm" ${goi('boDeXuat', p.id)}>Bỏ</button>
-    </div>
-    ${p.type === 'field' ? `<div class="dx-sua" hidden>${oSua(p)}<button type="button" class="btn btn-primary btn-sm" onclick="duyetDeXuatSua('${p.id}', this)">Lưu &amp; duyệt</button></div>` : ''}` : '';
+      <div class="dx-nut">
+        <button type="button" class="btn btn-primary btn-sm" ${goi('duyetDeXuat', p.id)}>Duyệt</button>
+        ${p.type === 'field' ? `<button type="button" class="btn btn-secondary btn-sm" ${goi('moSuaDeXuat', p.id)}>Sửa rồi duyệt</button>` : ''}
+        <button type="button" class="btn btn-ghost btn-sm" ${goi('boDeXuat', p.id)}>Bỏ</button>
+      </div>
+      ${p.type === 'field' ? `<div class="dx-sua" hidden>${oSua(p)}<button type="button" class="btn btn-primary btn-sm" onclick="duyetDeXuatSua('${p.id}', this)">Lưu &amp; duyệt</button></div>` : ''}` : '';
   return `
-  <div class="dx-the" data-dx="${idOk ? p.id : ''}">
-    <div class="dx-tieu-de">${tieuDe}</div>
-    ${daDoi ? `<div class="dx-canh-bao">Ô này đã đổi từ lúc Claude đề xuất (hiện là ${esc(hienGiaTri(p.field, lead[p.field]))})</div>` : ''}
-    <div class="dx-ly-do">${esc(p.reason)}</div>
-    <div class="dx-nguon">${chipNguon(p.evidence, () => true)}</div>
-    ${nut}
+  <div class="dx-dong${mo ? ' mo' : ''}" data-dx="${idOk ? p.id : ''}">
+    <div class="dx-hang" ${goi('moDongDeXuat', p.id)}>
+      <span class="dx-loai ${p.type === 'todo' ? 'viec' : 'o'}" aria-hidden="true">${p.type === 'todo' ? '✓' : '✎'}</span>
+      <span class="dx-tom">${tom}</span>
+      ${daDoi ? '<span class="dx-co-doi" title="Ô này đã đổi từ lúc Claude đề xuất">!</span>' : ''}
+      ${idOk ? `<button type="button" class="dx-nhanh" title="Duyệt nhanh" aria-label="Duyệt nhanh" onclick="event.stopPropagation(); duyetDeXuat('${p.id}')">✓</button>` : ''}
+      <span class="dx-mui" aria-hidden="true">▾</span>
+    </div>
+    <div class="dx-chi-tiet">
+      ${hienTai}
+      ${daDoi ? `<div class="dx-canh-bao">Ô này đã đổi từ lúc Claude đề xuất</div>` : ''}
+      <div class="dx-ly-do"><span class="dx-nhan">Lý do</span>${esc(p.reason)} ${chipNguon(p.evidence, () => true)}</div>
+      ${nut}
+    </div>
   </div>`;
 }
 
 const NHAN_NONG = { nong: 'Nóng', am: 'Ấm', nguoi: 'Nguội' };
 const NHOM = [
-  ['nhuCau', 'hs-nhu-cau', 'Nhu cầu chụp'],
-  ['nganSach', 'hs-ngan-sach', 'Ngân sách & phản ứng giá'],
-  ['nguoiQuyetDinh', 'hs-nguoi-qd', 'Người quyết định & đối thủ'],
+  ['nhuCau', 'hs-nhu-cau', 'Nhu cầu'],
+  ['nganSach', 'hs-ngan-sach', 'Ngân sách'],
+  ['nguoiQuyetDinh', 'hs-nguoi-qd', 'Người quyết định'],
   ['objection', 'hs-objection', 'Objection'],
 ];
+
+function thoiGianTruoc(iso, now){
+  const t = Date.parse(iso);
+  if (!isFinite(t)) return '';
+  const phut = Math.max(0, Math.round((now - t) / 60000));
+  if (phut < 1) return 'vừa xong';
+  if (phut < 60) return `${phut} phút trước`;
+  const gio = Math.round(phut / 60);
+  if (gio < 24) return `${gio} giờ trước`;
+  return `${Math.round(gio / 24)} ngày trước`;
+}
+
+/** Phần nằm trên thanh tiêu đề khối (vẫn thấy khi thu gọn): chip độ nóng + lúc cập nhật. */
+export function veTomTatHoSo(brief, ctx){
+  if (!brief) return '';
+  const nong = brief.doNong || {};
+  const luc = brief.updatedAt ? thoiGianTruoc(brief.updatedAt, ctx.now ?? Date.now()) : '';
+  return `<span class="hs-nong ${esc(nong.muc || '')}" title="${esc(nong.lyDo || '')}">${esc(NHAN_NONG[nong.muc] || '—')}</span>${luc ? `<span class="hs-luc">${esc(luc)}</span>` : ''}`;
+}
+
+const THU_TU_HUA = { quaHan: 0, mo: 1, xong: 2 };
 
 export function veHoSo(brief, ctx){
   if (!brief) {
@@ -143,27 +178,24 @@ export function veHoSo(brief, ctx){
       <button type="button" class="hs-cau-mau" data-cau="${esc(cau)}" onclick="navigator.clipboard && navigator.clipboard.writeText(this.dataset.cau)">${esc(cau)}</button>
     </div>`;
   }
+  const nong = brief.doNong || {};
   const nhom = NHOM.map(([k, cls, nhan]) => {
     const g = brief[k] || { text: 'chưa rõ', evidence: [] };
-    return `<div class="hs-nhom ${cls}"><div class="hs-nhan">${esc(nhan)}</div><div class="hs-chu">${esc(g.text)}</div><div>${chipNguon(g.evidence, ctx.coTin)}</div></div>`;
+    const chuaRo = String(g.text || '').trim().toLowerCase() === 'chưa rõ';
+    return `<div class="hs-nhom ${cls}${chuaRo ? ' chua-ro' : ''}"><div class="hs-nhan">${esc(nhan)}</div><div class="hs-chu">${esc(g.text)}${chipNguon(g.evidence, ctx.coTin)}</div></div>`;
   }).join('');
-  const hua = mang(brief.loiHua);
-  const veHua = ai => hua.filter(h => h.ai === ai).map(h => {
-    const tt = trangThaiLoiHua(h, ctx.homNay);
-    return `<div class="hs-hua ${tt}"><div>${esc(h.noiDung)}</div><div class="hs-han">${h.han ? esc(ngayVN(h.han)) : 'không hạn'}${tt === 'quaHan' ? ' · quá hạn' : ''}</div><div>${chipNguon(h.evidence, ctx.coTin)}</div></div>`;
-  }).join('') || '<div class="list-empty">Không có</div>';
-  const nong = brief.doNong || {};
-  const lucCapNhat = brief.updatedAt ? new Date(brief.updatedAt).toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '—';
+  const hua = mang(brief.loiHua)
+    .map(h => ({ h, tt: trangThaiLoiHua(h, ctx.homNay) }))
+    .sort((a, b) => THU_TU_HUA[a.tt] - THU_TU_HUA[b.tt] || String(a.h.han || '9').localeCompare(String(b.h.han || '9')));
+  const dsHua = hua.map(({ h, tt }) => {
+    const han = tt === 'xong' ? 'xong' : h.han ? `${tt === 'quaHan' ? 'quá hạn ' : ''}${esc(ngayVN(h.han).slice(0, 5))}` : 'không hạn';
+    return `<div class="hs-hua ${tt}"><span class="hs-ai ${h.ai === 'khach' ? 'khach' : 'minh'}">${h.ai === 'khach' ? 'Khách' : 'Mình'}</span><span class="hs-hua-nd">${esc(h.noiDung)}${chipNguon(h.evidence, ctx.coTin)}</span><span class="hs-han">${han}</span></div>`;
+  }).join('');
   return `
-  <div class="hs-dau">
-    <span class="hs-nong ${esc(nong.muc || '')}">${esc(NHAN_NONG[nong.muc] || '—')}</span>
-    <span class="hs-ly-do">${esc(nong.lyDo || '')}</span> ${chipNguon(nong.evidence, ctx.coTin)}
-  </div>
-  <div class="hs-buoc-tiep"><b>Bước tiếp:</b> ${esc(brief.buocTiep || '—')}</div>
-  ${nhom}
-  <div class="hs-hua-cot">
-    <div class="hs-hua-minh"><div class="hs-nhan">Mình hứa</div>${veHua('minh')}</div>
-    <div class="hs-hua-khach"><div class="hs-nhan">Khách hứa</div>${veHua('khach')}</div>
-  </div>
-  <div class="hs-chan">Claude cập nhật lúc ${esc(lucCapNhat)} · ${Number(ctx.tinMoi) || 0} tin mới chưa phân tích</div>`;
+  ${brief.buocTiep ? `<div class="hs-buoc-tiep"><span class="hs-nhan">Bước tiếp</span>${esc(brief.buocTiep)}</div>` : ''}
+  ${nong.lyDo ? `<div class="hs-ly-do-nong">${esc(NHAN_NONG[nong.muc] || '')} vì ${esc(nong.lyDo)}${chipNguon(nong.evidence, ctx.coTin)}</div>` : ''}
+  <div class="hs-luoi">${nhom}</div>
+  <div class="hs-nhan hs-tieu-hua">Lời hứa</div>
+  <div class="hs-ds-hua">${dsHua || '<div class="list-empty">Chưa có lời hứa nào</div>'}</div>
+  <div class="hs-chan">${Number(ctx.tinMoi) || 0} tin mới chưa phân tích</div>`;
 }

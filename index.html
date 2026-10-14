@@ -1812,35 +1812,64 @@
   .nut-de-xuat[hidden]{display:none;}
   .nut-de-xuat-so{background:var(--blush); color:#fff; border-radius:999px; padding:0 7px; font-size:12px; line-height:18px;}
   .card-dx{color:var(--purple); font-size:13px;}
-  .dx-the{border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin:8px 0; background:var(--surface-2);}
-  .dx-tieu-de{font-size:14px;}
-  .dx-cu{color:var(--ink-faint); text-decoration:line-through;}
-  .dx-canh-bao{color:var(--amber); font-size:12px; margin-top:4px;}
-  .dx-ly-do{color:var(--ink-soft, var(--ink-faint)); font-size:13px; margin-top:4px;}
-  .dx-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px;}
+  /* Đề xuất: mỗi đề xuất một dòng gọn, bấm để mở chi tiết */
+  .dx-dem{display:inline-block; min-width:18px; margin-left:4px; padding:0 6px; border-radius:999px; background:var(--blush); color:#fff; font-size:12px; line-height:18px; text-align:center; vertical-align:middle;}
+  .dx-dem:empty{display:none;}
+  .dx-ds{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface-2);}
+  .dx-ds:empty{display:none;}
+  .dx-dong + .dx-dong{border-top:1px solid var(--border);}
+  .dx-hang{display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; min-height:44px;}
+  .dx-hang:hover{background:var(--well);}
+  .dx-loai{flex:none; width:24px; height:24px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-size:13px; background:var(--purple-soft); color:var(--purple);}
+  .dx-loai.viec{background:var(--green-50); color:var(--green-700);}
+  .dx-tom{flex:1; min-width:0; font-size:14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .dx-tom b{font-weight:600;}
+  .dx-han{color:var(--ink-faint);}
+  .dx-co-doi{flex:none; width:18px; height:18px; border-radius:999px; background:var(--amber-soft); color:var(--amber); font-size:12px; font-weight:700; display:inline-flex; align-items:center; justify-content:center;}
+  .dx-nhanh{flex:none; width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:var(--surface-2); color:var(--green-700); font-size:15px; cursor:pointer;}
+  .dx-nhanh:hover{background:var(--green-50); border-color:var(--green-700);}
+  .dx-mui{flex:none; color:var(--ink-faint); font-size:12px; transition:transform .15s;}
+  .dx-dong.mo .dx-mui{transform:rotate(180deg);}
+  .dx-chi-tiet{display:none; padding:2px 12px 12px 46px; font-size:13px;}
+  .dx-dong.mo .dx-chi-tiet{display:block;}
+  .dx-nhan{display:inline-block; min-width:64px; margin-right:6px; color:var(--ink-faint); font-size:12px;}
+  .dx-dong-tt, .dx-ly-do{margin-top:4px; line-height:1.5;}
+  .dx-canh-bao{margin-top:6px; padding:6px 8px; border-radius:8px; background:var(--amber-soft); color:var(--amber); font-size:12px;}
+  .dx-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
   .dx-sua{display:flex; gap:6px; margin-top:8px; align-items:flex-start;}
   .dx-sua[hidden]{display:none;}
-  .dx-nhom-lead{margin-bottom:14px;}
-  .dx-ten-lead{background:none; border:none; padding:0; font-weight:600; cursor:pointer; color:inherit;}
-  .hs-nguon{border:none; background:var(--purple-soft); color:var(--purple); border-radius:999px; padding:1px 8px; font-size:12px; cursor:pointer; margin:2px 2px 0 0;}
+  .dx-nhom-lead{margin-bottom:16px;}
+  .dx-ten-lead{background:none; border:none; padding:0 0 6px; font-weight:600; cursor:pointer; color:inherit;}
+  /* Chip nguồn: số tròn nhỏ, câu trích ở title */
+  .hs-nguon{display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px; margin-left:4px; padding:0 4px; border:none; border-radius:999px; background:var(--purple-soft); color:var(--purple); font-size:11px; line-height:1; cursor:pointer; vertical-align:1px;}
   .hs-nguon.mat{background:var(--gray-tag-soft); color:var(--gray-tag); cursor:default;}
-  .block-hoso .hs-dau{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
-  .hs-nong{border-radius:999px; padding:2px 10px; font-size:12px; font-weight:600;}
+  /* Hồ sơ khách */
+  .hs-tom-tat{display:inline-flex; align-items:center; gap:6px; margin-left:6px; vertical-align:middle;}
+  .hs-luc{font-size:12px; font-weight:500; color:var(--ink-faint);}
+  .hs-nong{border-radius:999px; padding:2px 9px; font-size:12px; font-weight:600;}
   .hs-nong.nong{background:var(--blush); color:#fff;}
   .hs-nong.am{background:var(--amber-soft); color:var(--amber);}
   .hs-nong.nguoi{background:var(--slate-soft); color:var(--slate);}
-  .hs-buoc-tiep{margin:8px 0; font-size:14px;}
-  .hs-nhom{margin:10px 0;}
-  .hs-nhan{font-size:12px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.03em; margin-bottom:2px;}
-  .hs-chu{font-size:14px; white-space:pre-wrap;}
-  .hs-hua-cot{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:10px;}
-  @media (max-width:760px){ .hs-hua-cot{grid-template-columns:1fr;} }
-  .hs-hua{border-left:3px solid var(--border); padding:4px 8px; margin:6px 0; font-size:14px;}
-  .hs-hua.quaHan{border-left-color:var(--blush);}
+  .hs-buoc-tiep{padding:9px 12px; border-radius:10px; background:var(--purple-soft); color:var(--purple); font-size:14px; line-height:1.45;}
+  .hs-buoc-tiep .hs-nhan{display:block; color:inherit; opacity:.8; margin-bottom:2px;}
+  .hs-ly-do-nong{margin-top:8px; font-size:13px; color:var(--ink-faint);}
+  .hs-luoi{display:grid; grid-template-columns:1fr 1fr; gap:12px 16px; margin-top:14px;}
+  @media (max-width:760px){ .hs-luoi{grid-template-columns:1fr;} }
+  .hs-nhan{font-size:12px; color:var(--ink-faint); margin-bottom:3px;}
+  .hs-chu{font-size:14px; line-height:1.45; white-space:pre-wrap;}
+  .hs-nhom.chua-ro .hs-chu{color:var(--ink-faint); font-style:italic;}
+  .hs-tieu-hua{margin-top:16px;}
+  .hs-ds-hua{border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .hs-hua{display:flex; align-items:baseline; gap:8px; padding:8px 10px; font-size:14px;}
+  .hs-hua + .hs-hua{border-top:1px solid var(--border);}
+  .hs-ai{flex:none; font-size:11px; font-weight:600; padding:1px 7px; border-radius:6px; background:var(--slate-soft); color:var(--slate);}
+  .hs-ai.khach{background:var(--amber-soft); color:var(--amber);}
+  .hs-hua-nd{flex:1; min-width:0;}
+  .hs-han{flex:none; font-size:12px; color:var(--ink-faint); white-space:nowrap;}
   .hs-hua.quaHan .hs-han{color:var(--blush); font-weight:600;}
-  .hs-hua.xong{opacity:.6; text-decoration:line-through;}
-  .hs-han{font-size:12px; color:var(--ink-faint);}
-  .hs-chan{font-size:12px; color:var(--ink-faint); margin-top:12px;}
+  .hs-hua.xong{opacity:.55;}
+  .hs-hua.xong .hs-hua-nd{text-decoration:line-through;}
+  .hs-chan{font-size:12px; color:var(--ink-faint); margin-top:10px;}
   .hs-trong{text-align:center; padding:12px 0;}
   .hs-cau-mau{margin-top:8px; border:1px dashed var(--border); background:none; border-radius:10px; padding:8px 12px; cursor:pointer; color:inherit;}
   .zalo-row.zalo-flash .zalo-bubble{outline:2px solid var(--purple); outline-offset:2px; transition:outline-color .3s;}
@@ -4098,10 +4127,16 @@ function openLead(id){
 
     <div class="detail-grid">
       <div class="detail-col detail-col-main">
-        <div class="detail-block block-hoso" data-tab-of="hoso">
-          <div class="block-head"><h3 class="block-title">✦ Hồ sơ khách <span class="block-meta">do Claude soạn</span></h3></div>
-          <div id="hoSoDeXuat"></div>
-          <div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div>
+        <div class="detail-block block-dexuat" data-tab-of="hoso" id="khoiDeXuat" style="display:none">
+          <div class="block-head"><h3 class="block-title">✦ Claude đề xuất <span class="dx-dem" id="dxDem"></span></h3></div>
+          <div id="hoSoDeXuat" class="dx-ds"></div>
+        </div>
+        <div class="detail-block block-hoso ${hoSoThuGon() ? 'collapsed' : ''}" data-tab-of="hoso">
+          <div class="block-head">
+            <h3 class="block-title">✦ Hồ sơ khách <span class="hs-tom-tat" id="hsTomTat"></span></h3>
+            <button type="button" class="block-collapse" aria-expanded="${hoSoThuGon() ? 'false' : 'true'}" onclick="thuGonHoSo(this)">${hoSoThuGon() ? 'Mở ▾' : 'Thu gọn ▴'}</button>
+          </div>
+          <div class="block-content"><div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div></div>
         </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
@@ -4634,7 +4669,7 @@ function veModalDeXuat(ep){
   body.innerHTML = ids.length ? ids.map(id => {
     const lead = leads.find(l => l.id === id);
     return `<div class="dx-nhom-lead"><button type="button" class="dx-ten-lead" onclick="dongModalDeXuat(); openLead('${id}'); chonTabChiTiet('hoso')">${esc(lead.name)}</button>
-      ${theoLead[id].map(p => HoSoAI.veTheDeXuat(p, lead)).join('')}</div>`;
+      <div class="dx-ds">${theoLead[id].map(p => HoSoAI.veTheDeXuat(p, lead, dxDangMo.has(p.id))).join('')}</div></div>`;
   }).join('') : '<div class="list-empty">Không còn đề xuất nào.</div>';
 }
 
@@ -4674,15 +4709,39 @@ function dongHoSo(){
   hoSoUnsub = null; hoSoBrief = undefined;
 }
 
+/* Thu gọn khối Hồ sơ: nhớ theo trình duyệt (cùng kiểu localStorage như nhóm Pipeline thu gọn) */
+const HO_SO_GON_KEY = 'hoSoThuGon';
+function hoSoThuGon(){ try { return localStorage.getItem(HO_SO_GON_KEY) === '1'; } catch(e){ return false; } }
+function thuGonHoSo(btn){
+  toggleKhoiChiTiet(btn);
+  const gon = btn.closest('.detail-block').classList.contains('collapsed');
+  try { localStorage.setItem(HO_SO_GON_KEY, gon ? '1' : '0'); } catch(e){}
+}
+
+/* Dòng đề xuất đang mở (giữ qua các lần vẽ lại) */
+const dxDangMo = new Set();
+function moDongDeXuat(id){
+  if (dxDangMo.has(id)) dxDangMo.delete(id); else dxDangMo.add(id);
+  document.querySelectorAll(`.dx-dong[data-dx="${id}"]`).forEach(el => el.classList.toggle('mo', dxDangMo.has(id)));
+}
+
 function veKhoiHoSo(leadId, ep){
   const khoi = document.getElementById('hoSoBlock');
   const dx = document.getElementById('hoSoDeXuat');
+  const khoiDx = document.getElementById('khoiDeXuat');
+  const tomTat = document.getElementById('hsTomTat');
   if (!khoi || !dx) return;
   const vo = khoi.closest('.block-hoso');
-  if (!window.HoSoAI || hoSoLoi){ vo.style.display = 'none'; return; }
+  if (!window.HoSoAI || hoSoLoi){ vo.style.display = 'none'; if (khoiDx) khoiDx.style.display = 'none'; return; }
   vo.style.display = '';
   const lead = leads.find(l => l.id === leadId);
-  if (ep || !dangSuaDeXuat(dx)) dx.innerHTML = deXuatCuaLead(leadId).map(p => HoSoAI.veTheDeXuat(p, lead)).join('');
+  const dsDx = deXuatCuaLead(leadId);
+  if (khoiDx){
+    khoiDx.style.display = dsDx.length ? '' : 'none';
+    document.getElementById('dxDem').textContent = dsDx.length || '';
+  }
+  if (ep || !dangSuaDeXuat(dx)) dx.innerHTML = dsDx.map(p => HoSoAI.veTheDeXuat(p, lead, dxDangMo.has(p.id))).join('');
+  if (tomTat) tomTat.innerHTML = hoSoBrief ? HoSoAI.veTomTatHoSo(hoSoBrief, {}) : '';
   if (hoSoBrief === undefined){ khoi.innerHTML = '<div class="list-empty">Đang tải…</div>'; return; }
   const convIds = new Set(zaloConvsOf(leadId).map(c => c.convId));
   const coTin = (convId, msgId) => {
