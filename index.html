@@ -3582,7 +3582,40 @@ function luuOBang(el){
   onFieldChange(id, khoa, moi);       // ghi + vẽ lại Pipeline/bảng + scheduleSave() như sửa ở chi tiết lead
 }
 
-function xuatExcelBang(){}
+// SheetJS chỉ nạp khi bấm "Xuất Excel" để không làm nặng lần mở app
+const SHEETJS_URL = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+let sheetJsDangNap = null;
+function napSheetJs(){
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (!sheetJsDangNap){
+    sheetJsDangNap = new Promise((ok, loi) => {
+      const s = document.createElement('script');
+      s.src = SHEETJS_URL;
+      s.onload = () => (window.XLSX ? ok(window.XLSX) : loi(new Error('XLSX trống')));
+      s.onerror = () => { sheetJsDangNap = null; s.remove(); loi(new Error('Không tải được SheetJS')); };
+      document.head.appendChild(s);
+    });
+  }
+  return sheetJsDangNap;
+}
+async function xuatExcelBang(){
+  let XLSX;
+  try { XLSX = await napSheetJs(); }
+  catch(e){ alert('Không tải được công cụ xuất Excel, kiểm tra mạng rồi thử lại.'); return; }
+  const cot = cotDangHien();
+  const { tieuDe, kieu, dong } = window.BangLead.dongXuat(dongDangHien(), cot.map(c => c.khoa), ctxBang());
+  const ws = XLSX.utils.aoa_to_sheet([tieuDe, ...dong], { cellDates: true });
+  const dinhDang = { so: '#,##0', ngay: 'dd/mm/yyyy', thang: 'mm/yyyy' };
+  dong.forEach((r, i) => r.forEach((v, j) => {
+    const o = ws[XLSX.utils.encode_cell({ r: i + 1, c: j })];
+    if (o && v !== null && dinhDang[kieu[j]]) o.z = dinhDang[kieu[j]];
+  }));
+  ws['!cols'] = cot.map(c => ({ wch: Math.max(8, Math.round(rongCot(c) / 7)) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Danh sách lead');
+  XLSX.writeFile(wb, `Danh-sach-lead-${todayISO()}.xlsx`);
+}
+
 
 /* ======================= RENDER: PIPELINE ======================= */
 function renderPipeline(){
