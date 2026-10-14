@@ -14,67 +14,95 @@ const ev = (quote, msgId = '10', convId = 'c1') => ({ convId, msgId, quote });
 const XSS = '<img src=x onerror="window.__bi=1">';
 
 const brief = {
-  nhuCau: { text: 'Phóng sự tự nhiên, lễ gia tiên sáng + tiệc tối', evidence: [ev('lễ gia tiên')] },
+  nhuCau: { text: 'Phóng sự tự nhiên, lễ gia tiên sáng + tiệc tối', evidence: [ev('lễ gia tiên'), ev('tiệc tối', '11')] },
   nganSach: { text: XSS, evidence: [ev(XSS)] },
   nguoiQuyetDinh: { text: 'chưa rõ', evidence: [] },
   objection: { text: 'Sợ giá cao', evidence: [ev('mắc quá', '11', 'cMat')] },
   doNong: { muc: 'nong', lyDo: 'Hỏi số tài khoản', evidence: [ev('số tài khoản')] },
   buocTiep: 'Gửi hợp đồng',
   loiHua: {
-    h_1: { ai: 'minh', noiDung: 'Gửi phim mẫu', han: '2026-10-10', trangThai: 'mo', evidence: [ev('gửi phim mẫu')] },
-    h_2: { ai: 'khach', noiDung: 'Báo lại cuối tuần', han: '2026-10-18', trangThai: 'mo', evidence: [ev('cuối tuần')] },
     h_3: { ai: 'minh', noiDung: 'Gửi báo giá', han: null, trangThai: 'xong', evidence: [ev('báo giá')] },
+    h_2: { ai: 'khach', noiDung: 'Báo lại cuối tuần', han: '2026-10-18', trangThai: 'mo', evidence: [ev('cuối tuần')] },
+    h_1: { ai: 'minh', noiDung: 'Gửi phim mẫu', han: '2026-10-10', trangThai: 'mo', evidence: [ev('gửi phim mẫu')] },
   },
   cursorAt: 1, updatedAt: '2026-10-14T03:00:00Z',
 };
-const coTin = (convId, msgId) => convId !== 'cMat';
+const coTin = (convId) => convId !== 'cMat';
+const ctx = { homNay: '2026-10-14', coTin, tinMoi: 3, tenLead: 'Lan', now: Date.parse('2026-10-14T08:00:00Z') };
 
-/* 1. Hồ sơ: đủ phần, độ nóng, lời hứa chia 2 cột */
-box.innerHTML = W.veHoSo(brief, { homNay: '2026-10-14', coTin, tinMoi: 3, tenLead: 'Lan' });
-check('chip do nong', box.querySelector('.hs-nong.nong') && /Nóng/.test(box.innerText), box.innerText.slice(0, 200));
-check('cot minh hua co 2 loi hua', box.querySelectorAll('.hs-hua-minh .hs-hua').length === 2);
-check('cot khach hua co 1 loi hua', box.querySelectorAll('.hs-hua-khach .hs-hua').length === 1);
-check('loi hua qua han to do', !!box.querySelector('.hs-hua.quaHan'));
-check('loi hua xong gach', !!box.querySelector('.hs-hua.xong'));
-check('chan tab bao tin moi', /3 tin mới chưa phân tích/.test(box.innerText), box.innerText);
-check('chip nguon bam duoc', !!box.querySelector('.hs-nguon[onclick*="xemNguon"]'));
-check('nguon khong con', /nguồn không còn/.test(box.innerText));
+/* 1. Tóm tắt trên thanh tiêu đề: chip độ nóng + thời gian cập nhật tương đối */
+box.innerHTML = W.veTomTatHoSo(brief, ctx);
+check('tom tat: chip nong', box.querySelector('.hs-nong.nong') && /Nóng/.test(box.innerText), box.innerHTML);
+check('tom tat: 5 gio truoc', /5 giờ trước/.test(box.innerText), box.innerText);
+box.innerHTML = W.veTomTatHoSo(null, ctx);
+check('tom tat: khong co ho so -> rong', box.innerHTML.trim() === '', box.innerHTML);
 
-/* 2. Review Focus 5: chữ khách gõ không chạy mã */
+/* 2. Thân hồ sơ: bước tiếp, lưới 4 nhóm, chưa rõ mờ */
+box.innerHTML = W.veHoSo(brief, ctx);
+check('buoc tiep noi bat', box.querySelector('.hs-buoc-tiep') && /Gửi hợp đồng/.test(box.querySelector('.hs-buoc-tiep').innerText));
+check('luoi 4 nhom', box.querySelectorAll('.hs-luoi .hs-nhom').length === 4);
+check('chua ro co class mo', !!box.querySelector('.hs-nguoi-qd.chua-ro'));
+check('ly do do nong', /Hỏi số tài khoản/.test(box.innerText), box.innerText.slice(0, 200));
+
+/* 3. Chip nguồn là số nhỏ, câu trích nằm trong title */
+const chipNhuCau = box.querySelectorAll('.hs-nhu-cau .hs-nguon');
+check('chip nguon danh so 1,2', chipNhuCau.length === 2 && chipNhuCau[0].textContent.trim() === '1' && chipNhuCau[1].textContent.trim() === '2', [...chipNhuCau].map(c => c.textContent).join('|'));
+check('chip nguon co title cau trich', chipNhuCau[0] && chipNhuCau[0].getAttribute('title') === 'lễ gia tiên');
+check('chip nguon bam duoc', !!box.querySelector('.hs-nhu-cau .hs-nguon[onclick*="xemNguon"]'));
+const mat = box.querySelector('.hs-objection .hs-nguon.mat');
+check('nguon khong con: danh dau + title', !!mat && /nguồn không còn/.test(mat.getAttribute('title')), mat && mat.outerHTML);
+
+/* 4. Lời hứa: một danh sách, quá hạn lên đầu, xong xuống cuối, nhãn Mình/Khách */
+const hua = [...box.querySelectorAll('.hs-ds-hua .hs-hua')];
+check('3 loi hua', hua.length === 3);
+check('qua han dau tien', hua[0] && hua[0].classList.contains('quaHan') && /Gửi phim mẫu/.test(hua[0].innerText), hua.map(h => h.className).join('|'));
+check('xong cuoi cung', hua[2] && hua[2].classList.contains('xong'));
+check('nhan ai', hua[0] && hua[0].querySelector('.hs-ai.minh') && hua[1].querySelector('.hs-ai.khach'));
+check('han qua han ghi ro', /quá hạn 10\/10/.test(hua[0].innerText), hua[0] && hua[0].innerText);
+check('chan bao tin moi', /3 tin mới chưa phân tích/.test(box.innerText));
+
+/* 5. Review Focus: chữ khách gõ không chạy mã */
 check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 300));
-check('van hien nguyen van', box.innerText.includes('<img src=x'), box.innerText);
+check('van hien nguyen van', box.innerText.includes('<img src=x'));
 
-/* 3. Chưa có hồ sơ: trạng thái trống + câu mẫu */
-box.innerHTML = W.veHoSo(null, { homNay: '2026-10-14', coTin, tinMoi: 0, tenLead: 'Lan "Ngọc"' });
-check('trang thai trong', /Chưa có hồ sơ/.test(box.innerText), box.innerText);
-check('cau mau co ten lead', box.innerText.includes('Cập nhật hồ sơ khách Lan "Ngọc"'), box.innerText);
+/* 6. Chưa có hồ sơ */
+box.innerHTML = W.veHoSo(null, { ...ctx, tenLead: 'Lan "Ngọc"' });
+check('trang thai trong', /Chưa có hồ sơ/.test(box.innerText));
+check('cau mau co ten lead', box.innerText.includes('Cập nhật hồ sơ khách Lan "Ngọc"'));
 
-/* 4. Thẻ đề xuất ô */
+/* 7. Dòng đề xuất thu gọn: tiêu đề + nút ✓ duyệt nhanh; chi tiết ẩn tới khi mở */
 const lead = { id: 'L1', weddingDate: null, package: 'Unique' };
 const p = { id: 'f_abc', leadId: 'L1', type: 'field', field: 'weddingDate', oldValue: null, newValue: '2026-12-12',
   reason: 'Khách nói ' + XSS, evidence: [ev('cưới 12/12')], status: 'cho', createdAt: '' };
 box.innerHTML = W.veTheDeXuat(p, lead);
-check('the: nhan o + gia tri', /Ngày cưới/.test(box.innerText) && /12\/12\/2026/.test(box.innerText) && /\(trống\)/.test(box.innerText), box.innerText);
-check('the: 3 nut', ['duyetDeXuat', 'moSuaDeXuat', 'boDeXuat'].every((f) => box.querySelector(`[onclick*="${f}"]`)));
-check('the: ly do khong chay ma', !box.querySelector('img') && box.innerText.includes('<img'), box.innerHTML.slice(0, 300));
-check('the: khong canh bao khi o chua doi', !box.querySelector('.dx-canh-bao'));
-check('the: o sua kieu date', !!box.querySelector('.dx-sua input[type="date"]'));
+const dong = box.querySelector('.dx-dong');
+check('dong: tieu de ngan', dong && /Ngày cưới/.test(dong.querySelector('.dx-tom').innerText) && /12\/12\/2026/.test(dong.querySelector('.dx-tom').innerText), dong && dong.innerText);
+check('dong: nut duyet nhanh', !!dong.querySelector('.dx-nhanh[onclick*="duyetDeXuat"]'));
+check('dong: bam hang de mo', !!dong.querySelector('.dx-hang[onclick*="moDongDeXuat"]'));
+check('dong: chi tiet an mac dinh', !dong.classList.contains('mo'));
+check('dong: chi tiet co 3 nut', ['duyetDeXuat', 'moSuaDeXuat', 'boDeXuat'].every(f => dong.querySelector(`.dx-chi-tiet [onclick*="${f}"]`)));
+check('dong: chi tiet co gia tri hien tai', /\(trống\)/.test(dong.querySelector('.dx-chi-tiet').textContent));
+check('dong: ly do khong chay ma', !box.querySelector('img') && dong.querySelector('.dx-chi-tiet').textContent.includes('<img'));
+check('dong: o sua kieu date', !!box.querySelector('.dx-sua input[type="date"]'));
+box.innerHTML = W.veTheDeXuat(p, lead, true);
+check('dong: mo san khi truyen mo=true', box.querySelector('.dx-dong').classList.contains('mo'));
 
-/* 5. Ô đã đổi từ lúc đề xuất -> cảnh báo */
+/* 8. Ô đã đổi -> cảnh báo (trong chi tiết) + dấu trên dòng */
 box.innerHTML = W.veTheDeXuat(p, { ...lead, weddingDate: '2026-11-01' });
-check('canh bao o da doi', !!box.querySelector('.dx-canh-bao'));
+check('canh bao o da doi', !!box.querySelector('.dx-canh-bao') && !!box.querySelector('.dx-hang .dx-co-doi'));
 
-/* 6. Thẻ đề xuất việc */
+/* 9. Đề xuất việc */
 box.innerHTML = W.veTheDeXuat({ ...p, id: 'todo_h_1', type: 'todo', field: undefined, todoText: 'Gửi phim mẫu', due: '2026-10-15', huaId: 'h_1' }, lead);
-check('the viec: noi dung + han', /Gửi phim mẫu/.test(box.innerText) && /15\/10\/2026/.test(box.innerText), box.innerText);
+check('viec: tieu de + han', /Việc: Gửi phim mẫu/.test(box.querySelector('.dx-tom').innerText) && /15\/10\/2026/.test(box.querySelector('.dx-tom').innerText), box.innerText);
+check('viec: khong co Sua roi duyet', !box.querySelector('[onclick*="moSuaDeXuat"]'));
 
-/* 7. Id lạ (có dấu nháy) không được đưa vào onclick */
+/* 10. Id lạ không vào onclick */
 box.innerHTML = W.veTheDeXuat({ ...p, id: "x');window.__bi=1;('" }, lead);
 check('id la: khong co nut', !box.querySelector('[onclick*="DeXuat"]') && !box.innerHTML.includes('__bi=1;'), box.innerHTML.slice(0, 300));
-box.innerHTML = W.veHoSo({ ...brief, nhuCau: { text: 'a', evidence: [ev('abcd', "1');window.__bi=1;('")] } }, { homNay: '2026-10-14', coTin: () => true, tinMoi: 0, tenLead: 'L' });
+box.innerHTML = W.veHoSo({ ...brief, nhuCau: { text: 'a', evidence: [ev('abcd', "1');window.__bi=1;('")] } }, ctx);
 check('msgId la: chip nguon khong bam duoc', !box.querySelector('.hs-nhu-cau .hs-nguon[onclick]'));
 
-/* 8. Gói: ô sửa là select đủ gói */
+/* 11. Gói: ô sửa là select đủ gói */
 box.innerHTML = W.veTheDeXuat({ ...p, field: 'package', newValue: 'Signature', oldValue: 'Unique' }, lead);
 check('o sua goi la select', box.querySelectorAll('.dx-sua select option').length === W.PACKAGES.length);
 
