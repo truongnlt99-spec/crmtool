@@ -55,7 +55,8 @@ eq('gói standard', S.khopGoi('gói standard'), 'Standard');
 eq('STANDARD', S.khopGoi('STANDARD'), 'Standard');
 eq('HayDay Package', S.khopGoi('Gói HayDay Package'), 'HayDay Package');
 eq('Gói lẻ', S.khopGoi('Gói lẻ'), 'Gói lẻ');
-eq('ten co chu thua -> null', S.khopGoi('Gói Signature trọn ngày'), null);
+eq('ten co hau to -> khop tien to', S.khopGoi('Gói Signature trọn ngày'), 'Signature');
+eq('khong khop tron tu', S.khopGoi('Gói Signatureplus'), null);
 eq('Combo 2 may chup -> null', S.khopGoi('Combo 2 máy chụp'), null);
 
 console.log('\n>> deXuatTuBaoGia');
@@ -79,7 +80,7 @@ eq('han ngay mai: due la hom nay', (S.deXuatTuBaoGia(sua((b) => { b.hanUuDai = '
 eq('han hom nay: due la hom nay', (S.deXuatTuBaoGia(sua((b) => { b.hanUuDai = '2026-10-15'; }), '2026-10-15').at(-1) as any).due, '2026-10-15', 'L1');
 check('han da qua: khong tao viec', !S.deXuatTuBaoGia(sua((b) => { b.hanUuDai = '2026-10-14'; }), '2026-10-15', 'L1').some((d) => d.type === 'todo'));
 check('khong co han: khong tao viec', !S.deXuatTuBaoGia(sua((b) => { b.hanUuDai = null; }), '2026-10-15', 'L1').some((d) => d.type === 'todo'));
-check('goi khong khop: khong de xuat goi', !S.deXuatTuBaoGia(sua((b) => { b.buoi[1].goi = 'Gói Standard trọn ngày'; }), '2026-10-15', 'L1').some((d) => d.type === 'field' && d.field === 'package'));
+check('goi khong khop: khong de xuat goi', !S.deXuatTuBaoGia(sua((b) => { b.buoi[1].goi = 'Gói Premium trọn ngày'; }), '2026-10-15', 'L1').some((d) => d.type === 'field' && d.field === 'package'));
 
 console.log('\n>> baoGiaMoiNhat + ddmm');
 eq('chua co bao gia', S.baoGiaMoiNhat({}), null);
@@ -91,6 +92,51 @@ eq('chua co bao gia', S.baoGiaMoiNhat({}), null);
   eq('lay ban moi nhat', [S.baoGiaMoiNhat(l)?.id, S.baoGiaMoiNhat(l)?.tongSauUuDai], ['bg_b', 2]);
 }
 eq('ddmm', S.ddmm('2026-10-20'), '20/10');
+
+console.log('\n>> nhieu phuong an');
+const BUOI_AN_HOI: S.BuoiBaoGia = { loai: 'anHoi', ten: 'Lễ ăn hỏi', ngay: '2026-11-24', gio: null, soKhach: null, moTa: null,
+  goi: 'Gói Standard 1 buổi', giaGoc: 20900000, uuDaiPhanTram: 0, giaSauUuDai: 20900000, ekip: [], sanPham: [], quaTang: [] };
+const cuoi = (goi: string, gia: number, ngay = '2026-11-25'): S.BuoiBaoGia => ({ loai: 'cuoi', ten: 'Rước dâu + tiệc Mipec', ngay, gio: null, soKhach: '75 mâm', moTa: null,
+  goi, giaGoc: gia, uuDaiPhanTram: 0, giaSauUuDai: gia, ekip: [], sanPham: [], quaTang: [] });
+const NHIEU: S.BaoGia = {
+  tieuDe: 'So sánh 2 phương án quay chụp cưới', tenKhach: 'Anh Đức Minh', diaDiem: 'Mipec', hanUuDai: null, ghiChu: [],
+  buoi: [BUOI_AN_HOI],
+  phuongAn: [
+    { ma: 'opt1', ten: 'Option 1', nhan: 'Vừa vặn', buoi: [cuoi('Gói Unique full ngày', 46900000)], tongGiaGoc: 67800000, tongSauUuDai: 67800000, tietKiem: 0, diemKhacBiet: 'Unique vừa vặn' },
+    { ma: 'opt2', ten: 'Option 2', nhan: 'Trọn vẹn nhất', buoi: [cuoi('Gói Signature full ngày', 65900000)], tongGiaGoc: 86800000, tongSauUuDai: 86800000, tietKiem: 0, diemKhacBiet: 'Ekip 6 người + flycam' },
+  ],
+};
+const suaN = (f: (b: any) => void) => { const b = JSON.parse(JSON.stringify(NHIEU)); f(b); return b as S.BaoGia; };
+eq('2 phuong an mau: hop le', S.kiemTraBaoGia(NHIEU), []);
+{
+  const loi = S.kiemTraBaoGia(suaN((b) => { b.phuongAn[1].tongSauUuDai = 86000000; b.phuongAn[1].tietKiem = 800000; }));
+  check('sai tong o Option 2: neu ten phuong an', loi.length === 1 && /^Option 2: Tổng sau ưu đãi/.test(loi[0]), JSON.stringify(loi));
+}
+check('1 phuong an -> loi', S.kiemTraBaoGia(suaN((b) => { b.phuongAn = [b.phuongAn[0]]; })).some((x) => /2–4 phương án/.test(x)));
+check('ma trung -> loi', S.kiemTraBaoGia(suaN((b) => { b.phuongAn[1].ma = 'opt1'; })).some((x) => /trùng/.test(x)));
+check('co tong o goc -> loi', S.kiemTraBaoGia(suaN((b) => { b.tongGiaGoc = 1; b.tongSauUuDai = 1; b.tietKiem = 0; })).some((x) => /không ghi tổng ở gốc/.test(x)));
+check('khong phuong an + thieu tong -> loi', S.kiemTraBaoGia({ ...MAU, tongGiaGoc: undefined } as any).some((x) => /Thiếu tổng/.test(x)));
+check('2 buoi cuoi trong 1 phuong an -> loi', S.kiemTraBaoGia(suaN((b) => { b.buoi[0].loai = 'cuoi'; })).some((x) => /Option 1: Chỉ được một buổi/.test(x)));
+// Review Focus 1: buổi chung rỗng bị Firebase bỏ
+{
+  const khongChung = suaN((b) => { delete b.buoi; b.phuongAn.forEach((p: any) => { p.tongGiaGoc -= 20900000; p.tongSauUuDai -= 20900000; }); });
+  eq('khong buoi chung (undefined): hop le', S.kiemTraBaoGia(khongChung), []);
+  eq('cacPhuongAn chiu buoi undefined', S.cacPhuongAn(khongChung).map((p) => p.buoi.length), [1, 1]);
+}
+eq('cacPhuongAn: buoi chung + rieng', S.cacPhuongAn(NHIEU).map((p) => [p.ma, p.buoi.length, p.tongSauUuDai]), [['opt1', 2, 67800000], ['opt2', 2, 86800000]]);
+eq('cacPhuongAn: bao gia 1 phuong an', S.cacPhuongAn(MAU).map((p) => [p.ma, p.buoi.length, p.tongSauUuDai]), [[null, 2, 41905000]]);
+// Review Focus 2: tìm theo tên không phân biệt hoa / dấu
+eq('tim theo ma', S.timPhuongAn(NHIEU, 'opt2')?.ma, 'opt2');
+eq('tim theo ten thuong', S.timPhuongAn(NHIEU, 'option 2')?.ma, 'opt2');
+eq('tim theo ten hoa', S.timPhuongAn(NHIEU, 'OPTION 1')?.ma, 'opt1');
+eq('khong tim thay', S.timPhuongAn(NHIEU, 'Option 3'), null);
+eq('bao gia 1 phuong an: khong tim', S.timPhuongAn(MAU, 'opt1'), null);
+// Đề xuất
+eq('nhieu PA: chi ngay cuoi (khong han -> khong viec)', S.deXuatTuBaoGia(NHIEU, '2026-10-15', 'L1').map((d) => d.type === 'field' ? d.field : 'todo'), ['weddingDate']);
+eq('nhieu PA co han: ngay cuoi + viec', S.deXuatTuBaoGia(suaN((b) => { b.hanUuDai = '2026-10-30'; }), '2026-10-15', 'L1').map((d) => d.type === 'field' ? d.field : 'todo'), ['weddingDate', 'todo']);
+check('Review Focus 4: ngay cuoi khac nhau -> khong de xuat ngay', !S.deXuatTuBaoGia(suaN((b) => { b.phuongAn[1].buoi[0].ngay = '2026-11-26'; }), '2026-10-15', 'L1').some((d) => d.type === 'field' && d.field === 'weddingDate'));
+eq('deXuatTuPhuongAn opt2', S.deXuatTuPhuongAn(NHIEU, 'opt2').map((d: any) => [d.field, d.newValue]), [['revenueExpected', 86800000], ['package', 'Signature']]);
+eq('deXuatTuPhuongAn opt1', S.deXuatTuPhuongAn(NHIEU, 'opt1').map((d: any) => [d.field, d.newValue]), [['revenueExpected', 67800000], ['package', 'Unique']]);
 
 console.log(`\n${fail === 0 ? 'PASS' : 'FAIL'}: ${pass} ok, ${fail} fail`);
 process.exit(fail === 0 ? 0 : 1);

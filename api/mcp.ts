@@ -805,54 +805,108 @@ export type BuoiBaoGia = {
   giaGoc: number; uuDaiPhanTram: number; giaSauUuDai: number;
   ekip: string[]; sanPham: string[]; quaTang: string[];
 };
+export type PhuongAn = {
+  ma: string; ten: string; nhan: string | null; buoi: BuoiBaoGia[];
+  tongGiaGoc: number; tongSauUuDai: number; tietKiem: number; diemKhacBiet: string | null;
+};
 export type BaoGia = {
   taoLuc?: string; tieuDe: string; tenKhach: string; diaDiem: string | null;
-  buoi: BuoiBaoGia[]; tongGiaGoc: number; tongSauUuDai: number; tietKiem: number;
+  buoi: BuoiBaoGia[];                         // 1 phương án: mọi buổi; nhiều phương án: buổi dùng chung
+  tongGiaGoc?: number; tongSauUuDai?: number; tietKiem?: number;   // chỉ khi không có phuongAn
+  phuongAn?: PhuongAn[]; phuongAnDaChon?: string; chonLuc?: string;
   hanUuDai: string | null; ghiChu: string[];
 };
 
-const tienVN = (n: number) => Number(n).toLocaleString('vi-VN');
+const tienVN = (n: number | undefined) => Number(n).toLocaleString('vi-VN');
 export const ddmm = (iso: string) => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
 
-/** Lỗi phép tính / ngày của một báo giá; mảng rỗng = hợp lệ. */
+/** Chuẩn hoá: báo giá 1 phương án -> 1 phương án ẩn danh (ma null); nhiều phương án -> buổi chung + riêng. */
+export function cacPhuongAn(bg: BaoGia) {
+  const chung = bg.buoi || [];
+  if (!bg.phuongAn || !bg.phuongAn.length) {
+    return [{ ma: null as string | null, ten: null as string | null, buoi: chung, tongGiaGoc: bg.tongGiaGoc, tongSauUuDai: bg.tongSauUuDai, tietKiem: bg.tietKiem }];
+  }
+  return bg.phuongAn.map((p) => ({ ma: p.ma as string | null, ten: p.ten as string | null, buoi: [...chung, ...(p.buoi || [])], tongGiaGoc: p.tongGiaGoc as number | undefined, tongSauUuDai: p.tongSauUuDai as number | undefined, tietKiem: p.tietKiem as number | undefined }));
+}
+
+/** Lỗi phép tính / ngày / hình dạng của một báo giá; mảng rỗng = hợp lệ. */
 export function kiemTraBaoGia(bg: BaoGia): string[] {
   const loi: string[] = [];
-  bg.buoi.forEach((b, i) => {
-    const nhan = `Buổi ${i + 1} (${b.ten})`;
+  const coPA = !!(bg.phuongAn && bg.phuongAn.length);
+  if (bg.phuongAn && (bg.phuongAn.length < 2 || bg.phuongAn.length > 4)) loi.push('Báo giá nhiều phương án phải có 2–4 phương án');
+  if (coPA) {
+    const ma = bg.phuongAn!.map((p) => p.ma);
+    if (new Set(ma).size !== ma.length) loi.push(`Mã phương án bị trùng: ${ma.join(', ')}`);
+    if (bg.tongGiaGoc != null || bg.tongSauUuDai != null || bg.tietKiem != null) loi.push('Báo giá nhiều phương án không ghi tổng ở gốc — ghi tổng trong từng phương án');
+  } else {
+    if (bg.tongGiaGoc == null || bg.tongSauUuDai == null || bg.tietKiem == null) loi.push('Thiếu tổng giá gốc / tổng sau ưu đãi / tiết kiệm');
+    if (!(bg.buoi || []).length) loi.push('Báo giá cần ít nhất một buổi');
+  }
+  const kiemBuoi = (b: BuoiBaoGia, nhan: string) => {
     const dung = Math.round((b.giaGoc * (100 - b.uuDaiPhanTram)) / 100 / 1000) * 1000;
-    if (Math.abs(dung - b.giaSauUuDai) > 1000) {
-      loi.push(`${nhan}: ${tienVN(b.giaGoc)} × ${100 - b.uuDaiPhanTram}% = ${tienVN(dung)}, không phải ${tienVN(b.giaSauUuDai)}`);
-    }
+    if (Math.abs(dung - b.giaSauUuDai) > 1000) loi.push(`${nhan}: ${tienVN(b.giaGoc)} × ${100 - b.uuDaiPhanTram}% = ${tienVN(dung)}, không phải ${tienVN(b.giaSauUuDai)}`);
     if (b.ngay && kiemTraGiaTriO('weddingDate', b.ngay)) loi.push(`${nhan}: ngày ${b.ngay} không có thật`);
-  });
-  const tongGoc = bg.buoi.reduce((s, b) => s + b.giaGoc, 0);
-  const tongSau = bg.buoi.reduce((s, b) => s + b.giaSauUuDai, 0);
-  if (tongGoc !== bg.tongGiaGoc) loi.push(`Tổng giá gốc phải là ${tienVN(tongGoc)} (cộng các buổi), không phải ${tienVN(bg.tongGiaGoc)}`);
-  if (tongSau !== bg.tongSauUuDai) loi.push(`Tổng sau ưu đãi phải là ${tienVN(tongSau)} (cộng các buổi), không phải ${tienVN(bg.tongSauUuDai)}`);
-  if (bg.tietKiem !== bg.tongGiaGoc - bg.tongSauUuDai) loi.push(`Tiết kiệm phải là ${tienVN(bg.tongGiaGoc - bg.tongSauUuDai)}, không phải ${tienVN(bg.tietKiem)}`);
+  };
+  (bg.buoi || []).forEach((b, i) => kiemBuoi(b, `Buổi ${i + 1} (${b.ten})`));
+  for (const p of bg.phuongAn || []) (p.buoi || []).forEach((b, i) => kiemBuoi(b, `${p.ten} · Buổi ${i + 1} (${b.ten})`));
+  for (const pa of cacPhuongAn(bg)) {
+    if (pa.tongGiaGoc == null || pa.tongSauUuDai == null || pa.tietKiem == null) continue;
+    const t = pa.ten ? `${pa.ten}: ` : '';
+    const tongGoc = pa.buoi.reduce((s, b) => s + b.giaGoc, 0);
+    const tongSau = pa.buoi.reduce((s, b) => s + b.giaSauUuDai, 0);
+    if (tongGoc !== pa.tongGiaGoc) loi.push(`${t}Tổng giá gốc phải là ${tienVN(tongGoc)} (cộng các buổi), không phải ${tienVN(pa.tongGiaGoc)}`);
+    if (tongSau !== pa.tongSauUuDai) loi.push(`${t}Tổng sau ưu đãi phải là ${tienVN(tongSau)} (cộng các buổi), không phải ${tienVN(pa.tongSauUuDai)}`);
+    if (pa.tietKiem !== pa.tongGiaGoc - pa.tongSauUuDai) loi.push(`${t}Tiết kiệm phải là ${tienVN(pa.tongGiaGoc - pa.tongSauUuDai)}, không phải ${tienVN(pa.tietKiem)}`);
+    if (pa.buoi.filter((b) => b.loai === 'cuoi').length > 1) loi.push(`${t}Chỉ được một buổi loại "cuoi" (đám cưới)`);
+  }
   if (bg.hanUuDai && kiemTraGiaTriO('weddingDate', bg.hanUuDai)) loi.push(`Hạn ưu đãi ${bg.hanUuDai} không có thật`);
-  if (bg.buoi.filter((b) => b.loai === 'cuoi').length > 1) loi.push('Chỉ được một buổi loại "cuoi" (đám cưới)');
   return loi;
 }
 
-/** Tên gói trong báo giá -> gói của app (PACKAGES), hoặc null nếu không khớp hẳn. */
+/**
+ * Tên gói trong báo giá -> gói của app; khớp tiền tố trọn từ ("Gói Unique full ngày" -> Unique).
+ * CHÉP Ở 2 NƠI: đây và web/bao-gia.js (khopGoi). Sửa một chỗ thì sửa cả hai.
+ */
 export function khopGoi(ten: string): string | null {
   const chuan = (s: string) => boDauZalo(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
   const t = chuan(ten);
-  return (PACKAGES as readonly string[]).find((p) => chuan(p) === t) || null;
+  return (PACKAGES as readonly string[]).find((p) => { const g = chuan(p); return t === g || t.startsWith(g + ' '); }) || null;
+}
+
+export function timPhuongAn(bg: BaoGia, tenHoacMa: string): PhuongAn | null {
+  const q = boDauZalo(tenHoacMa).replace(/\s+/g, ' ');
+  return (bg.phuongAn || []).find((p) => p.ma === tenHoacMa || boDauZalo(p.ten).replace(/\s+/g, ' ') === q) || null;
 }
 
 export type MucDeXuatBaoGia =
   | { type: 'field'; field: 'revenueExpected' | 'weddingDate' | 'package'; newValue: string | number }
   | { type: 'todo'; huaId: string; todoText: string; due: string };
 
-/** Đề xuất sinh từ một báo giá: doanh thu, ngày cưới, gói, việc nhắc trước hạn ưu đãi 2 ngày. */
-export function deXuatTuBaoGia(bg: BaoGia, homNay: string, leadId: string): MucDeXuatBaoGia[] {
-  const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: bg.tongSauUuDai }];
-  const cuoi = bg.buoi.find((b) => b.loai === 'cuoi');
-  if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
+/** Đề xuất khi khách chọn một phương án: doanh thu = tổng của phương án, gói = gói buổi cưới (nếu khớp). */
+export function deXuatTuPhuongAn(bg: BaoGia, ma: string): MucDeXuatBaoGia[] {
+  const pa = cacPhuongAn(bg).find((p) => p.ma === ma);
+  if (!pa || pa.tongSauUuDai == null) return [];
+  const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: pa.tongSauUuDai }];
+  const cuoi = pa.buoi.find((b) => b.loai === 'cuoi');
   const goi = cuoi ? khopGoi(cuoi.goi) : null;
   if (goi) ds.push({ type: 'field', field: 'package', newValue: goi });
+  return ds;
+}
+
+/** Đề xuất khi lưu báo giá. Một phương án: doanh thu, ngày cưới, gói, việc nhắc. Nhiều phương án: chỉ ngày cưới (nếu mọi phương án cùng ngày) + việc nhắc. */
+export function deXuatTuBaoGia(bg: BaoGia, homNay: string, leadId: string): MucDeXuatBaoGia[] {
+  const ds: MucDeXuatBaoGia[] = [];
+  const pas = cacPhuongAn(bg);
+  if (pas.length === 1 && pas[0].ma === null) {
+    ds.push({ type: 'field', field: 'revenueExpected', newValue: pas[0].tongSauUuDai as number });
+    const cuoi = pas[0].buoi.find((b) => b.loai === 'cuoi');
+    if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
+    const goi = cuoi ? khopGoi(cuoi.goi) : null;
+    if (goi) ds.push({ type: 'field', field: 'package', newValue: goi });
+  } else {
+    const ngays = pas.map((p) => p.buoi.find((b) => b.loai === 'cuoi')?.ngay || null);
+    if (ngays.every((n) => n && n === ngays[0])) ds.push({ type: 'field', field: 'weddingDate', newValue: ngays[0] as string });
+  }
   if (bg.hanUuDai && bg.hanUuDai >= homNay) {
     const truoc2 = congNgay(bg.hanUuDai, -2);
     ds.push({
