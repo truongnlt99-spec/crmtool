@@ -940,14 +940,25 @@ const BuoiBaoGiaZ = z.object({
   giaSauUuDai: z.number().int().nonnegative(),
   ekip: DsChuoiZ, sanPham: DsChuoiZ, quaTang: DsChuoiZ,
 }).strict();
+const PhuongAnZ = z.object({
+  ma: z.string().regex(/^opt[1-9]$/).describe('opt1, opt2, …'),
+  ten: z.string().min(1).max(60),
+  nhan: z.string().max(60).nullable(),
+  buoi: z.array(BuoiBaoGiaZ).min(1).max(6).describe('Buổi RIÊNG của phương án (buổi dùng chung để ở baoGia.buoi)'),
+  tongGiaGoc: z.number().int().nonnegative(),
+  tongSauUuDai: z.number().int().nonnegative(),
+  tietKiem: z.number().int().nonnegative(),
+  diemKhacBiet: z.string().max(600).nullable(),
+}).strict();
 const BaoGiaZ = z.object({
   tieuDe: z.string().min(1).max(200),
   tenKhach: z.string().min(1).max(100),
   diaDiem: z.string().max(100).nullable(),
-  buoi: z.array(BuoiBaoGiaZ).min(1).max(6),
-  tongGiaGoc: z.number().int().nonnegative(),
-  tongSauUuDai: z.number().int().nonnegative(),
-  tietKiem: z.number().int().nonnegative(),
+  buoi: z.array(BuoiBaoGiaZ).max(6).describe('Một phương án: mọi buổi. Nhiều phương án: chỉ buổi DÙNG CHUNG (có thể rỗng)'),
+  tongGiaGoc: z.number().int().nonnegative().optional().describe('Chỉ khi KHÔNG có phuongAn'),
+  tongSauUuDai: z.number().int().nonnegative().optional(),
+  tietKiem: z.number().int().nonnegative().optional(),
+  phuongAn: z.array(PhuongAnZ).max(4).optional().describe('Báo giá so sánh nhiều phương án (2–4); tổng ghi trong từng phương án = buổi chung + buổi riêng'),
   hanUuDai: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   ghiChu: z.array(z.string().max(300)).max(10),
 }).strict();
@@ -1666,7 +1677,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Lưu báo giá vào lead',
         description:
-          'Lưu báo giá Trân vừa làm trên claude.ai vào lead (mỗi lần lưu là một phiên bản mới; bản mới nhất là bản hiệu lực). Dùng SAU KHI làm xong báo giá; nếu chưa rõ lead nào thì HỎI Trân "lưu vào lead nào?" trước khi gọi. Mọi số tiền là số nguyên VND. Server kiểm tra phép tính (giá sau ưu đãi = giá gốc × (100 − %), tổng = cộng các buổi, tiết kiệm = tổng gốc − tổng sau ưu đãi) — sai thì từ chối và chỉ rõ dòng sai. Lưu xong server tự tạo đề xuất (doanh thu dự kiến, ngày cưới, gói, việc nhắc trước hạn ưu đãi) vào hàng chờ để Trân duyệt trong app — tool này KHÔNG sửa ô nào của lead.',
+          'Lưu báo giá Trân vừa làm trên claude.ai vào lead (mỗi lần lưu là một phiên bản mới; bản mới nhất là bản hiệu lực). Dùng SAU KHI làm xong báo giá; nếu chưa rõ lead nào thì HỎI Trân "lưu vào lead nào?" trước khi gọi. Mọi số tiền là số nguyên VND. Server kiểm tra phép tính (giá sau ưu đãi = giá gốc × (100 − %), tổng = cộng các buổi, tiết kiệm = tổng gốc − tổng sau ưu đãi) — sai thì từ chối và chỉ rõ dòng sai. Lưu xong server tự tạo đề xuất (doanh thu dự kiến, ngày cưới, gói, việc nhắc trước hạn ưu đãi) vào hàng chờ để Trân duyệt trong app — tool này KHÔNG sửa ô nào của lead. Báo giá so sánh nhiều phương án: để buổi dùng chung ở buoi, mỗi phương án (phuongAn) ghi buổi riêng + tổng riêng; KHÔNG ghi tổng ở gốc. Khi khách chọn phương án, dùng chon_phuong_an.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
           baoGia: BaoGiaZ,
@@ -1682,7 +1693,10 @@ const mcpHandler = createMcpHandler(
         const baoGiaId = `bg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
         const taoLuc = new Date().toISOString();
         await patchPath(`${dataRoot()}/leads/${l.id}/baoGia`, { [baoGiaId]: { ...bg, taoLuc } });
-        await logActivity(l, `Lưu báo giá: ${formatMoney(bg.tongSauUuDai)} (${bg.buoi.length} buổi)`);
+        const pas = cacPhuongAn(bg);
+        await logActivity(l, pas.length > 1
+          ? `Lưu báo giá ${pas.length} phương án: ${pas.map((p) => `${p.ten} ${formatMoney(p.tongSauUuDai)}`).join(' / ')}`
+          : `Lưu báo giá: ${formatMoney(bg.tongSauUuDai)} (${bg.buoi.length} buổi)`);
         await touch();
 
         const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
@@ -1702,6 +1716,54 @@ const mcpHandler = createMcpHandler(
         return ok({
           baoGiaId,
           deXuatTao: lo.taoMoi.map((p) => ({ id: p.id, type: p.type, field: p.field, newValue: p.newValue, todoText: p.todoText, due: p.due })),
+          deXuatBoQua: lo.boQua.map((b) => ({ lyDo: b.lyDo })),
+        });
+      }
+    );
+
+    server.registerTool(
+      'chon_phuong_an',
+      {
+        title: 'Ghi nhận khách chọn phương án báo giá',
+        description:
+          'Ghi nhận khách đã chọn một phương án trong báo giá nhiều phương án (vd "Option 2"). CHỈ gọi khi Trân nói rõ khách chọn phương án nào. Đánh dấu phương án đã chọn và tạo đề xuất doanh thu dự kiến + gói vào hàng chờ để Trân duyệt — không sửa ô nào của lead. baoGiaId bỏ trống = báo giá mới nhất.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          phuongAn: z.string().min(1).describe('Mã (opt2) hoặc tên phương án (Option 2)'),
+          baoGiaId: z.string().optional(),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const l = findLead(crm, args.lead);
+        const bg = args.baoGiaId
+          ? (Object.hasOwn(l.baoGia || {}, args.baoGiaId) ? { ...(l.baoGia as Record<string, BaoGia>)[args.baoGiaId], id: args.baoGiaId } : null)
+          : baoGiaMoiNhat(l);
+        if (!bg) throw new Error(args.baoGiaId ? `Lead "${l.name}" không có báo giá ${args.baoGiaId}.` : `Lead "${l.name}" chưa có báo giá nào.`);
+        if (!bg.phuongAn || !bg.phuongAn.length) throw new Error('Báo giá này không có phương án để chọn (báo giá một phương án).');
+        const pa = timPhuongAn(bg, args.phuongAn);
+        if (!pa) throw new Error(`Không thấy phương án "${args.phuongAn}". Có: ${bg.phuongAn.map((p) => `${p.ten} (${p.ma})`).join(', ')}.`);
+
+        const chonLuc = new Date().toISOString();
+        await patchPath(`${dataRoot()}/leads/${l.id}/baoGia/${bg.id}`, { phuongAnDaChon: pa.ma, chonLuc });
+        await logActivity(l, `Khách chọn ${pa.ten} (${formatMoney(pa.tongSauUuDai)})`);
+        await touch();
+
+        const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
+        const taoLuc = String(bg.taoLuc || chonLuc);
+        const chung = {
+          reason: `Khách chọn ${pa.ten} trong báo giá ngày ${ddmm(taoLuc.slice(0, 10))}`,
+          evidence: [], nguon: { loai: 'baoGia' as const, baoGiaId: bg.id, taoLuc },
+        };
+        for (const m of deXuatTuPhuongAn(bg, pa.ma)) {
+          if (m.type !== 'field') continue;
+          themDeXuat(lo, l, m, { type: 'field', field: m.field, newValue: m.newValue },
+            { ...chung, type: 'field', field: m.field, oldValue: (l as any)[m.field] ?? null, newValue: m.newValue });
+        }
+        if (Object.keys(lo.patch).length) await patchPath(`${aiRoot()}/proposals`, lo.patch);
+        return ok({
+          baoGiaId: bg.id, phuongAn: pa.ma,
+          deXuatTao: lo.taoMoi.map((p) => ({ id: p.id, field: p.field, newValue: p.newValue })),
           deXuatBoQua: lo.boQua.map((b) => ({ lyDo: b.lyDo })),
         });
       }
@@ -1844,6 +1906,7 @@ const mcpHandler = createMcpHandler(
               '- doNong: "nong" khi khách hỏi cọc/hợp đồng/số tài khoản hoặc chốt ngày; "nguoi" khi im lâu hoặc nói đã chọn bên khác; còn lại "am".',
               '- Không đề xuất chuyển giai đoạn, Won hay Lost. Không đề xuất lại giá trị nằm trong daBo.',
               '- Nếu lead có baoGiaMoiNhat: coi đó là giá đã chào chính thức — ghi vào nhóm Ngân sách (tổng sau ưu đãi, gói từng buổi, hạn ưu đãi). Không đề xuất doanh thu / ngày cưới / gói trùng với báo giá (server đã tự đề xuất).',
+              '- Báo giá có phuongAn mà chưa có phuongAnDaChon: ghi các phương án đã chào (tên + tổng) vào nhóm Ngân sách; không đề xuất doanh thu / gói. Chỉ gọi chon_phuong_an khi Trân nói rõ khách đã chọn.',
               '- KHÔNG tự gọi approve_proposal / reject_proposal — duyệt hay bỏ là việc của Trân.',
               '',
               'Cuối cùng tóm tắt ngắn cho Trân: lead nào nóng lên/nguội đi, lời hứa sắp hoặc đã quá hạn, số đề xuất mới đang chờ duyệt trong app.',
