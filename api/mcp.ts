@@ -232,7 +232,7 @@ type StageId = (typeof STAGES)[number]['id'];
 const STAGE_IDS = STAGES.map((s) => s.id) as StageId[];
 const STAGE_NAME: Record<string, string> = Object.fromEntries(STAGES.map((s) => [s.id, s.name]));
 
-const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'] as const;
+const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'] as const; // CHÉP Ở 3 NƠI: đây, index.html, web/bao-gia.js
 const LEAD_TYPES = ['Lead công ty', 'Lead salehunt'] as const;
 const LOST_REASONS = [
   'Chi phí thấp',
@@ -958,7 +958,7 @@ const BaoGiaZ = z.object({
   tongGiaGoc: z.number().int().nonnegative().optional().describe('Chỉ khi KHÔNG có phuongAn'),
   tongSauUuDai: z.number().int().nonnegative().optional(),
   tietKiem: z.number().int().nonnegative().optional(),
-  phuongAn: z.array(PhuongAnZ).max(4).optional().describe('Báo giá so sánh nhiều phương án (2–4); tổng ghi trong từng phương án = buổi chung + buổi riêng'),
+  phuongAn: z.array(PhuongAnZ).min(2).max(4).optional().describe('Báo giá so sánh nhiều phương án (2–4); tổng ghi trong từng phương án = buổi chung + buổi riêng'),
   hanUuDai: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   ghiChu: z.array(z.string().max(300)).max(10),
 }).strict();
@@ -1743,6 +1743,9 @@ const mcpHandler = createMcpHandler(
         if (!bg.phuongAn || !bg.phuongAn.length) throw new Error('Báo giá này không có phương án để chọn (báo giá một phương án).');
         const pa = timPhuongAn(bg, args.phuongAn);
         if (!pa) throw new Error(`Không thấy phương án "${args.phuongAn}". Có: ${bg.phuongAn.map((p) => `${p.ten} (${p.ma})`).join(', ')}.`);
+        if (bg.phuongAnDaChon === pa.ma) {
+          return say(`Khách đã chọn ${pa.ten} trong báo giá này từ trước — không ghi lại.`);
+        }
 
         const chonLuc = new Date().toISOString();
         await patchPath(`${dataRoot()}/leads/${l.id}/baoGia/${bg.id}`, { phuongAnDaChon: pa.ma, chonLuc });

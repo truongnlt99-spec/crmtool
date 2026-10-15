@@ -168,6 +168,13 @@ try {
   check('doi y: chi 1 de xuat doanh thu dang cho = 67.8tr', d3.length === 1 && d3[0].newValue === 67800000, JSON.stringify(d3));
   const goiCho = (await dsCua('L3')).filter((p) => p.field === 'package' && p.status === 'cho');
   check('doi y opt2 -> opt1: khong con de xuat goi Signature dang cho', !goiCho.some((p) => p.newValue === 'Signature'), JSON.stringify(goiCho));
+  // Chọn lại đúng phương án đang chọn: không ghi thêm log trùng
+  const soLog = Object.keys((await doc('crmDataTest/leads/L3')).activityLog || {}).length;
+  const lai = await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'Option 1' });
+  check('chon lai PA dang chon: bao da chon, khong log trung', !lai.isError && /đã chọn/.test(lai.text) && Object.keys((await doc('crmDataTest/leads/L3')).activityLog || {}).length === soLog, lai.text);
+  // phuongAn rỗng: zod từ chối ngay (không báo "2–4 phương án" khó hiểu)
+  const rong = await callTool('save_quote', { lead: 'L3', baoGia: { ...NHIEU, phuongAn: [] } });
+  check('phuongAn rong -> zod tu choi', rong.isError && /phuongAn/.test(rong.text) && !/2–4 phương án/.test(rong.text), rong.text);
 
   console.log('\n>> get_lead / lead_context');
   const g = await callTool('get_lead', { lead: 'L1' });

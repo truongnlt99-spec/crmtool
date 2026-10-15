@@ -106,7 +106,7 @@ Báo giá **có phương án**:
 - Các phương án xếp **cạnh nhau** (lưới 2 cột máy tính, 1 cột điện thoại); mỗi thẻ: tên + nhãn,
   buổi riêng (dùng lại `veBuoi`), `diemKhacBiet`, **tổng sau ưu đãi** (giá gốc gạch nếu có tiết kiệm),
   nút "Khách chọn phương án này".
-- Phương án đã chọn: viền nổi bật + nhãn **"Khách đã chọn"**; các phương án khác in mờ, ẩn nút chọn.
+- Phương án đã chọn: viền nổi bật + nhãn **"Khách đã chọn"**; các phương án khác in mờ nhưng vẫn có nút chọn (khách đổi ý).
 - Hạn ưu đãi, ghi chú, bản cũ: như hiện tại. Dòng bản cũ hiện tổng: một phương án → tổng; nhiều
   phương án → "x phương án · từ <tổng nhỏ nhất>" (hoặc tổng của phương án đã chọn).
 - `veBaoGia` nhận thêm tuỳ chọn `{ choPhepChon: boolean }`; nút gọi hàm toàn cục

@@ -2543,7 +2543,7 @@ const STAGES = [
 ];
 const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.id, s]));
 
-const PACKAGES = ['Standard','Unique','Signature','HayDay Package','Gói lẻ'];
+const PACKAGES = ['Standard','Unique','Signature','HayDay Package','Gói lẻ']; // CHÉP Ở 3 NƠI: đây, api/mcp.ts (PACKAGES), web/bao-gia.js (PACKAGES) — sửa một chỗ thì sửa cả ba
 const PACKAGE_STYLE = {
   'Standard':       { bg:'var(--slate-soft)',  fg:'var(--slate)'  },
   'Unique':         { bg:'var(--purple-soft)', fg:'var(--purple)' },
@@ -4869,9 +4869,8 @@ function chonPhuongAn(baoGiaId, ma){
   const pa = bg && BaoGia.phuongAnCua(bg, ma);
   if (!pa) return;
   const goi = BaoGia.goiCuoiCua(pa);
-  const dong = [`Doanh thu dự kiến → ${BaoGia.tien(pa.tongSauUuDai)}`];
-  if (goi) dong.push(`Gói dịch vụ → ${goi}`);
-  if (!confirm(`Khách chọn ${pa.ten}?\n\n${dong.join('\n')}`)) return;
+  if (bg.phuongAnDaChon === ma) return;   // đã chọn rồi: không ghi log trùng
+  if (!confirm(BaoGia.noiDungXacNhanChon(pa, lead))) return;
   bg.phuongAnDaChon = ma;
   bg.chonLuc = new Date().toISOString();
   logActivity(lead, `Khách chọn ${pa.ten} (${BaoGia.tien(pa.tongSauUuDai)})`);

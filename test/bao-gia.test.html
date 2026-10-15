@@ -84,6 +84,13 @@ box.innerHTML = B.veBaoGia({ baoGia: { "x');window.__bi=1;('": NHIEU } }, '2026-
 check('id la: khong nut chon', !box.querySelector('[onclick*="chonPhuongAn"]'));
 /* Hàm cho nút chọn */
 check('phuongAnCua + goiCuoiCua', B.phuongAnCua(NHIEU, 'opt2').tongSauUuDai === 86800000 && B.goiCuoiCua(B.phuongAnCua(NHIEU, 'opt2')) === 'Signature' && B.phuongAnCua(NHIEU, 'opt9') === null);
+/* Nội dung hộp xác nhận khi chọn phương án */
+check('xac nhan: doanh thu + goi khop', /Doanh thu dự kiến → 86\.800\.000 đ/.test(B.noiDungXacNhanChon(B.phuongAnCua(NHIEU, 'opt2'), { package: 'Unique' })) && /Gói dịch vụ → Signature/.test(B.noiDungXacNhanChon(B.phuongAnCua(NHIEU, 'opt2'), { package: 'Unique' })));
+{
+  const lech = { ...NHIEU, phuongAn: [{ ...NHIEU.phuongAn[0], buoi: [cuoiPA('Gói Premium full ngày', 46900000)] }, NHIEU.phuongAn[1]] };
+  const txt = B.noiDungXacNhanChon(B.phuongAnCua(lech, 'opt1'), { package: 'Unique' });
+  check('xac nhan: goi khong khop -> noi ro giu nguyen', /Gói dịch vụ giữ nguyên: Unique/.test(txt) && /Gói Premium full ngày/.test(txt), txt);
+}
 check('khopGoi web giong server', B.khopGoi('Gói Unique full ngày') === 'Unique' && B.khopGoi('Combo 2 máy') === null && B.khopGoi('Gói lẻ') === 'Gói lẻ' && B.khopGoi('Gói Signatureplus') === null && B.khopGoi('Gói Lễ cưới full ngày') === null);
 
 /* 7. Chọn phương án trong app: đề xuất từ báo giá đang chờ mà lệch giá trị vừa áp -> phải bỏ */

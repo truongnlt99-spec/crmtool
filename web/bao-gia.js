@@ -48,7 +48,7 @@ function veBuoi(b){
     </div>`;
 }
 
-// CHÉP Ở 2 NƠI: khopGoi + PACKAGES ở đây và api/mcp.ts (khopGoi). Sửa một chỗ thì sửa cả hai.
+// CHÉP: khopGoi ở đây và api/mcp.ts; PACKAGES ở đây, api/mcp.ts và index.html. Sửa một chỗ thì sửa hết.
 const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'];
 const boDau = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
 export function khopGoi(ten){
@@ -72,6 +72,16 @@ export function goiCuoiCua(pa){
  * Sau khi Trân chọn phương án trong app: id các đề xuất doanh thu / gói (nguồn báo giá, đang chờ, của lead này)
  * mà giá trị KHÔNG khớp giá trị vừa áp — phải bỏ, kẻo Trân duyệt nhầm giá trị của phương án cũ.
  */
+/** Nội dung hộp xác nhận khi Trân bấm "Khách chọn phương án này" (nói rõ cả khi gói không đổi được). */
+export function noiDungXacNhanChon(pa, lead){
+  const dong = [`Doanh thu dự kiến → ${tien(pa.tongSauUuDai)}`];
+  const goi = goiCuoiCua(pa);
+  const cuoi = mang(pa.buoi).find(b => b && b.loai === 'cuoi');
+  if (goi) dong.push(`Gói dịch vụ → ${goi}`);
+  else dong.push(`Gói dịch vụ giữ nguyên: ${(lead && lead.package) || '(trống)'}${cuoi ? ` (gói "${cuoi.goi}" không khớp gói nào của app)` : ''}`);
+  return `Khách chọn ${pa.ten}?\n\n${dong.join('\n')}`;
+}
+
 export function deXuatLechSauKhiChon(dsDeXuat, { leadId, revenueExpected, package: goi }){
   const apDung = { revenueExpected, package: goi };
   const bang = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Number(a) === Number(b) : String(a ?? '').trim() === String(b ?? '').trim();
