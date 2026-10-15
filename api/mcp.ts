@@ -870,7 +870,7 @@ export function kiemTraBaoGia(bg: BaoGia): string[] {
 export function khopGoi(ten: string): string | null {
   const chuan = (s: string) => boDauZalo(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
   const t = chuan(ten);
-  return (PACKAGES as readonly string[]).find((p) => { const g = chuan(p); return t === g || t.startsWith(g + ' '); }) || null;
+  return (PACKAGES as readonly string[]).find((p) => { const g = chuan(p); return t === g || (g.length >= 5 && t.startsWith(g + ' ')); }) || null;
 }
 
 export function timPhuongAn(bg: BaoGia, tenHoacMa: string): PhuongAn | null {
@@ -1750,6 +1750,19 @@ const mcpHandler = createMcpHandler(
         await touch();
 
         const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
+        // Khách đổi phương án: đề xuất doanh thu / gói từ báo giá đang chờ mà KHÔNG khớp phương án mới thì bỏ,
+        // kẻo Trân duyệt nhầm giá trị của phương án cũ (quy tắc chống trùng chỉ thay khi có đề xuất mới cùng ô).
+        const moi = Object.fromEntries(deXuatTuPhuongAn(bg, pa.ma).flatMap((m) => (m.type === 'field' ? [[m.field, m.newValue]] : [])));
+        for (const p of lo.cuaLead) {
+          if (p.status !== 'cho' || p.type !== 'field' || p.nguon?.loai !== 'baoGia') continue;
+          if (p.field !== 'revenueExpected' && p.field !== 'package') continue;
+          if (Object.hasOwn(moi, p.field) && giaTriBang(p.newValue, moi[p.field])) continue;
+          lo.patch[`${p.id}/status`] = 'bo';
+          lo.patch[`${p.id}/boLyDo`] = 'Khách đổi phương án';
+          lo.patch[`${p.id}/decidedAt`] = lo.now;
+          p.status = 'bo';
+          p.boLyDo = 'Khách đổi phương án';
+        }
         const taoLuc = String(bg.taoLuc || chonLuc);
         const chung = {
           reason: `Khách chọn ${pa.ten} trong báo giá ngày ${ddmm(taoLuc.slice(0, 10))}`,

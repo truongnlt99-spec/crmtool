@@ -4876,6 +4876,14 @@ function chonPhuongAn(baoGiaId, ma){
   bg.chonLuc = new Date().toISOString();
   logActivity(lead, `Khách chọn ${pa.ten} (${BaoGia.tien(pa.tongSauUuDai)})`);
   if (goi) lead.package = goi;
+  // Đề xuất doanh thu / gói (từ báo giá) đang chờ mà lệch lựa chọn vừa áp -> bỏ, kẻo duyệt nhầm phương án cũ
+  const f = window.__firebase;
+  const lech = BaoGia.deXuatLechSauKhiChon(Object.values(aiDeXuat), { leadId: lead.id, revenueExpected: Number(pa.tongSauUuDai) || 0, package: lead.package });
+  lech.forEach(id => {
+    aiDangDuyet.add(id);
+    f.update(f.refAt(`${f.aiBase()}/proposals/${id}`), { status: 'bo', boLyDo: 'Khách đổi phương án', decidedAt: new Date().toISOString() })
+      .catch(e => { aiDangDuyet.delete(id); console.warn('Không bỏ được đề xuất cũ:', e); });
+  });
   onFieldChange(lead.id, 'revenueExpected', Number(pa.tongSauUuDai) || 0);   // vẽ lại + scheduleSave
   openLead(lead.id);
 }

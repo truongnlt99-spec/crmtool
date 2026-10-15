@@ -84,7 +84,20 @@ box.innerHTML = B.veBaoGia({ baoGia: { "x');window.__bi=1;('": NHIEU } }, '2026-
 check('id la: khong nut chon', !box.querySelector('[onclick*="chonPhuongAn"]'));
 /* Hàm cho nút chọn */
 check('phuongAnCua + goiCuoiCua', B.phuongAnCua(NHIEU, 'opt2').tongSauUuDai === 86800000 && B.goiCuoiCua(B.phuongAnCua(NHIEU, 'opt2')) === 'Signature' && B.phuongAnCua(NHIEU, 'opt9') === null);
-check('khopGoi web giong server', B.khopGoi('Gói Unique full ngày') === 'Unique' && B.khopGoi('Combo 2 máy') === null && B.khopGoi('Gói lẻ') === 'Gói lẻ' && B.khopGoi('Gói Signatureplus') === null);
+check('khopGoi web giong server', B.khopGoi('Gói Unique full ngày') === 'Unique' && B.khopGoi('Combo 2 máy') === null && B.khopGoi('Gói lẻ') === 'Gói lẻ' && B.khopGoi('Gói Signatureplus') === null && B.khopGoi('Gói Lễ cưới full ngày') === null);
+
+/* 7. Chọn phương án trong app: đề xuất từ báo giá đang chờ mà lệch giá trị vừa áp -> phải bỏ */
+const dsDx = [
+  { id: 'f_a', leadId: 'L2', status: 'cho', type: 'field', field: 'revenueExpected', newValue: 86800000, nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_b', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_c', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Unique', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_d', leadId: 'L2', status: 'cho', type: 'field', field: 'weddingDate', newValue: '2026-11-25', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_e', leadId: 'L9', status: 'cho', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_f', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Signature' },
+  { id: 'f_g', leadId: 'L2', status: 'bo', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+];
+check('de xuat lech sau khi chon', JSON.stringify(B.deXuatLechSauKhiChon(dsDx, { leadId: 'L2', revenueExpected: 67800000, package: 'Unique' })) === JSON.stringify(['f_a', 'f_b']),
+  JSON.stringify(B.deXuatLechSauKhiChon && B.deXuatLechSauKhiChon(dsDx, { leadId: 'L2', revenueExpected: 67800000, package: 'Unique' })));
 
 /* 5. Chống XSS */
 box.innerHTML = B.veBaoGia({ baoGia: { x: bg({ taoLuc: 't', tieuDe: XSS, ghiChu: [XSS], buoi: [buoi({ goi: XSS, ekip: [XSS] })] }) } }, '2026-10-15');

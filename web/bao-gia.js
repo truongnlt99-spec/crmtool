@@ -54,7 +54,7 @@ const boDau = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').repl
 export function khopGoi(ten){
   const chuan = s => boDau(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
   const t = chuan(ten);
-  return PACKAGES.find(p => { const g = chuan(p); return t === g || t.startsWith(g + ' '); }) || null;
+  return PACKAGES.find(p => { const g = chuan(p); return t === g || (g.length >= 5 && t.startsWith(g + ' ')); }) || null;
 }
 const ID_OK = /^[A-Za-z0-9_-]{1,80}$/;
 
@@ -66,6 +66,19 @@ export function phuongAnCua(bg, ma){
 export function goiCuoiCua(pa){
   const cuoi = mang(pa && pa.buoi).find(b => b && b.loai === 'cuoi');
   return cuoi ? khopGoi(cuoi.goi) : null;
+}
+
+/**
+ * Sau khi Trân chọn phương án trong app: id các đề xuất doanh thu / gói (nguồn báo giá, đang chờ, của lead này)
+ * mà giá trị KHÔNG khớp giá trị vừa áp — phải bỏ, kẻo Trân duyệt nhầm giá trị của phương án cũ.
+ */
+export function deXuatLechSauKhiChon(dsDeXuat, { leadId, revenueExpected, package: goi }){
+  const apDung = { revenueExpected, package: goi };
+  const bang = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Number(a) === Number(b) : String(a ?? '').trim() === String(b ?? '').trim();
+  return mang(dsDeXuat)
+    .filter(p => p && p.leadId === leadId && p.status === 'cho' && p.type === 'field' && p.nguon && p.nguon.loai === 'baoGia'
+      && (p.field === 'revenueExpected' || p.field === 'package') && !bang(p.newValue, apDung[p.field]))
+    .map(p => p.id);
 }
 const tongCuaBan = b => {
   const pa = mang(b.phuongAn);

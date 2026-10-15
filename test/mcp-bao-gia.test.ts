@@ -166,6 +166,8 @@ try {
   await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'opt1' });
   const d3 = (await dsCua('L3')).filter((p) => p.field === 'revenueExpected' && p.status === 'cho');
   check('doi y: chi 1 de xuat doanh thu dang cho = 67.8tr', d3.length === 1 && d3[0].newValue === 67800000, JSON.stringify(d3));
+  const goiCho = (await dsCua('L3')).filter((p) => p.field === 'package' && p.status === 'cho');
+  check('doi y opt2 -> opt1: khong con de xuat goi Signature dang cho', !goiCho.some((p) => p.newValue === 'Signature'), JSON.stringify(goiCho));
 
   console.log('\n>> get_lead / lead_context');
   const g = await callTool('get_lead', { lead: 'L1' });

@@ -57,6 +57,7 @@ eq('HayDay Package', S.khopGoi('Gói HayDay Package'), 'HayDay Package');
 eq('Gói lẻ', S.khopGoi('Gói lẻ'), 'Gói lẻ');
 eq('ten co hau to -> khop tien to', S.khopGoi('Gói Signature trọn ngày'), 'Signature');
 eq('khong khop tron tu', S.khopGoi('Gói Signatureplus'), null);
+eq('Le cuoi khong khop Goi le', S.khopGoi('Gói Lễ cưới full ngày'), null);
 eq('Combo 2 may chup -> null', S.khopGoi('Combo 2 máy chụp'), null);
 
 console.log('\n>> deXuatTuBaoGia');
