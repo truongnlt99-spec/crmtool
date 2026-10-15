@@ -83,6 +83,7 @@ try {
     leads: {
       L1: { id: 'L1', name: 'Huyền Nguyễn', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' },
       L2: { id: 'L2', name: 'Mai Anh', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' },
+      L3: { id: 'L3', name: 'Đức Minh', stage: 'baogia', package: 'Unique', revenueExpected: 0, ownerUid: 'U', deadline: '2026-12-01', createdAt: '2026-10-01' },
     },
     planRevenue: 1, planLeads: 1,
   }) });
@@ -135,6 +136,45 @@ try {
   const dtCho = ds3.filter((p) => p.field === 'revenueExpected' && p.status === 'cho');
   check('ban moi: 1 de xuat doanh thu dang cho voi tong moi', dtCho.length === 1 && dtCho[0].newValue === moi.tongSauUuDai, JSON.stringify(dtCho));
   check('ban moi: viec nhac khong trung', ds3.filter((p) => p.type === 'todo').length === 1);
+
+  console.log('\n>> bao gia nhieu phuong an');
+  const anHoi = { loai: 'anHoi', ten: 'Lễ ăn hỏi', ngay: '2026-11-24', gio: null, soKhach: null, moTa: null, goi: 'Gói Standard 1 buổi', giaGoc: 20900000, uuDaiPhanTram: 0, giaSauUuDai: 20900000, ekip: [], sanPham: [], quaTang: [] };
+  const cuoiPA = (goi: string, gia: number) => ({ loai: 'cuoi', ten: 'Rước dâu + tiệc', ngay: '2026-11-25', gio: null, soKhach: '75 mâm', moTa: null, goi, giaGoc: gia, uuDaiPhanTram: 0, giaSauUuDai: gia, ekip: [], sanPham: [], quaTang: [] });
+  const NHIEU = { tieuDe: 'So sánh 2 phương án', tenKhach: 'Anh Đức Minh', diaDiem: 'Mipec', hanUuDai: null, ghiChu: [], buoi: [anHoi],
+    phuongAn: [
+      { ma: 'opt1', ten: 'Option 1', nhan: 'Vừa vặn', buoi: [cuoiPA('Gói Unique full ngày', 46900000)], tongGiaGoc: 67800000, tongSauUuDai: 67800000, tietKiem: 0, diemKhacBiet: null },
+      { ma: 'opt2', ten: 'Option 2', nhan: 'Trọn vẹn nhất', buoi: [cuoiPA('Gói Signature full ngày', 65900000)], tongGiaGoc: 86800000, tongSauUuDai: 86800000, tietKiem: 0, diemKhacBiet: 'Ekip 6 người + flycam' },
+    ] };
+  const dsCua = async (leadId: string) => Object.entries((await doc('aiDataTest/proposals')) || {}).map(([id, p]: any) => ({ id, ...p })).filter((p: any) => p.leadId === leadId);
+  const rN = await callTool('save_quote', { lead: 'L3', baoGia: NHIEU });
+  check('luu bao gia 2 phuong an', !rN.isError, rN.text);
+  const dN = await dsCua('L3');
+  check('2 PA: chi de xuat ngay cuoi (khong doanh thu/goi)', dN.length === 1 && dN[0].field === 'weddingDate' && dN[0].newValue === '2026-11-25', JSON.stringify(dN.map((p) => p.field)));
+  const loiChon1PA = await callTool('chon_phuong_an', { lead: 'L1', phuongAn: 'Option 1' });
+  check('chon tren bao gia 1 phuong an -> loi', loiChon1PA.isError && /không có phương án/.test(loiChon1PA.text), loiChon1PA.text);
+  const loiTen = await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'Option 9' });
+  check('ten khong khop -> loi kem danh sach', loiTen.isError && /Option 1/.test(loiTen.text) && /Option 2/.test(loiTen.text), loiTen.text);
+  const c2 = await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'option 2' });
+  check('chon Option 2', !c2.isError && c2.json?.phuongAn === 'opt2', c2.text);
+  const bgL3 = await doc(`crmDataTest/leads/L3/baoGia/${rN.json?.baoGiaId}`);
+  check('ghi phuongAnDaChon + chonLuc', bgL3?.phuongAnDaChon === 'opt2' && typeof bgL3?.chonLuc === 'string');
+  const leadL3 = await doc('crmDataTest/leads/L3');
+  check('chon qua Claude: o lead khong doi', leadL3.revenueExpected === 0 && leadL3.package === 'Unique');
+  const d2 = await dsCua('L3');
+  check('de xuat doanh thu 86.8tr + goi Signature', d2.some((p) => p.field === 'revenueExpected' && p.newValue === 86800000 && p.status === 'cho' && /Khách chọn Option 2/.test(p.reason)) && d2.some((p) => p.field === 'package' && p.newValue === 'Signature'), JSON.stringify(d2.map((p) => [p.field, p.newValue, p.status])));
+  // Review Focus 3: đổi ý -> thay, không chồng
+  await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'opt1' });
+  const d3 = (await dsCua('L3')).filter((p) => p.field === 'revenueExpected' && p.status === 'cho');
+  check('doi y: chi 1 de xuat doanh thu dang cho = 67.8tr', d3.length === 1 && d3[0].newValue === 67800000, JSON.stringify(d3));
+  const goiCho = (await dsCua('L3')).filter((p) => p.field === 'package' && p.status === 'cho');
+  check('doi y opt2 -> opt1: khong con de xuat goi Signature dang cho', !goiCho.some((p) => p.newValue === 'Signature'), JSON.stringify(goiCho));
+  // Chọn lại đúng phương án đang chọn: không ghi thêm log trùng
+  const soLog = Object.keys((await doc('crmDataTest/leads/L3')).activityLog || {}).length;
+  const lai = await callTool('chon_phuong_an', { lead: 'L3', phuongAn: 'Option 1' });
+  check('chon lai PA dang chon: bao da chon, khong log trung', !lai.isError && /đã chọn/.test(lai.text) && Object.keys((await doc('crmDataTest/leads/L3')).activityLog || {}).length === soLog, lai.text);
+  // phuongAn rỗng: zod từ chối ngay (không báo "2–4 phương án" khó hiểu)
+  const rong = await callTool('save_quote', { lead: 'L3', baoGia: { ...NHIEU, phuongAn: [] } });
+  check('phuongAn rong -> zod tu choi', rong.isError && /phuongAn/.test(rong.text) && !/2–4 phương án/.test(rong.text), rong.text);
 
   console.log('\n>> get_lead / lead_context');
   const g = await callTool('get_lead', { lead: 'L1' });

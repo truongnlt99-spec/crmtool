@@ -232,7 +232,7 @@ type StageId = (typeof STAGES)[number]['id'];
 const STAGE_IDS = STAGES.map((s) => s.id) as StageId[];
 const STAGE_NAME: Record<string, string> = Object.fromEntries(STAGES.map((s) => [s.id, s.name]));
 
-const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'] as const;
+const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'] as const; // CHÉP Ở 3 NƠI: đây, index.html, web/bao-gia.js
 const LEAD_TYPES = ['Lead công ty', 'Lead salehunt'] as const;
 const LOST_REASONS = [
   'Chi phí thấp',
@@ -805,54 +805,108 @@ export type BuoiBaoGia = {
   giaGoc: number; uuDaiPhanTram: number; giaSauUuDai: number;
   ekip: string[]; sanPham: string[]; quaTang: string[];
 };
+export type PhuongAn = {
+  ma: string; ten: string; nhan: string | null; buoi: BuoiBaoGia[];
+  tongGiaGoc: number; tongSauUuDai: number; tietKiem: number; diemKhacBiet: string | null;
+};
 export type BaoGia = {
   taoLuc?: string; tieuDe: string; tenKhach: string; diaDiem: string | null;
-  buoi: BuoiBaoGia[]; tongGiaGoc: number; tongSauUuDai: number; tietKiem: number;
+  buoi: BuoiBaoGia[];                         // 1 phương án: mọi buổi; nhiều phương án: buổi dùng chung
+  tongGiaGoc?: number; tongSauUuDai?: number; tietKiem?: number;   // chỉ khi không có phuongAn
+  phuongAn?: PhuongAn[]; phuongAnDaChon?: string; chonLuc?: string;
   hanUuDai: string | null; ghiChu: string[];
 };
 
-const tienVN = (n: number) => Number(n).toLocaleString('vi-VN');
+const tienVN = (n: number | undefined) => Number(n).toLocaleString('vi-VN');
 export const ddmm = (iso: string) => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
 
-/** Lỗi phép tính / ngày của một báo giá; mảng rỗng = hợp lệ. */
+/** Chuẩn hoá: báo giá 1 phương án -> 1 phương án ẩn danh (ma null); nhiều phương án -> buổi chung + riêng. */
+export function cacPhuongAn(bg: BaoGia) {
+  const chung = bg.buoi || [];
+  if (!bg.phuongAn || !bg.phuongAn.length) {
+    return [{ ma: null as string | null, ten: null as string | null, buoi: chung, tongGiaGoc: bg.tongGiaGoc, tongSauUuDai: bg.tongSauUuDai, tietKiem: bg.tietKiem }];
+  }
+  return bg.phuongAn.map((p) => ({ ma: p.ma as string | null, ten: p.ten as string | null, buoi: [...chung, ...(p.buoi || [])], tongGiaGoc: p.tongGiaGoc as number | undefined, tongSauUuDai: p.tongSauUuDai as number | undefined, tietKiem: p.tietKiem as number | undefined }));
+}
+
+/** Lỗi phép tính / ngày / hình dạng của một báo giá; mảng rỗng = hợp lệ. */
 export function kiemTraBaoGia(bg: BaoGia): string[] {
   const loi: string[] = [];
-  bg.buoi.forEach((b, i) => {
-    const nhan = `Buổi ${i + 1} (${b.ten})`;
+  const coPA = !!(bg.phuongAn && bg.phuongAn.length);
+  if (bg.phuongAn && (bg.phuongAn.length < 2 || bg.phuongAn.length > 4)) loi.push('Báo giá nhiều phương án phải có 2–4 phương án');
+  if (coPA) {
+    const ma = bg.phuongAn!.map((p) => p.ma);
+    if (new Set(ma).size !== ma.length) loi.push(`Mã phương án bị trùng: ${ma.join(', ')}`);
+    if (bg.tongGiaGoc != null || bg.tongSauUuDai != null || bg.tietKiem != null) loi.push('Báo giá nhiều phương án không ghi tổng ở gốc — ghi tổng trong từng phương án');
+  } else {
+    if (bg.tongGiaGoc == null || bg.tongSauUuDai == null || bg.tietKiem == null) loi.push('Thiếu tổng giá gốc / tổng sau ưu đãi / tiết kiệm');
+    if (!(bg.buoi || []).length) loi.push('Báo giá cần ít nhất một buổi');
+  }
+  const kiemBuoi = (b: BuoiBaoGia, nhan: string) => {
     const dung = Math.round((b.giaGoc * (100 - b.uuDaiPhanTram)) / 100 / 1000) * 1000;
-    if (Math.abs(dung - b.giaSauUuDai) > 1000) {
-      loi.push(`${nhan}: ${tienVN(b.giaGoc)} × ${100 - b.uuDaiPhanTram}% = ${tienVN(dung)}, không phải ${tienVN(b.giaSauUuDai)}`);
-    }
+    if (Math.abs(dung - b.giaSauUuDai) > 1000) loi.push(`${nhan}: ${tienVN(b.giaGoc)} × ${100 - b.uuDaiPhanTram}% = ${tienVN(dung)}, không phải ${tienVN(b.giaSauUuDai)}`);
     if (b.ngay && kiemTraGiaTriO('weddingDate', b.ngay)) loi.push(`${nhan}: ngày ${b.ngay} không có thật`);
-  });
-  const tongGoc = bg.buoi.reduce((s, b) => s + b.giaGoc, 0);
-  const tongSau = bg.buoi.reduce((s, b) => s + b.giaSauUuDai, 0);
-  if (tongGoc !== bg.tongGiaGoc) loi.push(`Tổng giá gốc phải là ${tienVN(tongGoc)} (cộng các buổi), không phải ${tienVN(bg.tongGiaGoc)}`);
-  if (tongSau !== bg.tongSauUuDai) loi.push(`Tổng sau ưu đãi phải là ${tienVN(tongSau)} (cộng các buổi), không phải ${tienVN(bg.tongSauUuDai)}`);
-  if (bg.tietKiem !== bg.tongGiaGoc - bg.tongSauUuDai) loi.push(`Tiết kiệm phải là ${tienVN(bg.tongGiaGoc - bg.tongSauUuDai)}, không phải ${tienVN(bg.tietKiem)}`);
+  };
+  (bg.buoi || []).forEach((b, i) => kiemBuoi(b, `Buổi ${i + 1} (${b.ten})`));
+  for (const p of bg.phuongAn || []) (p.buoi || []).forEach((b, i) => kiemBuoi(b, `${p.ten} · Buổi ${i + 1} (${b.ten})`));
+  for (const pa of cacPhuongAn(bg)) {
+    if (pa.tongGiaGoc == null || pa.tongSauUuDai == null || pa.tietKiem == null) continue;
+    const t = pa.ten ? `${pa.ten}: ` : '';
+    const tongGoc = pa.buoi.reduce((s, b) => s + b.giaGoc, 0);
+    const tongSau = pa.buoi.reduce((s, b) => s + b.giaSauUuDai, 0);
+    if (tongGoc !== pa.tongGiaGoc) loi.push(`${t}Tổng giá gốc phải là ${tienVN(tongGoc)} (cộng các buổi), không phải ${tienVN(pa.tongGiaGoc)}`);
+    if (tongSau !== pa.tongSauUuDai) loi.push(`${t}Tổng sau ưu đãi phải là ${tienVN(tongSau)} (cộng các buổi), không phải ${tienVN(pa.tongSauUuDai)}`);
+    if (pa.tietKiem !== pa.tongGiaGoc - pa.tongSauUuDai) loi.push(`${t}Tiết kiệm phải là ${tienVN(pa.tongGiaGoc - pa.tongSauUuDai)}, không phải ${tienVN(pa.tietKiem)}`);
+    if (pa.buoi.filter((b) => b.loai === 'cuoi').length > 1) loi.push(`${t}Chỉ được một buổi loại "cuoi" (đám cưới)`);
+  }
   if (bg.hanUuDai && kiemTraGiaTriO('weddingDate', bg.hanUuDai)) loi.push(`Hạn ưu đãi ${bg.hanUuDai} không có thật`);
-  if (bg.buoi.filter((b) => b.loai === 'cuoi').length > 1) loi.push('Chỉ được một buổi loại "cuoi" (đám cưới)');
   return loi;
 }
 
-/** Tên gói trong báo giá -> gói của app (PACKAGES), hoặc null nếu không khớp hẳn. */
+/**
+ * Tên gói trong báo giá -> gói của app; khớp tiền tố trọn từ ("Gói Unique full ngày" -> Unique).
+ * CHÉP Ở 2 NƠI: đây và web/bao-gia.js (khopGoi). Sửa một chỗ thì sửa cả hai.
+ */
 export function khopGoi(ten: string): string | null {
   const chuan = (s: string) => boDauZalo(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
   const t = chuan(ten);
-  return (PACKAGES as readonly string[]).find((p) => chuan(p) === t) || null;
+  return (PACKAGES as readonly string[]).find((p) => { const g = chuan(p); return t === g || (g.length >= 5 && t.startsWith(g + ' ')); }) || null;
+}
+
+export function timPhuongAn(bg: BaoGia, tenHoacMa: string): PhuongAn | null {
+  const q = boDauZalo(tenHoacMa).replace(/\s+/g, ' ');
+  return (bg.phuongAn || []).find((p) => p.ma === tenHoacMa || boDauZalo(p.ten).replace(/\s+/g, ' ') === q) || null;
 }
 
 export type MucDeXuatBaoGia =
   | { type: 'field'; field: 'revenueExpected' | 'weddingDate' | 'package'; newValue: string | number }
   | { type: 'todo'; huaId: string; todoText: string; due: string };
 
-/** Đề xuất sinh từ một báo giá: doanh thu, ngày cưới, gói, việc nhắc trước hạn ưu đãi 2 ngày. */
-export function deXuatTuBaoGia(bg: BaoGia, homNay: string, leadId: string): MucDeXuatBaoGia[] {
-  const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: bg.tongSauUuDai }];
-  const cuoi = bg.buoi.find((b) => b.loai === 'cuoi');
-  if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
+/** Đề xuất khi khách chọn một phương án: doanh thu = tổng của phương án, gói = gói buổi cưới (nếu khớp). */
+export function deXuatTuPhuongAn(bg: BaoGia, ma: string): MucDeXuatBaoGia[] {
+  const pa = cacPhuongAn(bg).find((p) => p.ma === ma);
+  if (!pa || pa.tongSauUuDai == null) return [];
+  const ds: MucDeXuatBaoGia[] = [{ type: 'field', field: 'revenueExpected', newValue: pa.tongSauUuDai }];
+  const cuoi = pa.buoi.find((b) => b.loai === 'cuoi');
   const goi = cuoi ? khopGoi(cuoi.goi) : null;
   if (goi) ds.push({ type: 'field', field: 'package', newValue: goi });
+  return ds;
+}
+
+/** Đề xuất khi lưu báo giá. Một phương án: doanh thu, ngày cưới, gói, việc nhắc. Nhiều phương án: chỉ ngày cưới (nếu mọi phương án cùng ngày) + việc nhắc. */
+export function deXuatTuBaoGia(bg: BaoGia, homNay: string, leadId: string): MucDeXuatBaoGia[] {
+  const ds: MucDeXuatBaoGia[] = [];
+  const pas = cacPhuongAn(bg);
+  if (pas.length === 1 && pas[0].ma === null) {
+    ds.push({ type: 'field', field: 'revenueExpected', newValue: pas[0].tongSauUuDai as number });
+    const cuoi = pas[0].buoi.find((b) => b.loai === 'cuoi');
+    if (cuoi?.ngay) ds.push({ type: 'field', field: 'weddingDate', newValue: cuoi.ngay });
+    const goi = cuoi ? khopGoi(cuoi.goi) : null;
+    if (goi) ds.push({ type: 'field', field: 'package', newValue: goi });
+  } else {
+    const ngays = pas.map((p) => p.buoi.find((b) => b.loai === 'cuoi')?.ngay || null);
+    if (ngays.every((n) => n && n === ngays[0])) ds.push({ type: 'field', field: 'weddingDate', newValue: ngays[0] as string });
+  }
   if (bg.hanUuDai && bg.hanUuDai >= homNay) {
     const truoc2 = congNgay(bg.hanUuDai, -2);
     ds.push({
@@ -886,14 +940,25 @@ const BuoiBaoGiaZ = z.object({
   giaSauUuDai: z.number().int().nonnegative(),
   ekip: DsChuoiZ, sanPham: DsChuoiZ, quaTang: DsChuoiZ,
 }).strict();
+const PhuongAnZ = z.object({
+  ma: z.string().regex(/^opt[1-9]$/).describe('opt1, opt2, …'),
+  ten: z.string().min(1).max(60),
+  nhan: z.string().max(60).nullable(),
+  buoi: z.array(BuoiBaoGiaZ).min(1).max(6).describe('Buổi RIÊNG của phương án (buổi dùng chung để ở baoGia.buoi)'),
+  tongGiaGoc: z.number().int().nonnegative(),
+  tongSauUuDai: z.number().int().nonnegative(),
+  tietKiem: z.number().int().nonnegative(),
+  diemKhacBiet: z.string().max(600).nullable(),
+}).strict();
 const BaoGiaZ = z.object({
   tieuDe: z.string().min(1).max(200),
   tenKhach: z.string().min(1).max(100),
   diaDiem: z.string().max(100).nullable(),
-  buoi: z.array(BuoiBaoGiaZ).min(1).max(6),
-  tongGiaGoc: z.number().int().nonnegative(),
-  tongSauUuDai: z.number().int().nonnegative(),
-  tietKiem: z.number().int().nonnegative(),
+  buoi: z.array(BuoiBaoGiaZ).max(6).describe('Một phương án: mọi buổi. Nhiều phương án: chỉ buổi DÙNG CHUNG (có thể rỗng)'),
+  tongGiaGoc: z.number().int().nonnegative().optional().describe('Chỉ khi KHÔNG có phuongAn'),
+  tongSauUuDai: z.number().int().nonnegative().optional(),
+  tietKiem: z.number().int().nonnegative().optional(),
+  phuongAn: z.array(PhuongAnZ).min(2).max(4).optional().describe('Báo giá so sánh nhiều phương án (2–4); tổng ghi trong từng phương án = buổi chung + buổi riêng'),
   hanUuDai: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   ghiChu: z.array(z.string().max(300)).max(10),
 }).strict();
@@ -1612,7 +1677,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Lưu báo giá vào lead',
         description:
-          'Lưu báo giá Trân vừa làm trên claude.ai vào lead (mỗi lần lưu là một phiên bản mới; bản mới nhất là bản hiệu lực). Dùng SAU KHI làm xong báo giá; nếu chưa rõ lead nào thì HỎI Trân "lưu vào lead nào?" trước khi gọi. Mọi số tiền là số nguyên VND. Server kiểm tra phép tính (giá sau ưu đãi = giá gốc × (100 − %), tổng = cộng các buổi, tiết kiệm = tổng gốc − tổng sau ưu đãi) — sai thì từ chối và chỉ rõ dòng sai. Lưu xong server tự tạo đề xuất (doanh thu dự kiến, ngày cưới, gói, việc nhắc trước hạn ưu đãi) vào hàng chờ để Trân duyệt trong app — tool này KHÔNG sửa ô nào của lead.',
+          'Lưu báo giá Trân vừa làm trên claude.ai vào lead (mỗi lần lưu là một phiên bản mới; bản mới nhất là bản hiệu lực). Dùng SAU KHI làm xong báo giá; nếu chưa rõ lead nào thì HỎI Trân "lưu vào lead nào?" trước khi gọi. Mọi số tiền là số nguyên VND. Server kiểm tra phép tính (giá sau ưu đãi = giá gốc × (100 − %), tổng = cộng các buổi, tiết kiệm = tổng gốc − tổng sau ưu đãi) — sai thì từ chối và chỉ rõ dòng sai. Lưu xong server tự tạo đề xuất (doanh thu dự kiến, ngày cưới, gói, việc nhắc trước hạn ưu đãi) vào hàng chờ để Trân duyệt trong app — tool này KHÔNG sửa ô nào của lead. Báo giá so sánh nhiều phương án: để buổi dùng chung ở buoi, mỗi phương án (phuongAn) ghi buổi riêng + tổng riêng; KHÔNG ghi tổng ở gốc. Khi khách chọn phương án, dùng chon_phuong_an.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
           baoGia: BaoGiaZ,
@@ -1628,7 +1693,10 @@ const mcpHandler = createMcpHandler(
         const baoGiaId = `bg_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
         const taoLuc = new Date().toISOString();
         await patchPath(`${dataRoot()}/leads/${l.id}/baoGia`, { [baoGiaId]: { ...bg, taoLuc } });
-        await logActivity(l, `Lưu báo giá: ${formatMoney(bg.tongSauUuDai)} (${bg.buoi.length} buổi)`);
+        const pas = cacPhuongAn(bg);
+        await logActivity(l, pas.length > 1
+          ? `Lưu báo giá ${pas.length} phương án: ${pas.map((p) => `${p.ten} ${formatMoney(p.tongSauUuDai)}`).join(' / ')}`
+          : `Lưu báo giá: ${formatMoney(bg.tongSauUuDai)} (${bg.buoi.length} buổi)`);
         await touch();
 
         const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
@@ -1648,6 +1716,70 @@ const mcpHandler = createMcpHandler(
         return ok({
           baoGiaId,
           deXuatTao: lo.taoMoi.map((p) => ({ id: p.id, type: p.type, field: p.field, newValue: p.newValue, todoText: p.todoText, due: p.due })),
+          deXuatBoQua: lo.boQua.map((b) => ({ lyDo: b.lyDo })),
+        });
+      }
+    );
+
+    server.registerTool(
+      'chon_phuong_an',
+      {
+        title: 'Ghi nhận khách chọn phương án báo giá',
+        description:
+          'Ghi nhận khách đã chọn một phương án trong báo giá nhiều phương án (vd "Option 2"). CHỈ gọi khi Trân nói rõ khách chọn phương án nào. Đánh dấu phương án đã chọn và tạo đề xuất doanh thu dự kiến + gói vào hàng chờ để Trân duyệt — không sửa ô nào của lead. baoGiaId bỏ trống = báo giá mới nhất.',
+        inputSchema: z.object({
+          lead: z.string().describe('leadId hoặc tên khách'),
+          phuongAn: z.string().min(1).describe('Mã (opt2) hoặc tên phương án (Option 2)'),
+          baoGiaId: z.string().optional(),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const l = findLead(crm, args.lead);
+        const bg = args.baoGiaId
+          ? (Object.hasOwn(l.baoGia || {}, args.baoGiaId) ? { ...(l.baoGia as Record<string, BaoGia>)[args.baoGiaId], id: args.baoGiaId } : null)
+          : baoGiaMoiNhat(l);
+        if (!bg) throw new Error(args.baoGiaId ? `Lead "${l.name}" không có báo giá ${args.baoGiaId}.` : `Lead "${l.name}" chưa có báo giá nào.`);
+        if (!bg.phuongAn || !bg.phuongAn.length) throw new Error('Báo giá này không có phương án để chọn (báo giá một phương án).');
+        const pa = timPhuongAn(bg, args.phuongAn);
+        if (!pa) throw new Error(`Không thấy phương án "${args.phuongAn}". Có: ${bg.phuongAn.map((p) => `${p.ten} (${p.ma})`).join(', ')}.`);
+        if (bg.phuongAnDaChon === pa.ma) {
+          return say(`Khách đã chọn ${pa.ten} trong báo giá này từ trước — không ghi lại.`);
+        }
+
+        const chonLuc = new Date().toISOString();
+        await patchPath(`${dataRoot()}/leads/${l.id}/baoGia/${bg.id}`, { phuongAnDaChon: pa.ma, chonLuc });
+        await logActivity(l, `Khách chọn ${pa.ten} (${formatMoney(pa.tongSauUuDai)})`);
+        await touch();
+
+        const lo = moLoDeXuat((await napDeXuat()).filter((p) => p.leadId === l.id));
+        // Khách đổi phương án: đề xuất doanh thu / gói từ báo giá đang chờ mà KHÔNG khớp phương án mới thì bỏ,
+        // kẻo Trân duyệt nhầm giá trị của phương án cũ (quy tắc chống trùng chỉ thay khi có đề xuất mới cùng ô).
+        const moi = Object.fromEntries(deXuatTuPhuongAn(bg, pa.ma).flatMap((m) => (m.type === 'field' ? [[m.field, m.newValue]] : [])));
+        for (const p of lo.cuaLead) {
+          if (p.status !== 'cho' || p.type !== 'field' || p.nguon?.loai !== 'baoGia') continue;
+          if (p.field !== 'revenueExpected' && p.field !== 'package') continue;
+          if (Object.hasOwn(moi, p.field) && giaTriBang(p.newValue, moi[p.field])) continue;
+          lo.patch[`${p.id}/status`] = 'bo';
+          lo.patch[`${p.id}/boLyDo`] = 'Khách đổi phương án';
+          lo.patch[`${p.id}/decidedAt`] = lo.now;
+          p.status = 'bo';
+          p.boLyDo = 'Khách đổi phương án';
+        }
+        const taoLuc = String(bg.taoLuc || chonLuc);
+        const chung = {
+          reason: `Khách chọn ${pa.ten} trong báo giá ngày ${ddmm(taoLuc.slice(0, 10))}`,
+          evidence: [], nguon: { loai: 'baoGia' as const, baoGiaId: bg.id, taoLuc },
+        };
+        for (const m of deXuatTuPhuongAn(bg, pa.ma)) {
+          if (m.type !== 'field') continue;
+          themDeXuat(lo, l, m, { type: 'field', field: m.field, newValue: m.newValue },
+            { ...chung, type: 'field', field: m.field, oldValue: (l as any)[m.field] ?? null, newValue: m.newValue });
+        }
+        if (Object.keys(lo.patch).length) await patchPath(`${aiRoot()}/proposals`, lo.patch);
+        return ok({
+          baoGiaId: bg.id, phuongAn: pa.ma,
+          deXuatTao: lo.taoMoi.map((p) => ({ id: p.id, field: p.field, newValue: p.newValue })),
           deXuatBoQua: lo.boQua.map((b) => ({ lyDo: b.lyDo })),
         });
       }
@@ -1790,6 +1922,7 @@ const mcpHandler = createMcpHandler(
               '- doNong: "nong" khi khách hỏi cọc/hợp đồng/số tài khoản hoặc chốt ngày; "nguoi" khi im lâu hoặc nói đã chọn bên khác; còn lại "am".',
               '- Không đề xuất chuyển giai đoạn, Won hay Lost. Không đề xuất lại giá trị nằm trong daBo.',
               '- Nếu lead có baoGiaMoiNhat: coi đó là giá đã chào chính thức — ghi vào nhóm Ngân sách (tổng sau ưu đãi, gói từng buổi, hạn ưu đãi). Không đề xuất doanh thu / ngày cưới / gói trùng với báo giá (server đã tự đề xuất).',
+              '- Báo giá có phuongAn mà chưa có phuongAnDaChon: ghi các phương án đã chào (tên + tổng) vào nhóm Ngân sách; không đề xuất doanh thu / gói. Chỉ gọi chon_phuong_an khi Trân nói rõ khách đã chọn.',
               '- KHÔNG tự gọi approve_proposal / reject_proposal — duyệt hay bỏ là việc của Trân.',
               '',
               'Cuối cùng tóm tắt ngắn cho Trân: lead nào nóng lên/nguội đi, lời hứa sắp hoặc đã quá hạn, số đề xuất mới đang chờ duyệt trong app.',

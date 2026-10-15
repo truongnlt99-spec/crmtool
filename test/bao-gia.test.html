@@ -52,6 +52,60 @@ check('han het: da het han', !!box.querySelector('.bg-han.het') && /đã hết h
 box.innerHTML = B.veBaoGia({ baoGia: { x: { tieuDe: 'T', tenKhach: 'K', buoi: [{ loai: 'cuoi', ten: 'Cưới', goi: 'G', giaGoc: 1000, uuDaiPhanTram: 0, giaSauUuDai: 1000 }], tongGiaGoc: 1000, tongSauUuDai: 1000, tietKiem: 0, taoLuc: 't' } } }, '2026-10-15');
 check('thieu truong khong vo', box.querySelectorAll('.bg-buoi').length === 1 && !/undefined|NaN/.test(box.innerText), box.innerText);
 
+/* 6. Nhiều phương án */
+const cuoiPA = (goi, gia) => buoi({ ten: 'Rước dâu + tiệc', ngay: '2026-11-25', goi, giaGoc: gia, uuDaiPhanTram: 0, giaSauUuDai: gia });
+const NHIEU = { taoLuc: '2026-10-15T03:00:00.000Z', tieuDe: 'So sánh 2 phương án', tenKhach: 'Anh Đức Minh', diaDiem: 'Mipec', hanUuDai: null, ghiChu: [],
+  buoi: [buoi({ loai: 'anHoi', ten: 'Lễ ăn hỏi', ngay: '2026-11-24', goi: 'Gói Standard 1 buổi', giaGoc: 20900000, uuDaiPhanTram: 0, giaSauUuDai: 20900000 })],
+  phuongAn: [
+    { ma: 'opt1', ten: 'Option 1', nhan: 'Vừa vặn', buoi: [cuoiPA('Gói Unique full ngày', 46900000)], tongGiaGoc: 67800000, tongSauUuDai: 67800000, tietKiem: 0, diemKhacBiet: 'Unique vừa vặn' },
+    { ma: 'opt2', ten: 'Option 2', nhan: 'Trọn vẹn nhất', buoi: [cuoiPA('Gói Signature full ngày', 65900000)], tongGiaGoc: 86800000, tongSauUuDai: 86800000, tietKiem: 0, diemKhacBiet: XSS },
+  ] };
+box.innerHTML = B.veBaoGia({ baoGia: { bg_n: NHIEU } }, '2026-10-15', { choPhepChon: true });
+check('buoi chung mot lan', box.querySelectorAll('.bg-chung .bg-buoi').length === 1 && /Giống nhau ở mọi phương án/.test(box.innerText));
+check('2 the phuong an', box.querySelectorAll('.bg-pa').length === 2);
+check('tong tung phuong an', /67\.800\.000 đ/.test(box.querySelectorAll('.bg-pa')[0].innerText) && /86\.800\.000 đ/.test(box.querySelectorAll('.bg-pa')[1].innerText));
+check('nut chon tren ca 2', box.querySelectorAll('.bg-pa [onclick*="chonPhuongAn(\'bg_n\',\'opt"]').length === 2);
+check('diem khac biet escape', !box.querySelector('img') && box.innerText.includes('<img src=x'));
+box.innerHTML = B.veBaoGia({ baoGia: { bg_n: NHIEU } }, '2026-10-15');
+check('khong choPhepChon -> khong nut', !box.querySelector('[onclick*="chonPhuongAn"]'));
+/* Review Focus 5: đã chọn */
+box.innerHTML = B.veBaoGia({ baoGia: { bg_n: { ...NHIEU, phuongAnDaChon: 'opt2' } } }, '2026-10-15', { choPhepChon: true });
+const pas = box.querySelectorAll('.bg-pa');
+check('da chon: nhan + an nut o PA da chon', pas[1].classList.contains('da-chon') && /Khách đã chọn/.test(pas[1].innerText) && !pas[1].querySelector('[onclick]'));
+check('da chon: PA kia mo nhung van chon duoc', pas[0].classList.contains('mo') && !!pas[0].querySelector('[onclick*="opt1"]'));
+/* Review Focus 1: buổi chung rỗng (Firebase bỏ) */
+box.innerHTML = B.veBaoGia({ baoGia: { bg_n: { ...NHIEU, buoi: undefined } } }, '2026-10-15', { choPhepChon: true });
+check('khong buoi chung: khong vo, khong tieu de chung', box.querySelectorAll('.bg-pa').length === 2 && !box.querySelector('.bg-chung'));
+/* Bản cũ nhiều phương án */
+box.innerHTML = B.veBaoGia({ baoGia: { bg_n: NHIEU, bg_moi: { ...NHIEU, taoLuc: '2026-10-16T03:00:00.000Z' } } }, '2026-10-17');
+check('ban cu nhieu PA: tu tong nho nhat', /2 phương án · từ 67\.800\.000 đ/.test(box.querySelector('.bg-ban-cu').textContent), box.querySelector('.bg-ban-cu').textContent);
+/* Id / ma lạ không vào onclick */
+box.innerHTML = B.veBaoGia({ baoGia: { "x');window.__bi=1;('": NHIEU } }, '2026-10-15', { choPhepChon: true });
+check('id la: khong nut chon', !box.querySelector('[onclick*="chonPhuongAn"]'));
+/* Hàm cho nút chọn */
+check('phuongAnCua + goiCuoiCua', B.phuongAnCua(NHIEU, 'opt2').tongSauUuDai === 86800000 && B.goiCuoiCua(B.phuongAnCua(NHIEU, 'opt2')) === 'Signature' && B.phuongAnCua(NHIEU, 'opt9') === null);
+/* Nội dung hộp xác nhận khi chọn phương án */
+check('xac nhan: doanh thu + goi khop', /Doanh thu dự kiến → 86\.800\.000 đ/.test(B.noiDungXacNhanChon(B.phuongAnCua(NHIEU, 'opt2'), { package: 'Unique' })) && /Gói dịch vụ → Signature/.test(B.noiDungXacNhanChon(B.phuongAnCua(NHIEU, 'opt2'), { package: 'Unique' })));
+{
+  const lech = { ...NHIEU, phuongAn: [{ ...NHIEU.phuongAn[0], buoi: [cuoiPA('Gói Premium full ngày', 46900000)] }, NHIEU.phuongAn[1]] };
+  const txt = B.noiDungXacNhanChon(B.phuongAnCua(lech, 'opt1'), { package: 'Unique' });
+  check('xac nhan: goi khong khop -> noi ro giu nguyen', /Gói dịch vụ giữ nguyên: Unique/.test(txt) && /Gói Premium full ngày/.test(txt), txt);
+}
+check('khopGoi web giong server', B.khopGoi('Gói Unique full ngày') === 'Unique' && B.khopGoi('Combo 2 máy') === null && B.khopGoi('Gói lẻ') === 'Gói lẻ' && B.khopGoi('Gói Signatureplus') === null && B.khopGoi('Gói Lễ cưới full ngày') === null);
+
+/* 7. Chọn phương án trong app: đề xuất từ báo giá đang chờ mà lệch giá trị vừa áp -> phải bỏ */
+const dsDx = [
+  { id: 'f_a', leadId: 'L2', status: 'cho', type: 'field', field: 'revenueExpected', newValue: 86800000, nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_b', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_c', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Unique', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_d', leadId: 'L2', status: 'cho', type: 'field', field: 'weddingDate', newValue: '2026-11-25', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_e', leadId: 'L9', status: 'cho', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+  { id: 'f_f', leadId: 'L2', status: 'cho', type: 'field', field: 'package', newValue: 'Signature' },
+  { id: 'f_g', leadId: 'L2', status: 'bo', type: 'field', field: 'package', newValue: 'Signature', nguon: { loai: 'baoGia', baoGiaId: 'bg_n' } },
+];
+check('de xuat lech sau khi chon', JSON.stringify(B.deXuatLechSauKhiChon(dsDx, { leadId: 'L2', revenueExpected: 67800000, package: 'Unique' })) === JSON.stringify(['f_a', 'f_b']),
+  JSON.stringify(B.deXuatLechSauKhiChon && B.deXuatLechSauKhiChon(dsDx, { leadId: 'L2', revenueExpected: 67800000, package: 'Unique' })));
+
 /* 5. Chống XSS */
 box.innerHTML = B.veBaoGia({ baoGia: { x: bg({ taoLuc: 't', tieuDe: XSS, ghiChu: [XSS], buoi: [buoi({ goi: XSS, ekip: [XSS] })] }) } }, '2026-10-15');
 check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 300));

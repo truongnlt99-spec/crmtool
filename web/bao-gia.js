@@ -48,7 +48,75 @@ function veBuoi(b){
     </div>`;
 }
 
-export function veBaoGia(lead, homNay){
+// CHÉP: khopGoi ở đây và api/mcp.ts; PACKAGES ở đây, api/mcp.ts và index.html. Sửa một chỗ thì sửa hết.
+const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'];
+const boDau = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase().trim();
+export function khopGoi(ten){
+  const chuan = s => boDau(s).replace(/^goi\s+/, '').replace(/\s+/g, ' ').trim();
+  const t = chuan(ten);
+  return PACKAGES.find(p => { const g = chuan(p); return t === g || (g.length >= 5 && t.startsWith(g + ' ')); }) || null;
+}
+const ID_OK = /^[A-Za-z0-9_-]{1,80}$/;
+
+/** Phương án `ma` của báo giá, kèm buổi = buổi chung + buổi riêng. */
+export function phuongAnCua(bg, ma){
+  const p = mang(bg && bg.phuongAn).find(x => x && x.ma === ma);
+  return p ? { ...p, buoi: [...mang(bg.buoi), ...mang(p.buoi)] } : null;
+}
+export function goiCuoiCua(pa){
+  const cuoi = mang(pa && pa.buoi).find(b => b && b.loai === 'cuoi');
+  return cuoi ? khopGoi(cuoi.goi) : null;
+}
+
+/**
+ * Sau khi Trân chọn phương án trong app: id các đề xuất doanh thu / gói (nguồn báo giá, đang chờ, của lead này)
+ * mà giá trị KHÔNG khớp giá trị vừa áp — phải bỏ, kẻo Trân duyệt nhầm giá trị của phương án cũ.
+ */
+/** Nội dung hộp xác nhận khi Trân bấm "Khách chọn phương án này" (nói rõ cả khi gói không đổi được). */
+export function noiDungXacNhanChon(pa, lead){
+  const dong = [`Doanh thu dự kiến → ${tien(pa.tongSauUuDai)}`];
+  const goi = goiCuoiCua(pa);
+  const cuoi = mang(pa.buoi).find(b => b && b.loai === 'cuoi');
+  if (goi) dong.push(`Gói dịch vụ → ${goi}`);
+  else dong.push(`Gói dịch vụ giữ nguyên: ${(lead && lead.package) || '(trống)'}${cuoi ? ` (gói "${cuoi.goi}" không khớp gói nào của app)` : ''}`);
+  return `Khách chọn ${pa.ten}?\n\n${dong.join('\n')}`;
+}
+
+export function deXuatLechSauKhiChon(dsDeXuat, { leadId, revenueExpected, package: goi }){
+  const apDung = { revenueExpected, package: goi };
+  const bang = (a, b) => (typeof a === 'number' || typeof b === 'number') ? Number(a) === Number(b) : String(a ?? '').trim() === String(b ?? '').trim();
+  return mang(dsDeXuat)
+    .filter(p => p && p.leadId === leadId && p.status === 'cho' && p.type === 'field' && p.nguon && p.nguon.loai === 'baoGia'
+      && (p.field === 'revenueExpected' || p.field === 'package') && !bang(p.newValue, apDung[p.field]))
+    .map(p => p.id);
+}
+const tongCuaBan = b => {
+  const pa = mang(b.phuongAn);
+  if (!pa.length) return tien(b.tongSauUuDai);
+  const chon = pa.find(p => p.ma === b.phuongAnDaChon);
+  return chon ? `${chon.ten} · ${tien(chon.tongSauUuDai)}` : `${pa.length} phương án · từ ${tien(Math.min(...pa.map(p => Number(p.tongSauUuDai) || 0)))}`;
+};
+
+function veTong(tongGiaGoc, tongSauUuDai, tietKiem){
+  return `<div class="bg-tong"><span class="bg-nhan">Tổng</span>${tietKiem ? `<s>${esc(tien(tongGiaGoc))}</s>` : ''}<b>${esc(tien(tongSauUuDai))}</b>${tietKiem ? `<span class="bg-tiet-kiem">Tiết kiệm ${esc(tien(tietKiem))}</span>` : ''}</div>`;
+}
+
+function vePhuongAn(bg, p, choPhepChon){
+  const daChon = bg.phuongAnDaChon === p.ma;
+  const coChon = !!bg.phuongAnDaChon;
+  const nut = choPhepChon && !daChon && ID_OK.test(String(bg.id)) && ID_OK.test(String(p.ma))
+    ? `<button type="button" class="btn btn-secondary btn-sm bg-chon" onclick="chonPhuongAn('${bg.id}','${p.ma}')">Khách chọn phương án này</button>` : '';
+  return `
+    <div class="bg-pa${daChon ? ' da-chon' : ''}${coChon && !daChon ? ' mo' : ''}">
+      <div class="bg-pa-dau"><b>${esc(p.ten)}</b>${p.nhan ? ` <span class="bg-pa-nhan">${esc(p.nhan)}</span>` : ''}${daChon ? ' <span class="bg-da-chon">Khách đã chọn</span>' : ''}</div>
+      ${mang(p.buoi).map(veBuoi).join('')}
+      ${p.diemKhacBiet ? `<div class="bg-pa-khac">${esc(p.diemKhacBiet)}</div>` : ''}
+      ${veTong(p.tongGiaGoc, p.tongSauUuDai, p.tietKiem)}
+      ${nut}
+    </div>`;
+}
+
+export function veBaoGia(lead, homNay, opts = {}){
   const ds = dsBaoGia(lead);
   if (!ds.length) return '';
   const [bg, ...cu] = ds;
@@ -61,16 +129,12 @@ export function veBaoGia(lead, homNay){
   return `
   <div class="bg-the">
     <div class="bg-dau"><div class="bg-tieu-de">${esc(bg.tieuDe)}</div>${meta ? `<div class="bg-meta">${meta}</div>` : ''}</div>
-    ${mang(bg.buoi).map(veBuoi).join('')}
-    <div class="bg-tong">
-      <span class="bg-nhan">Tổng</span>
-      ${bg.tietKiem ? `<s>${esc(tien(bg.tongGiaGoc))}</s>` : ''}
-      <b>${esc(tien(bg.tongSauUuDai))}</b>
-      ${bg.tietKiem ? `<span class="bg-tiet-kiem">Tiết kiệm ${esc(tien(bg.tietKiem))}</span>` : ''}
-    </div>
+    ${mang(bg.phuongAn).length
+      ? `${mang(bg.buoi).length ? `<div class="bg-chung"><div class="bg-nhan">Giống nhau ở mọi phương án</div>${mang(bg.buoi).map(veBuoi).join('')}</div>` : ''}<div class="bg-luoi-pa">${mang(bg.phuongAn).map(p => vePhuongAn(bg, p, !!opts.choPhepChon)).join('')}</div>`
+      : `${mang(bg.buoi).map(veBuoi).join('')}${veTong(bg.tongGiaGoc, bg.tongSauUuDai, bg.tietKiem)}`}
     ${han}
     ${ghiChu.length ? `<ul class="bg-ghi-chu">${ghiChu.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
   </div>
   ${cu.length ? `<details class="bg-ban-cu"><summary>${cu.length} bản báo giá trước</summary>${cu.map((b, i) =>
-    `<div class="bg-cu-dong">Lần ${cu.length - i} · ${b.taoLuc && /^\d{4}-/.test(b.taoLuc) ? esc(ddmm(b.taoLuc.slice(0, 10))) : '—'} · ${esc(tien(b.tongSauUuDai))}</div>`).join('')}</details>` : ''}`;
+    `<div class="bg-cu-dong">Lần ${cu.length - i} · ${b.taoLuc && /^\d{4}-/.test(b.taoLuc) ? esc(ddmm(b.taoLuc.slice(0, 10))) : '—'} · ${esc(tongCuaBan(b))}</div>`).join('')}</details>` : ''}`;
 }
