@@ -1,0 +1,526 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test phan quyen trong app (kho hieu luc, khoa giua phien)</title>
+<!--
+  Chay HAM THAT trong index.html (chuSoHuuMoi, migrateLead, initCloudSync, hienManKhoa,
+  quyetDinhKhoiDong): trich nguyen van ham tu index.html roi chay trong trinh duyet that.
+  Chay bang: node test/zalo-dom.test.ts test/phan-quyen-ui.test.html
+-->
+<body>
+<div class="lock-screen unlocked" id="lockScreen">
+  <div class="lock-form" id="lockForm"></div>
+  <div class="lock-error" id="lockError"></div>
+</div>
+<script type="module">
+import * as PhanQuyen from '../web/phan-quyen.js';
+
+const ket = [];
+const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
+const OWNER = '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
+
+try {
+/* ---------- Trích hàm từ index.html ---------- */
+const src = await (await fetch('../index.html')).text();
+function trichHam(ten) {
+  // Ham o cap ngoai cung -> ket thuc o dong "}" sat le trai. Giu ca chu "async " phia truoc.
+  let i = src.indexOf('function ' + ten + '(');
+  if (i < 0) throw new Error('khong tim thay ham ' + ten + ' trong index.html');
+  if (src.slice(i - 6, i) === 'async ') i -= 6;
+  const het = src.indexOf(String.fromCharCode(10) + '}', i);
+  if (het < 0) throw new Error('khong thay cuoi ham ' + ten);
+  return src.slice(i, het + 2);
+}
+const nguon = ['chuSoHuuMoi', 'migrateLead', 'laLoiQuyen', 'hienManKhoa', 'initCloudSync', 'quyetDinhKhoiDong', 'khoCoNhom']
+  .map(trichHam).join('\n');
+// Luồng lưu THẬT (chế độ chỉ xem phải chặn ở đây, không phải ở bản giả)
+const nguonLuu = ['datBanGocTheoMay', 'applyRemoteData', 'leadsToObject', 'dailyTodosToObject', 'scheduleSave', 'tinhThayDoiCucBo', 'saveToCloud']
+  .map(trichHam).join('\n');
+
+// Dựng một "app" thu nhỏ: biến trạng thái + các hàm phụ initCloudSync gọi tới đều là bản giả.
+// thatLuu = true -> dùng scheduleSave/saveToCloud/applyRemoteData thật của index.html.
+function taoApp({ leadsBanDau = [], thatLuu = false } = {}) {
+  return new Function('leadsBanDau', `
+    let cloudLoaded = false, lastSyncedRaw = null, pendingRemote = null, saveTimer = null;
+    let leads = leadsBanDau.slice(); let dailyTodos = []; let planRevenue = 0, planLeads = 0;
+    let banGoc = { leads: {}, dailyTodos: null, planRevenue: undefined, planLeads: undefined };
+    const chuSoHuuChuaLuu = new Set(); const trangThai = []; const goi = { zalo: 0, ai: 0, luu: 0 };
+    function setSyncStatus(s){ trangThai.push(s); }
+    function renderAll(){} function uiIsBusy(){ return false; } function doiSoatDeXuat(){}
+    function initZalo(){ goi.zalo++; } function initAI(){ goi.ai++; }
+    function nowLabel(){ return '01/10/2026 10:00'; }
+    ${thatLuu ? nguonLuu : `
+      function datBanGocTheoMay(){} function applyRemoteData(){}
+      function scheduleSave(){ goi.luu++; } async function saveToCloud(){ goi.luu++; }`}
+    ${nguon}
+    return { chuSoHuuMoi, migrateLead, initCloudSync, quyetDinhKhoiDong, chuSoHuuChuaLuu, trangThai, goi,
+             ${thatLuu ? 'saveToCloud, scheduleSave,' : ''}
+             get cloudLoaded(){ return cloudLoaded; }, get saveTimer(){ return saveTimer; } };
+  `)(leadsBanDau);
+}
+// window.__firebase giả có spy cho mọi lệnh ghi
+function fbGia(duLieu, kho) {
+  const ghi = [];
+  return {
+    ghi,
+    khoUid: () => (kho && kho.uid) || OWNER,
+    kho: () => kho || null,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => duLieu != null, val: () => duLieu }),
+    onValue: () => () => {},
+    set: (...a) => { ghi.push(['set', a]); return Promise.resolve(); },
+    update: (...a) => { ghi.push(['update', a]); return Promise.resolve(); },
+  };
+}
+const cho = ms => new Promise(r => setTimeout(r, ms));
+
+/* ---------- 1. Admin đang ở kho Trân: lead mới + lead cũ gắn chủ = Trân (Review Focus 1) ---------- */
+{
+  window.__authUser = { uid: 'A' };
+  window.__firebase = { khoUid: () => OWNER };
+  const app = taoApp();
+  check('chuSoHuuMoi tra UID chu kho, khong phai UID admin', app.chuSoHuuMoi() === OWNER, app.chuSoHuuMoi());
+  const cu = app.migrateLead({ id: 'L1', name: 'Lan' });
+  check('lead cu duoc gan ownerUid = chu kho', cu.ownerUid === OWNER, cu.ownerUid);
+  check('lead cu duoc danh dau de ghi xuong', app.chuSoHuuChuaLuu.has('L1'));
+  const daCoChu = app.migrateLead({ id: 'L2', ownerUid: 'X' });
+  check('lead da co chu khong bi ghi de', daCoChu.ownerUid === 'X' && !app.chuSoHuuChuaLuu.has('L2'), daCoChu.ownerUid);
+  const than = trichHam('submitAddLead');
+  check('submitAddLead gan ownerUid bang chuSoHuuMoi()', /ownerUid:\s*chuSoHuuMoi\(\)/.test(than), than.slice(0, 400));
+  check('submitAddLead khong con dung UID nguoi dang nhap', !/ownerUid:[^\n]*__authUser/.test(than));
+}
+
+/* ---------- 2. Bị khoá giữa phiên: onValue permission_denied (Review Focus 5) ---------- */
+{
+  window.__authUser = { uid: OWNER };
+  let loiCb = null, giaTriCb = null;
+  window.__firebase = {
+    khoUid: () => OWNER,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => true, val: () => ({ leads: {} }) }),
+    onValue: (r, cb, err) => { giaTriCb = cb; loiCb = err; return () => {}; },
+  };
+  const app = taoApp();
+  await app.initCloudSync();
+  check('nap xong thi cloudLoaded = true', app.cloudLoaded === true);
+  check('onValue co callback loi', typeof loiCb === 'function');
+  if (loiCb) loiCb(Object.assign(new Error("permission_denied at /crmData: Client doesn't have permission to access the desired data."), { code: 'PERMISSION_DENIED' }));
+  check('permission_denied -> cloudLoaded = false', app.cloudLoaded === false);
+  const s = document.getElementById('lockScreen');
+  check('hien man khoa', !s.classList.contains('unlocked') && s.classList.contains('bi-chan'), s.className);
+  const loi = document.getElementById('lockError').textContent;
+  check('thong bao mat quyen', /Mất quyền truy cập/.test(loi), loi);
+  check('trang thai dong bo = denied', app.trangThai.includes('denied'), app.trangThai.join(','));
+}
+
+/* ---------- 3. Lỗi khác (không phải quyền) không khoá app ---------- */
+{
+  const s = document.getElementById('lockScreen');
+  s.className = 'lock-screen unlocked';
+  document.getElementById('lockError').textContent = '';
+  let loiCb = null;
+  window.__firebase = {
+    khoUid: () => OWNER,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => true, val: () => ({ leads: {} }) }),
+    onValue: (r, cb, err) => { loiCb = err; return () => {}; },
+  };
+  const app = taoApp();
+  await app.initCloudSync();
+  if (loiCb) loiCb(new Error('network error'));
+  check('loi mang khong hien man khoa', s.classList.contains('unlocked'), s.className);
+}
+
+/* ---------- 4. Quyết định khởi động theo quyền ---------- */
+{
+  const app = taoApp();
+  const qd = (x) => app.quyetDinhKhoiDong(PhanQuyen, { ownerUid: OWNER, taiKhoanToi: null, quyenXemToi: null, tatCaTaiKhoan: null, uidDaNho: null, ...x });
+  const tran = qd({ uid: OWNER });
+  check('Tran khong co ban ghi -> vao kho cua minh', tran.loai === 'vao' && tran.kho.uid === OWNER && tran.kho.cuaToi, JSON.stringify(tran));
+  const khoa = qd({ uid: 'B', taiKhoanToi: { khoa: true } });
+  check('tai khoan bi khoa -> loai khoa', khoa.loai === 'khoa', khoa.loai);
+  const trong = qd({ uid: 'C', taiKhoanToi: { coKho: false } });
+  check('coKho false chua duoc xem ai -> loai trong', trong.loai === 'trong' && trong.kho === null, trong.loai);
+  const admin = qd({ uid: 'A', taiKhoanToi: { admin: true }, tatCaTaiKhoan: { [OWNER]: { ten: 'Trân' } }, uidDaNho: OWNER });
+  check('admin nho kho Tran -> mo kho Tran', admin.loai === 'vao' && admin.kho.uid === OWNER && admin.ds.length === 2, JSON.stringify(admin.ds));
+  const nguoiXem = qd({ uid: 'D', taiKhoanToi: { coKho: false }, quyenXemToi: { [OWNER]: { crm: true, tenChuKho: 'Trân' } }, uidDaNho: 'ZZ' });
+  check('nguoi xem: kho nho bi thu hoi -> kho dau tien duoc xem', nguoiXem.loai === 'vao' && nguoiXem.kho.uid === OWNER && nguoiXem.kho.sua === false, JSON.stringify(nguoiXem.kho));
+}
+
+/* ---------- 5. Chỉ xem: mở kho trống khi trong máy có lead -> không ghi gì (Review Focus 2) ---------- */
+const KHO_XEM = { uid: OWNER, ten: 'Trân', cuaToi: false, sua: false, nhom: { crm: true, zalo: false, ai: false } };
+{
+  window.__authUser = { uid: 'D' };
+  window.__chiXem = true;
+  const fb = fbGia(null, KHO_XEM);
+  window.__firebase = fb;
+  const app = taoApp({ leadsBanDau: [{ id: 'L9', name: 'Lead trong may' }], thatLuu: true });
+  await app.initCloudSync();
+  check('chi xem + DB trong + co lead trong may: khong set/update', fb.ghi.length === 0, JSON.stringify(fb.ghi));
+  check('chi xem + DB trong: van nap xong (cloudLoaded)', app.cloudLoaded === true);
+  check('chi xem: khong bao "seeded"', !app.trangThai.includes('seeded'), app.trangThai.join(','));
+  check('nhom zalo false -> khong gan listener Zalo', app.goi.zalo === 0, app.goi.zalo);
+  check('nhom ai false -> khong gan listener AI', app.goi.ai === 0, app.goi.ai);
+}
+{
+  // DB có lead cũ chưa có chủ: lúc thường app gắn ownerUid rồi tự lưu. Chỉ xem thì không.
+  window.__chiXem = true;
+  const fb = fbGia({ leads: { L1: { id: 'L1', name: 'Lan' } } }, KHO_XEM);
+  window.__firebase = fb;
+  const app = taoApp({ thatLuu: true });
+  await app.initCloudSync();
+  check('chi xem: lead cu khong bi danh dau gan chu', app.chuSoHuuChuaLuu.size === 0, [...app.chuSoHuuChuaLuu].join(','));
+  app.scheduleSave();
+  check('chi xem: scheduleSave khong hen lich luu', !app.saveTimer);
+  await app.saveToCloud();
+  await cho(900);
+  check('chi xem: DB co lead cu -> khong set/update', fb.ghi.length === 0, JSON.stringify(fb.ghi));
+}
+{
+  // Đối chứng: không phải chỉ xem thì nhánh seed VẪN ghi (test trên không đỗ vì lý do khác)
+  window.__chiXem = false;
+  const fb = fbGia(null, { uid: OWNER, ten: 'Trân', cuaToi: true, sua: true, nhom: { crm: true, zalo: true, ai: true } });
+  window.__firebase = fb;
+  const app = taoApp({ leadsBanDau: [{ id: 'L9', name: 'Lead trong may' }], thatLuu: true });
+  await app.initCloudSync();
+  check('doi chung: kho cua minh trong -> seed ghi len', fb.ghi.some(g => g[0] === 'update'), JSON.stringify(fb.ghi));
+  check('doi chung: du nhom -> gan listener Zalo + AI', app.goi.zalo === 1 && app.goi.ai === 1, JSON.stringify(app.goi));
+}
+
+/* ---------- 6. Chốt chặn ghi ở cầu nối Firebase ---------- */
+{
+  let goiThat = 0, canhBao = 0;
+  const update = PhanQuyen.chanGhiKhiChiXem(() => { goiThat++; return Promise.resolve('ok'); }, () => window.__chiXem === true, () => { canhBao++; });
+  window.__chiXem = true;
+  let loi = null;
+  try { await update('REF', { a: 1 }); } catch (e) { loi = e; }
+  check('chi xem: update reject "chi-xem"', loi && loi.message === 'chi-xem', loi);
+  check('chi xem: khong goi lenh ghi that', goiThat === 0);
+  check('chi xem: co console.warn', canhBao === 1, canhBao);
+  window.__chiXem = false;
+  check('khong chi xem: lenh ghi chay binh thuong', (await update('REF', {})) === 'ok' && goiThat === 1);
+  // Cầu nối thật trong index.html phải bọc set + update bằng chốt này
+  check('index.html boc set bang chanGhiKhiChiXem', /\bset:\s*PhanQuyen\.chanGhiKhiChiXem\(set\b/.test(src));
+  check('index.html boc update bang chanGhiKhiChiXem', /\bupdate:\s*PhanQuyen\.chanGhiKhiChiXem\(update\b/.test(src));
+}
+
+/* ---------- 7. Giao diện: CSS + markup THẬT của index.html ---------- */
+{
+  const doc = new DOMParser().parseFromString(src, 'text/html');
+  doc.querySelectorAll('style').forEach(s => document.head.appendChild(document.importNode(s, true)));
+  const khung = document.createElement('div');
+  khung.id = 'khungApp';
+  for (const sel of ['aside.sidebar', 'header.topbar', '#khoBanner', '#menuKhacOverlay']) {
+    const el = doc.querySelector(sel);
+    check('index.html co ' + sel, !!el);
+    if (el) khung.appendChild(document.importNode(el, true));
+  }
+  document.body.appendChild(khung);
+  const apDung = new Function(trichHam('apDungCheDoKho') + '\nreturn apDungCheDoKho;')();
+  const nutThem = document.querySelector('header.topbar .btn-primary');
+  const hien = el => !!el && getComputedStyle(el).display !== 'none';
+  // Cửa sổ Chrome ngầm hẹp (~758px) = bố cục điện thoại: nút sidebar ẩn sẵn, nên kiểm tra mục
+  // 'Kết nối Claude' trong tấm 'Khác' (không phụ thuộc bề rộng) và thuộc tính hidden của bộ chuyển kho.
+  const nutClaude = () => document.querySelector('#menuKhacOverlay .chi-kho-minh');
+  const coBoChuyen = () => document.getElementById('khoiChonKho').hidden === false && document.getElementById('menuKhacKho').hidden === false;
+
+  check('binh thuong: nut them lead hien', hien(nutThem));
+  apDung(KHO_XEM, [KHO_XEM]);
+  check('apDungCheDoKho dat window.__chiXem', window.__chiXem === true);
+  check('body co class chi-xem', document.body.classList.contains('chi-xem'));
+  check('chi-xem: nut them lead an', nutThem && getComputedStyle(nutThem).display === 'none');
+  check('nhom zalo false: #navConversations an', !hien(document.getElementById('navConversations')));
+  check('kho nguoi khac: nut Ket noi Claude an', !hien(nutClaude()));
+  const dai = document.getElementById('khoBanner');
+  check('dai bao hien', hien(dai) && /Đang xem dữ liệu của Trân — chỉ xem/.test(dai.textContent), dai && dai.textContent);
+  check('1 kho: khong hien bo chuyen kho', !coBoChuyen() && !hien(document.getElementById('khoiChonKho')));
+
+  // Tên chủ kho độc hại không được thành thẻ HTML
+  const doc2 = { ...KHO_XEM, uid: 'X', ten: '<img src=x onerror=alert(1)>' };
+  const cuaToi = { uid: 'D', ten: 'Kho của tôi', cuaToi: true, sua: true, nhom: { crm: true, zalo: true, ai: true } };
+  apDung(doc2, [cuaToi, doc2]);
+  check('ten doc hai: dai bao khong tao the img', !dai.querySelector('img') && dai.textContent.includes('<img src=x'), dai.innerHTML);
+  const chon = document.getElementById('chonKho');
+  check('2 kho: hien bo chuyen kho (sidebar + tam Khac)', coBoChuyen());
+  check('2 kho: ca hai bo chuyen deu co du muc', [...document.querySelectorAll('select.chon-kho')].every(x => x.options.length === 2), document.querySelectorAll('select.chon-kho').length);
+  check('bo chuyen kho: "Của tôi" + ten chu kho, chon dung kho dang xem',
+    chon.options.length === 2 && chon.options[0].textContent === 'Của tôi' && chon.options[1].textContent === doc2.ten && chon.value === 'X',
+    [...chon.options].map(o => o.value + '=' + o.textContent).join('|'));
+  check('bo chuyen kho: khong tao the img', !document.querySelector('#khoiChonKho img'));
+  let daChuyen = null;
+  window.__firebase = { chuyenKho: uid => { daChuyen = uid; } };
+  chon.value = 'D';
+  chon.dispatchEvent(new Event('change'));
+  check('doi kho -> goi chuyenKho(uid)', daChuyen === 'D', daChuyen);
+
+  // Admin ở kho người khác: dải báo khác, KHÔNG chỉ xem
+  const admin = { uid: OWNER, ten: 'Trân', cuaToi: false, sua: true, nhom: { crm: true, zalo: true, ai: true } };
+  apDung(admin, [cuaToi, admin]);
+  check('admin kho khac: khong chi-xem', !document.body.classList.contains('chi-xem') && window.__chiXem === false);
+  check('admin kho khac: dai bao admin', /Admin đang xem\/sửa dữ liệu của Trân/.test(dai.textContent), dai.textContent);
+  check('admin kho khac: nut them lead hien', hien(nutThem));
+  check('admin kho khac: nut Ket noi Claude van an', !hien(nutClaude()));
+  check('admin du nhom: #navConversations hien', hien(document.getElementById('navConversations')));
+
+  // Về kho của mình: sạch hết
+  apDung(cuaToi, [cuaToi, admin]);
+  check('kho cua minh: khong dai bao', !hien(dai));
+  check('kho cua minh: nut Ket noi Claude hien', hien(nutClaude()));
+  check('kho cua minh: khong chi-xem', !document.body.classList.contains('chi-xem'));
+  khung.remove();
+  window.__chiXem = false;
+}
+
+/* ---------- 8. Màn Quản trị: hàm + markup THẬT của index.html ---------- */
+{
+  window.PhanQuyen = PhanQuyen;
+  const doc = new DOMParser().parseFromString(src, 'text/html');
+  const khung = document.createElement('div');
+  for (const sel of ['aside.sidebar', '#menuKhacOverlay', '#quanTriOverlay']) {
+    const el = doc.querySelector(sel);
+    check('index.html co ' + sel, !!el);
+    if (el) khung.appendChild(document.importNode(el, true));
+  }
+  document.body.appendChild(khung);
+  const trangThaiQT = (src.match(/^const QT = \{[^\n]*\};$/m) || [''])[0];
+  check('index.html co trang thai QT', !!trangThaiQT);
+  const qt = new Function(trangThaiQT + '\n' + ['apDungQuyenQuanTri', 'moQuanTri', 'dongQuanTri', 'goiApiAdmin', 'taiQuanTri',
+    'veQuanTri', 'tenTaiKhoanQT', 'hienTBQuanTri', 'khoaNutQuanTri', 'qtThucHien', 'qtBam', 'qtDoi'].map(trichHam).join('\n')
+    + '\nreturn { apDungQuyenQuanTri, moQuanTri, goiApiAdmin, QT };')();
+
+  // Mục menu chỉ admin thấy
+  const mucQT = () => [...khung.querySelectorAll('.quan-tri-muc')];
+  const mucKhac = () => khung.querySelector('#menuKhacOverlay .quan-tri-muc');
+  check('co muc Quan tri o sidebar + tam Khac', mucQT().length === 2, mucQT().length);
+  check('mac dinh (chua biet quyen): muc Quan tri an', mucQT().every(el => el.hidden) && getComputedStyle(mucKhac()).display === 'none');
+  qt.apDungQuyenQuanTri(false);
+  check('khong admin: muc Quan tri an', mucQT().every(el => el.hidden) && getComputedStyle(mucKhac()).display === 'none');
+  window.__taiKhoan = { admin: false };
+  await qt.moQuanTri();
+  const ov = khung.querySelector('#quanTriOverlay');
+  check('khong admin: moQuanTri khong mo modal', !ov.classList.contains('show'));
+  qt.apDungQuyenQuanTri(true);
+  check('admin: muc Quan tri hien', mucQT().every(el => !el.hidden) && getComputedStyle(mucKhac()).display !== 'none');
+
+  // Firebase giả: admin 'A' (có bản ghi), 'B' tên độc hại + coKho false; Trân KHÔNG có bản ghi
+  const ghiQT = [];
+  let soLanDoc = 0;
+  const TK = {
+    A: { email: 'truong@x.vn', ten: 'Trường', admin: true, coKho: true },
+    B: { email: 'b@x.vn', ten: '<img src=x onerror=alert(1)>', coKho: false },
+  };
+  const QX = { B: { [OWNER]: { crm: true, zalo: false, ai: false, tenChuKho: 'Trân' } } };
+  window.__firebase = {
+    ownerUid: OWNER, currentUid: () => 'A', refAt: p => p,
+    auth: { currentUser: { getIdToken: async () => 'TOKEN123' } },
+    get: async p => { soLanDoc++; const v = p === 'taiKhoan' ? TK : p === 'quyenXem' ? QX : null; return { exists: () => v != null, val: () => v }; },
+    update: async (p, v) => { ghiQT.push([p, v]); },
+  };
+  window.__taiKhoan = { admin: true };
+  window.confirm = () => true;
+  const fetchGoc = window.fetch;
+  const goiFetch = [];
+  let traFetch = () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  window.fetch = async (url, opt) => { goiFetch.push([url, opt]); return traFetch(); };
+  const $ = id => khung.querySelector('#' + id);
+  const tb = () => $('qtThongBao');
+
+  await qt.moQuanTri();
+  const body = $('quanTriBody');
+  check('admin: modal mo', ov.classList.contains('show'));
+  check('bang tai khoan co 2 dong', body.querySelectorAll('table.bang-tai-khoan tbody tr').length === 2, body.innerHTML.slice(0, 300));
+  check('ten doc hai khong thanh the img', !body.querySelector('img') && body.textContent.includes('<img src=x'), body.innerHTML.slice(0, 500));
+  const dongA = body.querySelector('tr[data-uid="A"]'), dongB = body.querySelector('tr[data-uid="B"]');
+  check('dong cua chinh minh: khong co nut Khoa', dongA && !dongA.querySelector('[data-qt="khoa"]'));
+  check('dong nguoi khac: co nut Khoa', dongB && !!dongB.querySelector('[data-qt="khoa"]'));
+  check('cot dang xem: B dang xem Tran', dongB && dongB.textContent.includes('Trân'), dongB && dongB.textContent);
+  const giaTriChon = id => [...$(id).options].map(o => o.value);
+  check('chon chu kho: Tran (khong ban ghi) + A, khong co B (coKho false)',
+    JSON.stringify(giaTriChon('qtChuKho').sort()) === JSON.stringify([OWNER, 'A'].sort()), giaTriChon('qtChuKho').join(','));
+  check('chon nguoi xem: moi tai khoan', JSON.stringify(giaTriChon('qtNguoiXem').sort()) === JSON.stringify(['A', 'B']), giaTriChon('qtNguoiXem').join(','));
+
+  // Tick chỉ Zalo -> lỗi, không ghi
+  $('qtNguoiXem').value = 'B'; $('qtChuKho').value = OWNER;
+  $('qtCrm').checked = false; $('qtZalo').checked = true; $('qtAi').checked = false;
+  body.querySelector('[data-qt="gan"]').click();
+  await cho(30);
+  const loiZalo = PhanQuyen.chuanHoaQuyenXem({ zalo: true }).loi;
+  check('tick chi Zalo: hien loi', !tb().hidden && tb().textContent === loiZalo, tb().textContent);
+  check('tick chi Zalo: khong goi update', ghiQT.length === 0, JSON.stringify(ghiQT));
+
+  // Tick CRM + AI -> ghi đúng đường dẫn, tenChuKho, rồi tải lại dữ liệu
+  const docTruoc = soLanDoc;
+  $('qtCrm').checked = true; $('qtZalo').checked = false; $('qtAi').checked = true;
+  body.querySelector('[data-qt="gan"]').click();
+  await cho(30);
+  check('gan quyen: update quyenXem/<xem>/<chu>', ghiQT.length === 1 && ghiQT[0][0] === 'quyenXem/B/' + OWNER, JSON.stringify(ghiQT));
+  check('gan quyen: gia tri + tenChuKho', ghiQT[0] && JSON.stringify(ghiQT[0][1]) === JSON.stringify({ crm: true, zalo: false, ai: true, tenChuKho: 'Trân' }), ghiQT[0] && JSON.stringify(ghiQT[0][1]));
+  check('gan quyen xong: tai lai du lieu + bao thanh cong', soLanDoc > docTruoc && /Đã gán quyền xem/.test(tb().textContent), tb().textContent);
+
+  // Thu hồi
+  ghiQT.length = 0;
+  body.querySelector('[data-qt="thuHoi"][data-xem="B"]').click();
+  await cho(30);
+  check('thu hoi: update quyenXem/<xem> { [chu]: null }', ghiQT.length === 1 && ghiQT[0][0] === 'quyenXem/B' && ghiQT[0][1][OWNER] === null && Object.keys(ghiQT[0][1]).length === 1, JSON.stringify(ghiQT));
+
+  // Bật/tắt Có kho
+  ghiQT.length = 0;
+  const oCoKho = body.querySelector('tr[data-uid="B"] [data-qt="coKho"]');
+  oCoKho.checked = true;
+  oCoKho.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('doi Co kho: update taiKhoan/<uid> { coKho }', ghiQT.length === 1 && ghiQT[0][0] === 'taiKhoan/B' && ghiQT[0][1].coKho === true, JSON.stringify(ghiQT));
+
+  // Tạo tài khoản: mật khẩu ngắn -> lỗi, không gọi API
+  $('qtEmail').value = 'moi@x.vn'; $('qtTen').value = 'Người mới'; $('qtMatKhau').value = 'abc';
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('mat khau < 8: hien loi, khong goi API', goiFetch.length === 0 && /ít nhất 8 ký tự/.test(tb().textContent), tb().textContent);
+
+  // goiApiAdmin trả { loi } -> hiện đúng loi, đã escape
+  const loiDocHai = '<img src=x onerror=alert(2)>Email này đã có tài khoản.';
+  traFetch = () => new Response(JSON.stringify({ loi: loiDocHai }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+  $('qtMatKhau').value = 'matkhau123';
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('API tra loi: hien dung loi', tb().textContent === loiDocHai, tb().textContent);
+  check('API tra loi: khong tao the img', !tb().querySelector('img') && !body.querySelector('img'));
+  check('API tra loi: nut duoc bat lai', [...body.querySelectorAll('button')].every(b => !b.disabled));
+  const [url, opt] = goiFetch[0] || [];
+  check('goiApiAdmin: POST /api/admin + Bearer token', url === '/api/admin' && opt.method === 'POST' && opt.headers.Authorization === 'Bearer TOKEN123', JSON.stringify(opt));
+  const than = opt ? JSON.parse(opt.body) : {};
+  check('tao: than dung', than.hanhDong === 'tao' && than.email === 'moi@x.vn' && than.matKhau === 'matkhau123' && than.ten === 'Người mới' && than.coKho === false, opt && opt.body);
+
+  // Tạo thành công -> lời nhắc gửi qua Zalo
+  traFetch = () => new Response(JSON.stringify({ ok: true, uid: 'C' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('tao xong: bao gui email + mat khau qua Zalo', tb().textContent === 'Đã tạo. Gửi email + mật khẩu cho người dùng qua Zalo', tb().textContent);
+
+  // Khoá: nút bị tắt trong lúc chờ, xong thì tải lại
+  goiFetch.length = 0;
+  let mo;
+  traFetch = () => new Promise(r => { mo = () => r(new Response(JSON.stringify({ ok: true }), { status: 200 })); });
+  body.querySelector('tr[data-uid="B"] [data-qt="khoa"]').click();
+  await cho(10);
+  check('dang goi API: moi nut bi tat', [...body.querySelectorAll('button')].every(b => b.disabled));
+  if (mo) mo();
+  await cho(30);
+  const thanKhoa = goiFetch[0] ? JSON.parse(goiFetch[0][1].body) : {};
+  check('khoa: than { hanhDong: khoa, uid }', thanKhoa.hanhDong === 'khoa' && thanKhoa.uid === 'B', JSON.stringify(thanKhoa));
+  check('khoa xong: nut bat lai', [...body.querySelectorAll('button')].every(b => !b.disabled));
+
+  // Ô "Có kho" của Trân: khoá cứng (tắt nhầm = Trân mất quyền ghi CRM của mình)
+  TK[OWNER] = { ten: 'Trân', coKho: true, admin: false, khoa: false };
+  TK.B.coKho = true;
+  await qt.moQuanTri();
+  const body2 = $('quanTriBody');
+  const oTran = body2.querySelector(`tr[data-uid="${OWNER}"] [data-qt="coKho"]`);
+  check('dong Tran: o Co kho ton tai + dang tick', !!oTran && oTran.checked === true);
+  check('dong Tran: o Co kho bi disabled', oTran && oTran.disabled === true);
+  check('dong Tran: co tooltip giai thich', oTran && /Trân/.test(oTran.closest('label').title), oTran && oTran.closest('label').title);
+  const oB = body2.querySelector('tr[data-uid="B"] [data-qt="coKho"]');
+  check('dong nguoi khac: o Co kho khong bi disabled', oB && oB.disabled === false);
+  // Kể cả có ai gỡ disabled rồi bỏ tick: chốt thứ hai trong qtDoi không ghi
+  ghiQT.length = 0;
+  const hoiConfirm = [];
+  window.confirm = m => { hoiConfirm.push(m); return true; };
+  oTran.disabled = false; oTran.checked = false;
+  oTran.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('bo tick Tran (go disabled): khong ghi', ghiQT.length === 0, JSON.stringify(ghiQT));
+  check('bo tick Tran: o tick tra ve nhu cu', oTran.checked === true);
+  oTran.disabled = true;
+
+  // Tắt Có kho người khác: hỏi xác nhận; huỷ -> không ghi, ô tick trả về
+  window.confirm = m => { hoiConfirm.push(m); return false; };
+  hoiConfirm.length = 0;
+  oB.checked = false;
+  oB.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('tat Co kho: co hoi confirm', hoiConfirm.length === 1 && /Tắt kho riêng/.test(hoiConfirm[0]), hoiConfirm.join('|'));
+  check('tat Co kho + huy: khong ghi', ghiQT.length === 0, JSON.stringify(ghiQT));
+  check('tat Co kho + huy: o tick tra ve tick', oB.checked === true);
+  // Đồng ý -> ghi coKho:false
+  window.confirm = m => { hoiConfirm.push(m); return true; };
+  oB.checked = false;
+  oB.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('tat Co kho + dong y: update taiKhoan/B { coKho: false }', ghiQT.length === 1 && ghiQT[0][0] === 'taiKhoan/B' && ghiQT[0][1].coKho === false, JSON.stringify(ghiQT));
+  // Bật Có kho: không cần hỏi
+  ghiQT.length = 0; hoiConfirm.length = 0;
+  TK.B.coKho = false;
+  await qt.moQuanTri();
+  const oB2 = $('quanTriBody').querySelector('tr[data-uid="B"] [data-qt="coKho"]');
+  oB2.checked = true;
+  oB2.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('bat Co kho: khong hoi confirm, co ghi', hoiConfirm.length === 0 && ghiQT.length === 1 && ghiQT[0][1].coKho === true, JSON.stringify(ghiQT));
+
+  // Thao tác lỗi -> khoaNutQuanTri(false) bật lại mọi nút, NHƯNG ô của Trân vẫn khoá
+  traFetch = () => new Response(JSON.stringify({ loi: 'loi thu' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  $('quanTriBody').querySelector('tr[data-uid="B"] [data-qt="khoa"]').click();
+  await cho(30);
+  const oTran3 = $('quanTriBody').querySelector(`tr[data-uid="${OWNER}"] [data-qt="coKho"]`);
+  check('sau loi: nut bat lai nhung o Co kho cua Tran van disabled',
+    [...$('quanTriBody').querySelectorAll('button')].every(b => !b.disabled) && oTran3 && oTran3.disabled === true, oTran3 && oTran3.disabled);
+  window.confirm = () => true;
+
+  window.fetch = fetchGoc;
+  khung.remove();
+}
+
+/* ---------- 9. Khởi động: lỗi bất ngờ không được treo vòng xoay ---------- */
+{
+  const nguonKD = ['khoiDongMacDinh', 'khoiDongTheoQuyen', 'quyetDinhKhoiDong'].map(trichHam).join('\n');
+  function taoKD(nemO) {
+    return new Function('nemO', `
+      let dangKhoiDong = false, appStarted = false;
+      const nhat = { qt: [], cheDo: [], an: 0, khoa: [], start: 0 };
+      async function docQuyenKhoiDong(){
+        if (nemO === 'doc') throw new Error('loi bat ngo khi doc');
+        return { taiKhoanToi: nemO === 'qt-khoa' ? { khoa: true } : null, quyenXemToi: null, tatCaTaiKhoan: null };
+      }
+      function apDungQuyenQuanTri(x){ nhat.qt.push(x); if ((nemO === 'qt' || nemO === 'qt-khoa') && nhat.qt.length === 1) throw new Error('loi bat ngo qt'); }
+      function apDungCheDoKho(k){ nhat.cheDo.push(k); window.__chiXem = !!(k && k.sua === false); }
+      function hideLockScreen(){ nhat.an++; }
+      function hienManKhoa(m){ nhat.khoa.push(m); }
+      function startWithCloud(){ if (appStarted) return; appStarted = true; nhat.start++; }
+      ${nguonKD}
+      return { khoiDongTheoQuyen, nhat, get dangKhoiDong(){ return dangKhoiDong; } };
+    `)(nemO);
+  }
+  const loiGoc = console.error, canhBaoGoc = console.warn;
+  console.error = () => {}; console.warn = () => {};
+  try {
+    for (const nemO of ['doc', 'qt']) {
+      const datKho = [];
+      window.__firebase = { ownerUid: OWNER, datKhoDangXem: (k, ds) => datKho.push([k, ds]), signOut: async () => {} };
+      window.__taiKhoan = undefined; window.__chiXem = true;
+      const kd = taoKD(nemO);
+      const xong = await Promise.race([kd.khoiDongTheoQuyen({ uid: OWNER }).then(() => 'xong'), cho(2000).then(() => 'treo')]);
+      check(`nem o ${nemO}: khoiDongTheoQuyen ket thuc (khong treo)`, xong === 'xong', xong);
+      check(`nem o ${nemO}: van vao app (an man cho + startWithCloud)`, kd.nhat.an >= 1 && kd.nhat.start === 1, JSON.stringify(kd.nhat));
+      const k = datKho.length && datKho[datKho.length - 1][0];
+      check(`nem o ${nemO}: kho cua minh, du quyen`, k && k.uid === OWNER && k.cuaToi === true && k.sua === true, JSON.stringify(datKho));
+      check(`nem o ${nemO}: khong chi xem, khong admin`, window.__chiXem === false && window.__taiKhoan && window.__taiKhoan.admin === false, JSON.stringify(window.__taiKhoan));
+      check(`nem o ${nemO}: khong hien man khoa`, kd.nhat.khoa.length === 0, kd.nhat.khoa.join('|'));
+      check(`nem o ${nemO}: ha co dangKhoiDong`, kd.dangKhoiDong === false);
+    }
+    // Đã biết bị khoá rồi mới ném lỗi: KHÔNG được mở app
+    window.__firebase = { ownerUid: OWNER, datKhoDangXem: () => {}, signOut: async () => {} };
+    const kd = taoKD('qt-khoa');
+    await kd.khoiDongTheoQuyen({ uid: 'B' });
+    check('bi khoa roi nem loi: khong mo app', kd.nhat.start === 0 && kd.nhat.an === 0, JSON.stringify(kd.nhat));
+    check('bi khoa roi nem loi: hien man khoa', kd.nhat.khoa.length === 1 && /bị khoá/.test(kd.nhat.khoa[0]), kd.nhat.khoa.join('|'));
+  } finally {
+    console.error = loiGoc; console.warn = canhBaoGoc;
+  }
+  window.__chiXem = false;
+}
+} catch (e) {
+  check('khong loi khi chay test', false, e && e.stack || e);
+}
+
+window.__ketQua = ket;
+</script>
+</body>

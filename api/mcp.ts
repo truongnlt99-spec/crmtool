@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { createSign, createHash, createHmac, timingSafeEqual } from 'node:crypto';
+import { createSign } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /*
@@ -38,6 +38,7 @@ function dataRoot(): string {
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
   'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/identitytoolkit',
 ].join(' ');
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -335,12 +336,12 @@ function normalizeLead(l: Lead): Lead {
 const OWNER_UID = process.env.CRM_OWNER_UID || '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
 
 /**
- * Phân giải token link chia sẻ hoặc khoá MCP về đúng kho dữ liệu.
+ * Phân giải khoá MCP về đúng kho dữ liệu.
  * Token/khoá mới có dạng "<uid>.<random>"; token/khoá cũ là hex thuần -> chủ cũ.
  * UID Firebase và random hex đều không chứa dấu ".", nên "." là dấu phân tách an toàn.
  */
 export function resolveScope(chuoi: string): {
-  uid: string; dataRoot: string; configPath: string; shareLogPath: string;
+  uid: string; dataRoot: string; configPath: string;
 } {
   const s = String(chuoi || '');
   const cham = s.indexOf('.');
@@ -351,11 +352,10 @@ export function resolveScope(chuoi: string): {
         uid,
         dataRoot: `crmData_users/${uid}`,
         configPath: `appConfig_users/${uid}`,
-        shareLogPath: `shareLog_users/${uid}`,
       };
     }
   }
-  return { uid: OWNER_UID, dataRoot: DATA_ROOT, configPath: 'appConfig', shareLogPath: 'shareLog' };
+  return { uid: OWNER_UID, dataRoot: DATA_ROOT, configPath: 'appConfig' };
 }
 
 /** Kho dữ liệu extension Zalo tương ứng kho CRM: crmData -> zalo, crmData_users/<uid> -> zalo_users/<uid>, crmDataTest -> zaloTest. */
@@ -379,58 +379,6 @@ function tenNguoiGuiZalo(m: ZaloMsg, convId: string, tenHoiThoai: string): strin
   return maHoa ? '' : t;
 }
 
-/**
- * Tìm deal theo SĐT trên link chia sẻ. Trang chia sẻ KHÔNG bao giờ nhận SĐT của khách, nên
- * việc so khớp làm ở đây. Chỉ khớp khi gõ đủ số (≥ 9 chữ số, bỏ qua cách viết, +84/84/0):
- * cho khớp từng phần thì người xem gõ dần từng chữ số là dò ngược ra được SĐT đã ẩn.
- */
-export function khopSoDienThoai(soCuaLead: unknown, soGo: unknown): boolean {
-  const chuan = (v: unknown) => {
-    let d = String(v || '').replace(/\D/g, '');
-    if (d.startsWith('84') && d.length >= 11) d = d.slice(2);
-    return d.replace(/^0+/, '');
-  };
-  const a = chuan(soCuaLead), b = chuan(soGo);
-  return b.length >= 9 && a === b;
-}
-
-/** Danh sách id deal có SĐT khớp số người xem gõ. Chỉ trả id, không trả SĐT. */
-async function traLoiTimSdt(dataRootCuaKho: string, soGo: string, dungPhien: boolean): Promise<Response> {
-  if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
-  const crm = await alsStore.run({ dataRoot: dataRootCuaKho }, () => loadCrm());
-  const ids = crm.leads.filter((l) => khopSoDienThoai(l.phone, soGo)).map((l) => l.id);
-  return traLoiJson({ ok: true, ids });
-}
-
-/** Hội thoại Zalo của một lead cho trang chỉ xem. Chỉ hội thoại status 'lead', chỉ trường cần hiển thị. */
-async function traLoiChat(dataRootCuaKho: string, leadId: string, dungPhien: boolean): Promise<Response> {
-  if (!dungPhien) return traLoiJson({ loi: 'Phiên xem đã hết hạn, tải lại trang để nhập mật khẩu.' }, 401);
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(leadId)) return traLoiJson({ loi: 'Mã lead không hợp lệ' }, 400);
-  const zroot = zaloRootFromDataRoot(dataRootCuaKho);
-  const links = (await readPath<Record<string, ZaloLink> | null>(`${zroot}/links`)) || {};
-  const convs = Object.entries(links).filter(([, l]) => l && l.status === 'lead' && l.leadId === leadId);
-  const hoiThoai = await Promise.all(convs.map(async ([convId, l]) => {
-    const msgs = (await readPath<Record<string, ZaloMsg> | null>(`${zroot}/msgs/${convId}`)) || {};
-    return {
-      convId,
-      name: l.name || '',
-      messages: Object.values(msgs)
-        .map((m) => ({
-          at: Number(m.at) || 0,
-          fromMe: !!m.fromMe,
-          senderName: tenNguoiGuiZalo(m, convId, l.name || ''),
-          kind: m.kind || 'other',
-          text: typeof m.text === 'string' ? m.text : null,
-          url: m.url ? String(m.url) : null,
-          fileName: m.fileName ? String(m.fileName) : null,
-          linkTitle: m.linkTitle ? String(m.linkTitle) : null,
-          quote: m.quote ? { title: m.quote.title || '', text: m.quote.text || '' } : null,
-        }))
-        .sort((a, b) => a.at - b.at),
-    };
-  }));
-  return traLoiJson({ ok: true, hoiThoai });
-}
 
 /* ===================== Hội thoại Zalo cho tool MCP (chỉ đọc) ===================== */
 // Cùng quy tắc với conversationList()/waitingState() trong extension/lib/zalo-map.js
@@ -2635,64 +2583,8 @@ const mcpHandler = createMcpHandler(
   { basePath: '/api' }
 );
 
-/* ===================== Link chia sẻ CHỈ XEM ===================== */
+/* ===================== Khoảng thời gian (tuần/tháng/quý/năm) ===================== */
 
-/**
- * Sếp xem CRM qua link chia sẻ. Trình duyệt của người xem KHÔNG hề chạm tới Firebase —
- * nó chỉ gọi endpoint này, và endpoint chỉ đọc rồi trả về dữ liệu đã tính sẵn.
- * Không có bất kỳ đường ghi nào ở đây, nên người xem không thể sửa gì kể cả khi
- * cố tình gọi thẳng API.
- *
- * Mật khẩu chỉ lưu dưới dạng băm (SHA-256 kèm muối), không bao giờ lưu hay trả về bản gốc.
- */
-interface ShareConfig {
-  token?: string;
-  salt?: string;
-  passHash?: string;
-  enabled?: boolean;
-  createdAt?: string;
-  failCount?: number;
-  lockedUntil?: number;
-}
-
-function bamMatKhau(salt: string, pass: string): string {
-  return createHash('sha256').update(`${salt}:${pass}`).digest('hex');
-}
-
-/** So sánh theo thời gian hằng định, tránh dò mật khẩu qua chênh lệch thời gian phản hồi. */
-function soSanhAnToan(a: string, b: string): boolean {
-  const x = Buffer.from(a || '', 'utf8');
-  const y = Buffer.from(b || '', 'utf8');
-  if (x.length !== y.length) return false;
-  return timingSafeEqual(x, y);
-}
-
-/**
- * Phiên xem ngắn hạn. Sếp đổi tháng hay mở chi tiết thì gửi kèm phiên này thay vì
- * nhập lại mật khẩu. Ký bằng HMAC nên không phải lưu phiên ở đâu cả — hết hạn là
- * tự vô hiệu, và không ai giả mạo được nếu không có khoá máy chủ.
- */
-const HAN_PHIEN_MS = 2 * 60 * 60 * 1000; // 2 tiếng
-
-function khoaKyPhien(): string {
-  return process.env.MCP_SECRET || 'khoa-du-phong-khong-an-toan';
-}
-
-function taoPhienXem(shareToken: string): string {
-  const het = Date.now() + HAN_PHIEN_MS;
-  const chuKy = createHmac('sha256', khoaKyPhien()).update(`${shareToken}:${het}`).digest('hex').slice(0, 32);
-  return `${het}.${chuKy}`;
-}
-
-function phienConHieuLuc(shareToken: string, phien: string): boolean {
-  const [hetStr, chuKy] = String(phien || '').split('.');
-  const het = Number(hetStr);
-  if (!het || !chuKy || Date.now() > het) return false;
-  const mongDoi = createHmac('sha256', khoaKyPhien()).update(`${shareToken}:${het}`).digest('hex').slice(0, 32);
-  return soSanhAnToan(chuKy, mongDoi);
-}
-
-/* ---- Khoảng thời gian cho báo cáo chia sẻ ---- */
 
 // Mọi phép tính ngày dùng UTC để múi giờ không làm lệch mốc. Chuỗi YYYY-MM-DD so sánh
 // theo thứ tự từ điển cũng chính là so sánh theo thời gian, nên không cần đổi sang Date.
@@ -2777,11 +2669,6 @@ export function cacThangTrongKhoang(tu: string, den: string): string[] {
   return ra;
 }
 
-const trongKhoang = (d: string | null | undefined, tu: string, den: string): boolean => {
-  if (!d) return false;
-  const s = String(d).slice(0, 10);
-  return s >= tu && s <= den;
-};
 
 function traLoiJson(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -2790,256 +2677,127 @@ function traLoiJson(data: unknown, status = 200): Response {
   });
 }
 
-async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
-  // CHỈ nhận POST. GET không làm gì để mật khẩu không bao giờ nằm trên thanh địa chỉ.
-  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ hỗ trợ POST' }, 405);
 
-  let body: {
-    token?: string; passcode?: string; session?: string;
-    month?: number; year?: number; leadType?: string;
-    don?: string; lui?: number; tu?: string; den?: string;
-    loai?: string; leadId?: string; sdt?: string;
-  };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return traLoiJson({ loi: 'Dữ liệu gửi lên không hợp lệ' }, 400);
+/* ===================== API admin: tạo / khoá tài khoản ===================== */
+
+const FIREBASE_PROJECT_ID = 'huyentrancrm';
+// Khoá web công khai của Firebase (có sẵn trong index.html), chỉ dùng để xác minh ID token của người gọi.
+const FIREBASE_WEB_API_KEY = 'AIzaSyDT8jy6J5ohBbnJxZdrOnZhyI57D2ZRDhQ';
+const IDENTITY_URL = 'https://identitytoolkit.googleapis.com/v1';
+
+export type YeuCauAdmin =
+  | { hanhDong: 'tao'; email: string; matKhau: string; ten: string; coKho: boolean }
+  | { hanhDong: 'khoa'; uid: string }
+  | { hanhDong: 'moKhoa'; uid: string };
+
+/** UID Firebase Auth: chữ + số (UID thật dài 28 ký tự). */
+export const UID_HOP_LE = /^[A-Za-z0-9]{1,128}$/;
+
+/** Kiểm tra thân yêu cầu /api/admin. Hàm thuần, không chạm mạng. */
+export function kiemTraYeuCauAdmin(
+  body: unknown, uidNguoiGoi: string
+): { ok: true; yeuCau: YeuCauAdmin } | { ok: false; status: 400; loi: string } {
+  const loi = (m: string) => ({ ok: false as const, status: 400 as const, loi: m });
+  if (!body || typeof body !== 'object') return loi('Yêu cầu không hợp lệ.');
+  const b = body as Record<string, unknown>;
+  if (b.hanhDong === 'tao') {
+    const email = String(b.email ?? '').trim().toLowerCase();
+    const matKhau = String(b.matKhau ?? '');
+    const ten = String(b.ten ?? '').trim();
+    if (!email || !email.includes('@')) return loi('Email không hợp lệ.');
+    if (matKhau.length < 8) return loi('Mật khẩu phải có ít nhất 8 ký tự.');
+    return { ok: true, yeuCau: { hanhDong: 'tao', email, matKhau, ten, coKho: b.coKho === true } };
+  }
+  if (b.hanhDong === 'khoa' || b.hanhDong === 'moKhoa') {
+    const uid = String(b.uid ?? '').trim();
+    if (!uid) return loi('Thiếu tài khoản cần thao tác.');
+    // uid đi thẳng vào đường dẫn REST (taiKhoan/<uid>, appConfig_users/<uid>): chỉ nhận chữ + số,
+    // chặn '/', '.', '..', '?', '#'... để không ghi lệch sang nhánh khác.
+    if (!UID_HOP_LE.test(uid)) return loi('Mã tài khoản không hợp lệ.');
+    if (b.hanhDong === 'khoa' && uid === uidNguoiGoi) return loi('Không thể tự khoá chính mình.');
+    return { ok: true, yeuCau: { hanhDong: b.hanhDong, uid } };
+  }
+  return loi('Hành động không hợp lệ.');
+}
+
+/** Gọi Identity Toolkit (Admin) bằng service account. */
+async function identityAdmin(hanhDong: string, body: unknown): Promise<{ status: number; data: any }> {
+  const token = await getAccessToken();
+  const res = await fetch(`${IDENTITY_URL}/projects/${FIREBASE_PROJECT_ID}/${hanhDong}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, data: await res.json().catch(() => ({})) };
+}
+
+async function xuLyAdmin(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+
+  // 1. Xác minh người gọi bằng ID token Firebase
+  const m = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') || '');
+  if (!m) return traLoiJson({ loi: 'Chưa đăng nhập.' }, 401);
+  const tra = await fetch(`${IDENTITY_URL}/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: m[1].trim() }),
+  });
+  const traData: any = await tra.json().catch(() => ({}));
+  const nguoiGoi = tra.ok ? traData?.users?.[0] : null;
+  if (!nguoiGoi?.localId || nguoiGoi.disabled) return traLoiJson({ loi: 'Phiên đăng nhập không hợp lệ.' }, 401);
+  const uidNguoiGoi = String(nguoiGoi.localId);
+
+  // 2. Phải là admin và không đang bị khoá (đọc bằng service account, rules không chặn)
+  const tk = await readPath<any>(`taiKhoan/${uidNguoiGoi}`);
+  if (!tk || tk.admin !== true || tk.khoa === true) {
+    return traLoiJson({ loi: 'Bạn không có quyền quản trị.' }, 403);
   }
 
-  const token = (body.token || url.searchParams.get('t') || '').trim();
-  const passcode = (body.passcode || '').trim();
-  const phien = (body.session || '').trim();
-  if (!token) return traLoiJson({ loi: 'Thiếu mã link' }, 400);
+  // 3. Kiểm tra dữ liệu
+  const body = await request.json().catch(() => null);
+  const kt = kiemTraYeuCauAdmin(body, uidNguoiGoi);
+  if (!kt.ok) return traLoiJson({ loi: kt.loi }, kt.status);
+  const yc = kt.yeuCau;
 
-  const scope = resolveScope(token);
-  const cfg = (await readPath<ShareConfig | null>(`${scope.configPath}/share`)) || {};
-
-  if (!cfg.token || !cfg.enabled) {
-    return traLoiJson({ loi: 'Link chia sẻ đã bị tắt hoặc chưa được tạo.' }, 403);
-  }
-  if (!soSanhAnToan(cfg.token, token)) {
-    return traLoiJson({ loi: 'Link không đúng hoặc đã hết hiệu lực.' }, 403);
-  }
-
-  const ua = (request.headers.get('user-agent') || '').slice(0, 300);
-
-  // Đang trong phiên xem hợp lệ -> khỏi hỏi lại mật khẩu, và KHÔNG ghi nhật ký
-  // (đổi tháng hay mở chi tiết vẫn là cùng một lượt xem, ghi hết sẽ ngập log).
-  const dungPhien = !!phien && phienConHieuLuc(cfg.token, phien);
-
-  // Hội thoại Zalo tải riêng từng deal (response tổng chứa mọi lead, nhét chat vào sẽ phình).
-  // Bắt buộc có phiên xem hợp lệ: không nhận mật khẩu ở đây, không ghi nhật ký thêm.
-  if (body.loai === 'chat') return traLoiChat(scope.dataRoot, String(body.leadId || ''), dungPhien);
-  // Tìm deal theo SĐT: cũng bắt buộc phiên xem hợp lệ; chỉ trả id deal khớp.
-  if (body.loai === 'timSdt') return traLoiTimSdt(scope.dataRoot, String(body.sdt || '').slice(0, 30), dungPhien);
-
-  let phienMoi: string | undefined;
-  if (!dungPhien) {
-    // Khoá tạm sau nhiều lần sai, chống dò mật khẩu
-    if (cfg.lockedUntil && Date.now() < cfg.lockedUntil) {
-      const conLai = Math.ceil((cfg.lockedUntil - Date.now()) / 60000);
-      return traLoiJson({ loi: `Nhập sai quá nhiều lần. Thử lại sau ${conLai} phút.` }, 429);
+  if (yc.hanhDong === 'tao') {
+    const r = await identityAdmin('accounts', { email: yc.email, password: yc.matKhau, emailVerified: false });
+    if (r.status !== 200) {
+      const mess = String(r.data?.error?.message || '');
+      if (mess.includes('EMAIL_EXISTS')) return traLoiJson({ loi: 'Email này đã có tài khoản.' }, 409);
+      if (mess.includes('INVALID_EMAIL')) return traLoiJson({ loi: 'Email không hợp lệ.' }, 400);
+      if (mess.includes('WEAK_PASSWORD')) return traLoiJson({ loi: 'Mật khẩu quá yếu.' }, 400);
+      console.error('Admin tao loi:', r.status, JSON.stringify(r.data));
+      return traLoiJson({ loi: 'Không tạo được tài khoản. Thử lại sau.' }, 500);
     }
-
-    const dung = !!cfg.salt && !!cfg.passHash && soSanhAnToan(cfg.passHash, bamMatKhau(cfg.salt, passcode));
-
-    // Ghi nhật ký cả lần đúng lẫn lần sai — lần sai mới là thứ cho biết có ai đang dò
-    const logId = Date.now() + '-' + Math.random().toString(36).slice(2, 8);
-    await patchPath(scope.shareLogPath, {
-      [logId]: { at: new Date().toISOString(), ok: dung, ua },
-    }).catch(() => {});
-
-    if (!dung) {
-      const soLanSai = (cfg.failCount || 0) + 1;
-      const capNhat: ShareConfig = { failCount: soLanSai };
-      if (soLanSai >= 10) {
-        capNhat.lockedUntil = Date.now() + 15 * 60 * 1000;
-        capNhat.failCount = 0;
-      }
-      await patchPath(`${scope.configPath}/share`, capNhat).catch(() => {});
-      return traLoiJson({ loi: 'Mật khẩu không đúng.' }, 401);
-    }
-
-    if (cfg.failCount) await patchPath(`${scope.configPath}/share`, { failCount: 0 }).catch(() => {});
-    phienMoi = taoPhienXem(cfg.token);
+    const uid = String(r.data.localId);
+    await patchPath(`taiKhoan/${uid}`, {
+      email: yc.email, ten: yc.ten, coKho: yc.coKho, admin: false, khoa: false, taoLuc: Date.now(),
+    });
+    return traLoiJson({ ok: true, uid });
   }
 
-  /* ---- Dựng dữ liệu chỉ xem ---- */
-  const crm = await alsStore.run({ dataRoot: scope.dataRoot }, () => loadCrm());
-  const zaloLinks = (await readPath<Record<string, ZaloLink> | null>(`${zaloRootFromDataRoot(scope.dataRoot)}/links`).catch(() => null)) || {};
-  const leadCoZalo = new Set(Object.values(zaloLinks).filter((z) => z && z.status === 'lead' && z.leadId).map((z) => z.leadId as string));
-  const homNay = todayISO();
-
-  // Ưu tiên month/year nếu được gửi (giữ tương thích với cách gọi cũ), ngược lại
-  // dùng bộ đơn vị + số kỳ lùi.
-  let ky: { tu: string; den: string; nhan: string };
-  let don: DonVi = 'thang';
-  let lui = 0;
-
-  if (Number.isInteger(body.month) && Number.isInteger(body.year)) {
-    const t = Math.min(12, Math.max(1, body.month as number));
-    const n = Math.min(2100, Math.max(2020, body.year as number));
-    ky = { tu: ghepNgay(n, t, 1), den: ghepNgay(n, t, ngayTrongThang(n, t)), nhan: `Tháng ${t}/${n}` };
-  } else {
-    const dsDon: DonVi[] = ['tuan', 'thang', 'quy', 'nam', 'tuyChon'];
-    don = dsDon.includes(body.don as DonVi) ? (body.don as DonVi) : 'thang';
-    lui = Number.isInteger(body.lui) ? Math.min(600, Math.max(0, body.lui as number)) : 0;
-    ky = tinhKhoang(don, lui, homNay, body.tu, body.den);
+  // khoa / moKhoa
+  const khoa = yc.hanhDong === 'khoa';
+  const r = await identityAdmin('accounts:update', {
+    localId: yc.uid,
+    disableUser: khoa,
+    ...(khoa ? { validSince: String(Math.floor(Date.now() / 1000)) } : {}),
+  });
+  if (r.status !== 200) {
+    const mess = String(r.data?.error?.message || '');
+    if (mess.includes('USER_NOT_FOUND')) return traLoiJson({ loi: 'Không tìm thấy tài khoản.' }, 400);
+    console.error('Admin khoa loi:', r.status, JSON.stringify(r.data));
+    return traLoiJson({ loi: 'Không cập nhật được tài khoản. Thử lại sau.' }, 500);
   }
-
-  const thangTrongKy = cacThangTrongKhoang(ky.tu, ky.den);
-
-  const locLoai = LEAD_TYPES.includes(body.leadType as any) ? (body.leadType as string) : null;
-  const tatCa = locLoai ? crm.leads.filter((l) => leadTypeOf(l) === locLoai) : crm.leads;
-
-  const dangCham = tatCa.filter((l) => l.stage !== 'won' && l.stage !== 'lost');
-  const leadTrongThang = tatCa.filter((l) => trongKhoang(l.createdAt, ky.tu, ky.den));
-  const wonThang = tatCa.filter((l) => l.stage === 'won' && trongKhoang(l.wonAt, ky.tu, ky.den));
-  const lostThang = tatCa.filter((l) => l.stage === 'lost' && trongKhoang(l.lostAt, ky.tu, ky.den));
-
-  const doanhThuThuc = wonThang.reduce((s, l) => s + (l.revenueActual || 0), 0);
-  const giaTriPipeline = dangCham.reduce((s, l) => s + (l.revenueExpected || 0), 0);
-  // "Tháng chốt dự kiến" vốn là mã YYYY-MM, nên khớp với MỌI tháng mà kỳ báo cáo chạm tới
-  const duKienChot = dangCham.filter((l) => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
-  const cycle = wonThang
-    .map((l) => daysBetween(l.createdAt, l.wonAt))
-    .filter((n): n is number => n !== null && n >= 0);
-
-  const lyDoMat: Record<string, number> = {};
-  LOST_REASONS.forEach((r) => (lyDoMat[r] = 0));
-  lostThang.forEach((l) => {
-    if (l.lostReason) lyDoMat[l.lostReason] = (lyDoMat[l.lostReason] || 0) + 1;
-  });
-
-  const tiemNang = dangCham.filter((l) => (l.tags || []).includes('Tiềm năng'));
-
-  // Việc đã hoàn thành trong kỳ — mirror getCompletedTodosData() của app.
-  // Lấy trên TOÀN BỘ lead kể cả Won/Lost: công đã bỏ ra vẫn là công, deal đóng rồi
-  // không có nghĩa là việc làm trong tháng đó không được tính.
-  const todoXong = tatCa
-    .flatMap((l) =>
-      (l.todos || [])
-        .filter((t) => t.done && trongKhoang(t.completedAt, ky.tu, ky.den))
-        .map((t) => ({
-          leadId: l.id,
-          leadName: l.name,
-          stage: l.stage,
-          stageName: STAGE_NAME[l.stage] || l.stage,
-          text: t.text,
-          completedAt: t.completedAt as string,
-        }))
-    )
-    .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
-  const soLeadCoViecXong = new Set(todoXong.map((t) => t.leadId)).size;
-
-  // Phễu chuyển đổi — tính trên lead ĐƯỢC TẠO trong kỳ, giống hệt dashboard của app
-  const buocPheu = STAGES.filter((s) => s.id !== 'lost');
-  const pheu = buocPheu.map((s) => {
-    const idx = STAGE_IDS.indexOf(s.id);
-    return {
-      stage: s.id,
-      stageName: s.name,
-      soLead: leadTrongThang.filter((l) => reachedStageIndex(l) >= idx).length,
-    };
-  });
-  const wonIdx = STAGE_IDS.indexOf('won');
-  const datWon = leadTrongThang.filter((l) => reachedStageIndex(l) >= wonIdx).length;
-
-  /**
-   * Dữ liệu chi tiết cho từng lead. Có đủ ghi chú, việc cần làm và lịch sử hoạt động
-   * để người xem bấm vào deal là hiểu được câu chuyện, không phải hỏi lại.
-   * VẪN bỏ số điện thoại và Facebook: người xem cần bối cảnh để đánh giá,
-   * không cần thông tin liên hệ của khách.
-   */
-  const leadChiTiet = (l: Lead) => {
-    const st = leadStatus(l);
-    return {
-      id: l.id,
-      name: l.name,
-      stage: l.stage,
-      stageName: STAGE_NAME[l.stage] || l.stage,
-      leadType: leadTypeOf(l),
-      package: l.package || null,
-      revenueExpected: l.revenueExpected || 0,
-      revenueActual: l.revenueActual || 0,
-      deadline: l.deadline || null,
-      weddingDate: l.weddingDate || null,
-      expectedCloseMonth: l.expectedCloseMonth || null,
-      createdAt: l.createdAt || null,
-      wonAt: l.wonAt || null,
-      lostAt: l.lostAt || null,
-      lostReason: l.lostReason || null,
-      status: st.label,
-      statusType: st.type,
-      isPotential: (l.tags || []).includes('Tiềm năng'),
-      tags: l.tags || [],
-      // Bối cảnh bán hàng — thứ người xem thực sự cần khi soi một deal
-      schedule: l.schedule || '',
-      persona: l.persona || '',
-      objection: l.objection || '',
-      notesList: (l.notesList || []).map((n) => ({
-        text: n.text, createdAt: n.createdAt, updatedAt: n.updatedAt,
-      })),
-      todos: (l.todos || []).map((t) => ({
-        text: t.text, done: !!t.done, dueDate: t.dueDate || null,
-        completedAt: t.completedAt || null, status: todoStatus(t).label,
-      })),
-      activityLog: (l.activityLog || []).map((a) => ({ time: a.time, text: a.text })),
-      soViec: (l.todos || []).length,
-      soViecXong: (l.todos || []).filter((t) => t.done).length,
-      // Để trang xem lọc theo bước phễu mà không phải chép lại công thức
-      reachedIndex: reachedStageIndex(l),
-      taoTrongKy: trongKhoang(l.createdAt, ky.tu, ky.den),
-      wonTrongKy: l.stage === 'won' && trongKhoang(l.wonAt, ky.tu, ky.den),
-      lostTrongKy: l.stage === 'lost' && trongKhoang(l.lostAt, ky.tu, ky.den),
-      coHoiThoaiZalo: leadCoZalo.has(l.id),
-    };
-  };
-
-  return traLoiJson({
-    ok: true,
-    ...(phienMoi ? { session: phienMoi } : {}),
-    thoiDiem: new Date().toISOString(),
-    homNay: todayISO(),
-    don,
-    lui,
-    tu: ky.tu,
-    den: ky.den,
-    thangTrongKy,
-    kyBaoCao: ky.nhan,
-    loaiLead: locLoai,
-    danhSachLoaiLead: LEAD_TYPES,
-    giaiDoan: STAGES.map((s) => ({ id: s.id, name: s.name })),
-    leads: tatCa.map(leadChiTiet),
-    todoHoanThanh: todoXong,
-    dashboard: {
-      pipeline: { soLead: dangCham.length, giaTri: giaTriPipeline },
-      doanhThuThucTe: {
-        soTien: doanhThuThuc,
-        soDeal: wonThang.length,
-        keHoach: crm.planRevenue,
-        phanTram: crm.planRevenue ? Math.round((doanhThuThuc / crm.planRevenue) * 100) : 0,
-      },
-      leadMoi: {
-        soLuong: leadTrongThang.length,
-        keHoach: crm.planLeads,
-        phanTram: crm.planLeads ? Math.round((leadTrongThang.length / crm.planLeads) * 100) : 0,
-      },
-      tiemNang: { soTien: tiemNang.reduce((s, l) => s + (l.revenueExpected || 0), 0), soLead: tiemNang.length },
-      duKienChot: { soTien: duKienChot.reduce((s, l) => s + (l.revenueExpected || 0), 0), soLead: duKienChot.length },
-      todoHoanThanh: { soViec: todoXong.length, soLead: soLeadCoViecXong },
-      dealCycle: cycle.length ? Math.round(cycle.reduce((a, b) => a + b, 0) / cycle.length) : null,
-      treHen: dangCham.filter((l) => leadStatus(l).type === 'red').length,
-      denHanHomNay: dangCham.filter((l) => leadStatus(l).type === 'green').length,
-      soLost: lostThang.length,
-      lyDoMatDeal: lyDoMat,
-      pheu,
-      crToWon: leadTrongThang.length ? Math.round((datWon / leadTrongThang.length) * 100) : 0,
-      // Chi so RIENG, khong lien quan crToWon o tren: deal chot trong ky chia cho lead
-      // nhan trong ky, KHONG quan tam lead duoc tao luc nao.
-      crTrongKy: leadTrongThang.length ? Math.round((wonThang.length / leadTrongThang.length) * 100) : 0,
-    },
-  });
+  await patchPath(`taiKhoan/${yc.uid}`, { khoa });
+  if (khoa) {
+    // Thu hồi khoá MCP của tài khoản bị khoá (mở khoá không khôi phục)
+    const cfg = resolveScope(`${yc.uid}.x`).configPath;
+    await patchPath(cfg, { mcpSecret: null });
+    cachedSecrets.delete(cfg);
+    if (cfg === 'appConfig') cachedSecret = null;
+  }
+  return traLoiJson({ ok: true });
 }
 
 /* ===================== Vercel Function (framework: other) ===================== */
@@ -3048,14 +2806,13 @@ export default {
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
 
-    // Nhánh link chia sẻ chỉ xem — có cơ chế xác thực riêng (mã link + mật khẩu),
-    // không dùng khoá MCP. Phải xử lý TRƯỚC phần kiểm tra khoá bên dưới.
-    if (url.searchParams.get('mode') === 'share') {
+    // Nhánh quản trị tài khoản — xác thực bằng ID token Firebase của admin, không dùng khoá MCP.
+    if (url.searchParams.get('mode') === 'admin') {
       try {
-        return await xuLyChiaSe(request, url);
+        return await xuLyAdmin(request);
       } catch (e) {
-        console.error('Share error:', e);
-        return traLoiJson({ loi: 'Không tải được dữ liệu. Thử lại sau.' }, 500);
+        console.error('Admin error:', e);
+        return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 500);
       }
     }
 
@@ -3081,6 +2838,29 @@ export default {
         hopLe = provided === luu;
       }
       if (!hopLe) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Tài khoản bị khoá (taiKhoan/<uid>/khoa) thì khoá MCP của họ không dùng được nữa.
+    // Không cache để khoá có hiệu lực ngay. Khoá env MCP_SECRET là khoá vận hành, không bị ảnh hưởng.
+    if (provided && provided !== envSecret) {
+      let biKhoa = false;
+      try {
+        biKhoa = (await readPath<unknown>(`taiKhoan/${scope.uid}/khoa`)) === true;
+      } catch (e) {
+        // Không xác minh được trạng thái khoá -> từ chối (fail closed), tránh lọt khoá đã bị khoá
+        // vào instance khác còn cache mcpSecret.
+        console.error('Khong doc duoc taiKhoan/khoa:', e);
+        return new Response(JSON.stringify({ error: 'Service Unavailable' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      if (biKhoa) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json' },

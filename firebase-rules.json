@@ -3,16 +3,18 @@
     "Dan phan 'rules' ben duoi vao Firebase Console > Realtime Database > Rules > Publish.",
     "",
     "Bo rules nay lam:",
-    "1. crmData (kho GOC): chi UID cu 7ePgCPmzxHdEAEazHo9IkyKf2rw2 moi doc/ghi.",
-    "   Day la du lieu dang chay cua tai khoan cu, KHONG bi tai khoan khac dung toi.",
-    "   MCP server cung dung dung nhanh nay.",
-    "2. crmData_users/<uid>: MOI tai khoan chu co mot kho RIENG o day, va chi",
-    "   dung chinh chu moi doc/ghi duoc kho cua minh. Tai khoan moi",
-    "   HGpKBnj7qiUvKTG8HvcI72Se4Qr2 dung crmData_users/HGpKBnj7qiUvKTG8HvcI72Se4Qr2,",
-    "   tach biet hoan toan voi du lieu cu.",
-    "3. Ghi nhat ky dang nhap vao authLog: BAT KY tai khoan nao dang nhap qua app",
-    "   deu bi ghi lai (de bat duoc ke la), nhung CHI tai khoan cu moi doc duoc.",
-    "   Nhat ky khong the sua hay xoa boi nguoi khac - chi tao moi.",
+    "1. Kho du lieu: crmData / zalo / aiData / appConfig la kho GOC cua chu cu 7ePgCPmzxHdEAEazHo9IkyKf2rw2;",
+    "   moi tai khoan khac co kho rieng o crmData_users/<uid>, zalo_users/<uid>, aiData_users/<uid>, appConfig_users/<uid>.",
+    "2. taiKhoan/<uid> {ten, email, coKho, admin, khoa}: ho so + quyen cua tung tai khoan. Khong co ban ghi = coKho true, admin false, khoa false.",
+    "   - khoa === true: tai khoan bi khoa, KHONG doc/ghi duoc gi (moi nhanh deu kiem tra KHONG_KHOA).",
+    "   - admin === true (va chua bi khoa): doc/ghi moi kho, doc/ghi taiKhoan va quyenXem, doc authLog. Admin bi khoa mat het quyen admin.",
+    "   - coKho === false: khong ghi duoc vao kho cua chinh minh (chi xem kho nguoi khac duoc cap).",
+    "   Chi admin (chua bi khoa) ghi taiKhoan; moi nguoi chi doc ban ghi cua minh (ke ca khi bi khoa, de app hien thong bao khoa), admin chua khoa doc tat ca.",
+    "3. quyenXem/<nguoiXem>/<chuKho> {crm, zalo, ai, tenChuKho}: cap quyen CHI XEM. Nguoi xem doc duoc nhom da tick",
+    "   (crm -> crmData*, zalo -> zalo*, ai -> aiData*) cua chu kho do, KHONG BAO GIO ghi. appConfig (khoa MCP) khong bao gio lo cho nguoi xem.",
+    "   Chi admin ghi quyenXem; nguoi xem doc duoc ban ghi cua minh.",
+    "4. authLog: ai dang nhap cung ghi duoc mot dong moi (khong sua/xoa dong cu); chi chu cu va admin doc duoc (deu phai chua bi khoa).",
+    "5. Da bo shareLog / shareLog_users cung link chia se chi xem (thay bang quyenXem).",
     "",
     "MCP server khong bi anh huong: no dung service account, quyen admin, bo qua rules.",
     "",
@@ -21,23 +23,22 @@
     "(ho khong doc duoc du lieu, nhung chan ngay tu dau van hon).",
     "",
     "Ghi chu ky thuat:",
+    "- RTDB khong co ham dung chung nen cac bieu thuc KHONG_KHOA / LA_ADMIN / XEM / CO_KHO duoc chep nguyen van vao tung nhanh.",
+    "- Quyen .read/.write cap o nut cha khong the bi nut con thu hoi; vi vay taiKhoan/quyenXem cap quyen admin o nut cha, quyen tung nguoi o $uid/$nguoiXem.",
     "- crmData va crmData_users/<uid> dung chung mot bo .validate cho leads/planRevenue/planLeads.",
-    "- appConfig: chua khoa ket noi MCP do app tu sinh, chi tai khoan cu doc/ghi duoc.",
-    "- appConfig_users/<uid> va shareLog_users/<uid>: cau hinh share + khoa MCP + nhat ky rieng cua tung tai khoan moi; chi chinh chu doc/ghi (nhat ky chi doc, backend admin ghi).",
-    "- authLog: ai dang nhap cung ghi duoc mot dong moi, nhung khong ai sua/xoa duoc dong da co, va chi tai khoan cu doc duoc.",
+    "- appConfig: chua khoa ket noi MCP do app tu sinh; chi chu kho (hoac admin) doc/ghi duoc.",
+    "- zalo / zalo_users: du lieu extension Zalo. aiData / aiData_users: ho so khach + hang cho de xuat do Claude ghi qua MCP.",
     "",
     "LUU Y: Firebase Console KHONG chap nhan khoa _huong_dan (bao loi 'Expected rules property').",
     "  De dan vao Console, dung file 'firebase-rules-deploy.json' (chi co khoi rules). File nay",
-    "  chi de doc/ghi chu, giu trong repo.",
-    "- zalo / zalo_users: du lieu extension Zalo (hoi thoai da gan lead). Chu cu dung 'zalo', tai khoan khac dung 'zalo_users/<uid>'.",
-    "- aiData / aiData_users: ho so khach + hang cho de xuat do Claude ghi qua MCP (service account). App doc + ghi trang thai duyet. Chu cu dung 'aiData', tai khoan khac dung 'aiData_users/<uid>'."
+    "  chi de doc/ghi chu, giu trong repo."
   ],
   "rules": {
     ".read": false,
     ".write": false,
     "crmData": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/crm').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "leads": {
         ".indexOn": [
           "ownerUid"
@@ -67,8 +68,8 @@
     },
     "crmData_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/crm').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
         "leads": {
           ".indexOn": [
             "ownerUid"
@@ -98,55 +99,71 @@
       }
     },
     "zalo": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'"
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/zalo').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)"
     },
     "zalo_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/zalo').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)"
       }
     },
     "aiData": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      "proposals": { ".indexOn": ["status"] }
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/ai').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      "proposals": {
+        ".indexOn": [
+          "status"
+        ]
+      }
     },
     "aiData_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        "proposals": { ".indexOn": ["status"] }
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/ai').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+        "proposals": {
+          ".indexOn": [
+            "status"
+          ]
+        }
       }
     },
     "appConfig": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "mcpSecret": {
         ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
       }
     },
     "appConfig_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
         "mcpSecret": {
           ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
         }
       }
     },
-    "shareLog_users": {
+    "taiKhoan": {
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
+      ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": false
+        ".read": "auth.uid === $uid || (root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true)",
+        ".validate": "(!newData.hasChild('coKho') || newData.child('coKho').isBoolean()) && (!newData.hasChild('admin') || newData.child('admin').isBoolean()) && (!newData.hasChild('khoa') || newData.child('khoa').isBoolean()) && (!newData.hasChild('ten') || newData.child('ten').isString()) && (!newData.hasChild('email') || newData.child('email').isString())"
       }
     },
-    "shareLog": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": false
+    "quyenXem": {
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
+      ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
+      "$nguoiXem": {
+        ".read": "auth.uid === $nguoiXem",
+        "$chu": {
+          ".validate": "(!newData.hasChild('crm') || newData.child('crm').isBoolean()) && (!newData.hasChild('zalo') || newData.child('zalo').isBoolean()) && (!newData.hasChild('ai') || newData.child('ai').isBoolean()) && (!newData.hasChild('tenChuKho') || newData.child('tenChuKho').isString())"
+        }
+      }
     },
     "authLog": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "$entry": {
         ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
         ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"
