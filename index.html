@@ -3395,6 +3395,12 @@ function veQuanTri(){
     const nhan = document.createElement('label'); nhan.className = 'qt-tick';
     const o = document.createElement('input'); o.type = 'checkbox'; o.checked = q.coKho;
     o.dataset.qt = 'coKho'; o.dataset.uid = uid;
+    if (uid === f.ownerUid){
+      // Tắt nhầm = Trân mất quyền ghi vào CRM của chính mình. Khoá cứng ô này.
+      o.disabled = true;
+      o.dataset.khoaCung = '1';
+      nhan.title = 'Kho của Trân luôn bật — tắt là Trân mất quyền vào CRM của mình.';
+    }
     nhan.append(o, ' Có kho');
     hop.appendChild(nhan);
     if (uid !== toi){   // không tự khoá chính mình (backend cũng chặn)
@@ -3424,7 +3430,7 @@ function hienTBQuanTri(loai, chu){
 
 function khoaNutQuanTri(bat){
   document.querySelectorAll('#quanTriBody button, #quanTriBody input, #quanTriBody select')
-    .forEach(x => { x.disabled = bat; });
+    .forEach(x => { x.disabled = bat || x.dataset.khoaCung === '1'; });
 }
 
 // Chạy một thao tác: tắt nút trong lúc chờ; lỗi -> hiện loi; xong -> tải lại dữ liệu + vẽ lại.
@@ -3492,6 +3498,15 @@ function qtDoi(ev){
   if (!o || o.dataset.qt !== 'coKho') return;
   const f = window.__firebase;
   const coKho = o.checked;
+  const uid = o.dataset.uid;
+  if (!coKho && uid === f.ownerUid){   // chốt thứ hai: ô của Trân đã bị khoá cứng
+    o.checked = true;
+    return hienTBQuanTri('loi', 'Không tắt được kho của Trân.');
+  }
+  if (!coKho && !confirm(`Tắt kho riêng của ${tenTaiKhoanQT(uid)}?\n\nNgười này sẽ không ghi được vào CRM của mình nữa (chỉ còn xem các kho được cấp quyền).`)){
+    o.checked = true;   // huỷ -> trả ô tick về như cũ
+    return;
+  }
   return qtThucHien(() => f.update(f.refAt('taiKhoan/' + o.dataset.uid), { coKho }),
     coKho ? 'Đã bật kho riêng.' : 'Đã tắt kho riêng.')
     .then(xong => { if (xong === false) o.checked = !coKho; });   // ghi lỗi -> trả ô tick về như cũ
@@ -6673,16 +6688,32 @@ async function docQuyenKhoiDong(uid){
   return { taiKhoanToi, quyenXemToi, tatCaTaiKhoan };
 }
 
+// Đường lui khi luồng khởi động theo quyền ném lỗi bất ngờ: vào kho của chính mình với
+// quyền mặc định (giống lúc không đọc được quyền). Không bao giờ để vòng xoay chờ mãi,
+// không bao giờ chặn Trân khỏi app của mình. Rules vẫn là bên chặn thật.
+function khoiDongMacDinh(user){
+  const f = window.__firebase;
+  const kho = { uid: user.uid, ten: 'Kho của tôi', cuaToi: true, sua: true, nhom: { crm: true, zalo: true, ai: true } };
+  try { window.__taiKhoan = window.PhanQuyen.quyenTaiKhoan(null); }
+  catch(e){ window.__taiKhoan = { coKho: true, admin: false, khoa: false, ten: '', email: '' }; }
+  try { apDungQuyenQuanTri(false); } catch(e){ console.error(e); }
+  try { f.datKhoDangXem(kho, [kho]); } catch(e){ console.error(e); }
+  try { apDungCheDoKho(kho, [kho]); } catch(e){ console.error(e); window.__chiXem = false; }
+  try { hideLockScreen(); } catch(e){ console.error(e); }
+  startWithCloud();
+}
+
 let dangKhoiDong = false;
 async function khoiDongTheoQuyen(user){
   if (dangKhoiDong || appStarted) return;
   dangKhoiDong = true;
+  let qd = null;
   try {
     const f = window.__firebase;
     const quyenDoc = await docQuyenKhoiDong(user.uid);
     let uidDaNho = null;
     try { uidDaNho = localStorage.getItem('khoDangXem'); } catch(e){ /* bị chặn thì thôi */ }
-    const qd = quyetDinhKhoiDong(window.PhanQuyen, { uid: user.uid, ownerUid: f.ownerUid, uidDaNho, ...quyenDoc });
+    qd = quyetDinhKhoiDong(window.PhanQuyen, { uid: user.uid, ownerUid: f.ownerUid, uidDaNho, ...quyenDoc });
     window.__taiKhoan = qd.quyen;
     apDungQuyenQuanTri(!!(qd.quyen && qd.quyen.admin));
     if (qd.loai === 'khoa'){
@@ -6701,6 +6732,16 @@ async function khoiDongTheoQuyen(user){
     apDungCheDoKho(qd.kho, qd.ds);
     hideLockScreen();
     startWithCloud();
+  } catch(e){
+    console.error('Lỗi bất ngờ khi khởi động theo quyền:', e);
+    if (qd && (qd.loai === 'khoa' || qd.loai === 'trong')){
+      // Đã biết là không được vào: giữ màn chặn, không mở app.
+      try { hienManKhoa(qd.loai === 'khoa' ? 'Tài khoản đã bị khoá. Liên hệ admin.' : 'Chưa được cấp quyền xem dữ liệu nào.'); }
+      catch(e2){ console.error(e2); }
+    } else {
+      console.warn('Vào kho của mình với quyền mặc định.');
+      khoiDongMacDinh(user);
+    }
   } finally {
     dangKhoiDong = false;   // đăng xuất rồi đăng nhập tài khoản khác thì chạy lại được
   }

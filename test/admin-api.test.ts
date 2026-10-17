@@ -38,6 +38,17 @@ check('tao email rỗng -> 400',
 check('khoa chính mình -> 400', kiemTraYeuCauAdmin({ hanhDong: 'khoa', uid: 'u1' }, 'u1').ok === false);
 check('khoa người khác -> ok', kiemTraYeuCauAdmin({ hanhDong: 'khoa', uid: 'u2' }, 'u1').ok === true);
 check('moKhoa thiếu uid -> 400', kiemTraYeuCauAdmin({ hanhDong: 'moKhoa' }, 'u1').ok === false);
+// uid đi thẳng vào đường dẫn REST: chặn mọi ký tự ngoài chữ + số
+for (const uidXau of ['../crmData', 'a/b', 'a.b', 'a?x=1', 'a#b', 'a b', '%2e%2e', 'x'.repeat(129), 'Trân']) {
+  for (const hd of ['khoa', 'moKhoa']) {
+    const kq = kiemTraYeuCauAdmin({ hanhDong: hd, uid: uidXau }, 'u1');
+    check(`${hd} uid ${JSON.stringify(uidXau.length > 20 ? uidXau.slice(0, 10) + '…' : uidXau)} -> 400`,
+      kq.ok === false && kq.status === 400, JSON.stringify(kq));
+  }
+}
+check('uid Firebase thật (28 ký tự) -> ok',
+  kiemTraYeuCauAdmin({ hanhDong: 'moKhoa', uid: '7ePgCPmzxHdEAEazHo9IkyKf2rw2' }, 'u1').ok === true);
+check('uid 128 ký tự -> ok', kiemTraYeuCauAdmin({ hanhDong: 'khoa', uid: 'a'.repeat(128) }, 'u1').ok === true);
 const hopLe = kiemTraYeuCauAdmin({ hanhDong: 'tao', email: ' A@B.c ', matKhau: '12345678', ten: ' An ', coKho: false }, 'u1');
 check('tao hợp lệ -> ok, email chuẩn hoá', hopLe.ok === true && hopLe.yeuCau.email === 'a@b.c' && hopLe.yeuCau.ten === 'An' && hopLe.yeuCau.coKho === false,
   JSON.stringify(hopLe));
@@ -133,6 +144,8 @@ try {
   console.log('\n>> khoa');
   const rChinhMinh = await goiAdmin(tokenA, { hanhDong: 'khoa', uid: uidA });
   check('khoá chính mình -> 400', rChinhMinh.status === 400, String(rChinhMinh.status));
+  const rXau = await goiAdmin(tokenA, { hanhDong: 'khoa', uid: '../appConfig' });
+  check('khoa uid có "/" "." -> 400 qua handler thật', rXau.status === 400, String(rXau.status) + JSON.stringify(rXau.data));
   const khoaB = `${uidB}.` + randomBytes(20).toString('hex');
   await db(`appConfig_users/${uidB}`, { method: 'PATCH', body: JSON.stringify({ mcpSecret: khoaB }) });
   const rKhoa = await goiAdmin(tokenA, { hanhDong: 'khoa', uid: uidB });

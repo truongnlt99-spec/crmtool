@@ -2690,6 +2690,9 @@ export type YeuCauAdmin =
   | { hanhDong: 'khoa'; uid: string }
   | { hanhDong: 'moKhoa'; uid: string };
 
+/** UID Firebase Auth: chữ + số (UID thật dài 28 ký tự). */
+export const UID_HOP_LE = /^[A-Za-z0-9]{1,128}$/;
+
 /** Kiểm tra thân yêu cầu /api/admin. Hàm thuần, không chạm mạng. */
 export function kiemTraYeuCauAdmin(
   body: unknown, uidNguoiGoi: string
@@ -2708,6 +2711,9 @@ export function kiemTraYeuCauAdmin(
   if (b.hanhDong === 'khoa' || b.hanhDong === 'moKhoa') {
     const uid = String(b.uid ?? '').trim();
     if (!uid) return loi('Thiếu tài khoản cần thao tác.');
+    // uid đi thẳng vào đường dẫn REST (taiKhoan/<uid>, appConfig_users/<uid>): chỉ nhận chữ + số,
+    // chặn '/', '.', '..', '?', '#'... để không ghi lệch sang nhánh khác.
+    if (!UID_HOP_LE.test(uid)) return loi('Mã tài khoản không hợp lệ.');
     if (b.hanhDong === 'khoa' && uid === uidNguoiGoi) return loi('Không thể tự khoá chính mình.');
     return { ok: true, yeuCau: { hanhDong: b.hanhDong, uid } };
   }

@@ -4,8 +4,10 @@
  * CẦN DÁN firebase-rules-deploy.json VÀO FIREBASE CONSOLE (Realtime Database -> Rules -> Publish)
  * TRƯỚC KHI CHẠY. Rules trong repo không tự có hiệu lực.
  *
- * Tạo 4 user Auth tạm (pq-*@test.local): chủ C, người xem X, admin A, người lạ L.
- * Mọi nhánh test nằm dưới UID của các user tạm; dọn sạch trong finally.
+ * Tạo 5 user Auth tạm (pq-*@test.local): chủ C, người xem X, admin A, người lạ L, và N
+ * (KHÔNG có bản ghi taiKhoan — giống Trân trước khi chạy script khởi tạo).
+ * Mọi nhánh test nằm dưới UID của các user tạm (không đụng crmData thật); seed bằng PATCH;
+ * dọn sạch trong finally.
  */
 import fs from 'node:fs';
 import { createSign, randomBytes } from 'node:crypto';
@@ -82,21 +84,26 @@ async function taoUser(ten: string): Promise<U> {
   if (t.status !== 200) throw new Error(`Khong tao duoc user test ${ten}: ${t.status} ${JSON.stringify(t.data)}`);
   cacUid.push(t.data.localId);
   const dn = await dangNhap(email, MAT_KHAU);
+  // Không có token thì ?auth=undefined -> 401 ở MỌI lệnh, các ca "bị chặn" đỗ oan. Dừng luôn.
+  if (typeof dn.idToken !== 'string' || !dn.idToken) {
+    throw new Error(`Khong dang nhap duoc user test ${ten}: ${JSON.stringify(dn)}`);
+  }
   return { uid: t.data.localId, token: dn.idToken };
 }
 
 try {
   const C = await taoUser('chu'), X = await taoUser('xem'), A = await taoUser('admin'), L = await taoUser('la');
+  const N = await taoUser('khongbanghi');   // KHÔNG seed taiKhoan/N
 
   // Seed bằng service account
   await dbSa(`taiKhoan/${C.uid}`, { method: 'PATCH', body: JSON.stringify({ email: 'c@test.local', ten: 'C', coKho: true, admin: false, khoa: false }) });
   await dbSa(`taiKhoan/${X.uid}`, { method: 'PATCH', body: JSON.stringify({ email: 'x@test.local', ten: 'X', coKho: false, admin: false, khoa: false }) });
   await dbSa(`taiKhoan/${A.uid}`, { method: 'PATCH', body: JSON.stringify({ email: 'a@test.local', ten: 'A', coKho: false, admin: true, khoa: false }) });
   await dbSa(`taiKhoan/${L.uid}`, { method: 'PATCH', body: JSON.stringify({ email: 'l@test.local', ten: 'L', coKho: false, admin: false, khoa: false }) });
-  await dbSa(`quyenXem/${X.uid}/${C.uid}`, { method: 'PUT', body: JSON.stringify({ crm: true, zalo: false, ai: false, tenChuKho: 'C' }) });
-  await dbSa(`crmData_users/${C.uid}/leads/t1`, { method: 'PUT', body: JSON.stringify({ id: 't1', name: 'Khach test' }) });
-  await dbSa(`zalo_users/${C.uid}/meta`, { method: 'PUT', body: JSON.stringify({ x: 1 }) });
-  await dbSa(`aiData_users/${C.uid}/briefs/t1`, { method: 'PUT', body: JSON.stringify({ x: 1 }) });
+  await dbSa(`quyenXem/${X.uid}`, { method: 'PATCH', body: JSON.stringify({ [C.uid]: { crm: true, zalo: false, ai: false, tenChuKho: 'C' } }) });
+  await dbSa(`crmData_users/${C.uid}/leads`, { method: 'PATCH', body: JSON.stringify({ t1: { id: 't1', name: 'Khach test', stage: 'leadin' } }) });
+  await dbSa(`zalo_users/${C.uid}/meta`, { method: 'PATCH', body: JSON.stringify({ x: 1 }) });
+  await dbSa(`aiData_users/${C.uid}/briefs`, { method: 'PATCH', body: JSON.stringify({ t1: { x: 1 } }) });
   await dbSa(`appConfig_users/${C.uid}`, { method: 'PATCH', body: JSON.stringify({ ghiChu: 'bi mat' }) });
 
   console.log('\n>> Chủ C trên kho của mình');
@@ -111,8 +118,26 @@ try {
   check('X đọc aiData_users/C bị chặn', (await doc(X.token, `aiData_users/${C.uid}`)) === 401);
   check('X đọc appConfig_users/C bị chặn', (await doc(X.token, `appConfig_users/${C.uid}`)) === 401);
   check('X ghi lead của C bị chặn', (await ghi(X.token, `crmData_users/${C.uid}/leads/t1`, { name: 'hack' })) === 401);
+  check('X ghi crmData_users/C/probe bị chặn (chỉ xem)', (await ghi(X.token, `crmData_users/${C.uid}/probe`, { v: 1 })) === 401);
   check('X ghi crmData_users/X bị chặn (coKho=false)', (await ghi(X.token, `crmData_users/${X.uid}`, { leads: { a: { id: 'a' } } })) === 401);
   check('X tự cấp quyền zalo bị chặn', (await ghi(X.token, `quyenXem/${X.uid}/${C.uid}`, { zalo: true })) === 401);
+
+  console.log('\n>> Người không admin đọc quyền của CHÍNH MÌNH lúc khởi động');
+  check('X đọc taiKhoan/X', (await doc(X.token, `taiKhoan/${X.uid}`)) === 200);
+  check('X đọc quyenXem/X', (await doc(X.token, `quyenXem/${X.uid}`)) === 200);
+  check('X đọc taiKhoan/C bị chặn', (await doc(X.token, `taiKhoan/${C.uid}`)) === 401);
+  check('X đọc quyenXem/C bị chặn', (await doc(X.token, `quyenXem/${C.uid}`)) === 401);
+  check('X đọc cả nhánh quyenXem bị chặn', (await doc(X.token, 'quyenXem')) === 401);
+
+  console.log('\n>> N: KHÔNG có bản ghi taiKhoan (như Trân lúc chưa khởi tạo) vẫn dùng kho của mình');
+  check('N đọc taiKhoan/N (chưa có) được', (await doc(N.token, `taiKhoan/${N.uid}`)) === 200);
+  check('N đọc quyenXem/N (chưa có) được', (await doc(N.token, `quyenXem/${N.uid}`)) === 200);
+  for (const p of ['crmData_users', 'zalo_users', 'aiData_users']) {
+    check(`N đọc ${p}/N`, (await doc(N.token, `${p}/${N.uid}`)) === 200);
+    check(`N ghi ${p}/N`, (await ghi(N.token, `${p}/${N.uid}/probe`, { v: 1 })) === 200);
+  }
+  check('N đọc crmData_users/C bị chặn', (await doc(N.token, `crmData_users/${C.uid}`)) === 401);
+  check('N tự đặt mình làm admin bị chặn', (await ghi(N.token, `taiKhoan/${N.uid}`, { admin: true })) === 401);
 
   console.log('\n>> Admin A');
   check('A đọc crmData_users/C', (await doc(A.token, `crmData_users/${C.uid}`)) === 200);
@@ -126,6 +151,8 @@ try {
   console.log('\n>> Khoá C -> cắt ngay bằng token cũ');
   await dbSa(`taiKhoan/${C.uid}`, { method: 'PATCH', body: JSON.stringify({ khoa: true }) });
   check('C (bị khoá) đọc crmData_users/C bị chặn', (await doc(C.token, `crmData_users/${C.uid}`)) === 401);
+  check('C (bị khoá) ghi crmData_users/C bị chặn', (await ghi(C.token, `crmData_users/${C.uid}/probe`, { v: 3 })) === 401);
+  check('C (bị khoá) vẫn đọc taiKhoan/C (để app hiện "đã bị khoá")', (await doc(C.token, `taiKhoan/${C.uid}`)) === 200);
   check('X vẫn đọc được crmData_users/C', (await doc(X.token, `crmData_users/${C.uid}`)) === 200);
 } finally {
   console.log('\n>> Dọn dẹp');
