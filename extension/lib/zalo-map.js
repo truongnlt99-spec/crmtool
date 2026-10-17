@@ -48,9 +48,9 @@ export const KIND_LABEL = {
 };
 
 /**
- * Quy tắc hiện MỘT tin nhắn, dùng chung cho CRM (index.html), trang chia sẻ (xem.html) và
- * MCP (api/mcp.ts). Hai chỗ sau chép lại quy tắc này vì không import được module —
- * sửa ở đây thì sửa cả hai chỗ đó.
+ * Quy tắc hiện MỘT tin nhắn, dùng chung cho CRM (index.html) và
+ * MCP (api/mcp.ts). Chỗ sau chép lại quy tắc này vì không import được module —
+ * sửa ở đây thì sửa cả chỗ đó.
  *   chip  : nhãn loại tin; null khi không cần (tin chữ, hoặc tin kèm link đã có chữ)
  *   thieu : tin chữ chưa có nội dung (hội thoại chưa được mở trên Zalo web)
  */

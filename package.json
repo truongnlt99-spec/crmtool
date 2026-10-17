@@ -10,13 +10,10 @@
   "scripts": {
     "test": "node test/write-tools.test.ts",
     "audit": "node test/audit.ts",
-    "test:share": "node test/share.test.ts",
     "test:ky": "node test/khoang-thoi-gian.test.ts",
     "test:scope": "node test/scope.test.ts",
     "test:admin": "node test/admin-api.test.ts",
     "test:rules-that": "node test/rules-that.test.ts",
-    "test:tim-sdt": "node test/tim-sdt.test.ts",
-    "test:scope-share": "node test/scope-share.test.ts",
     "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
     "test:zalo-tinh": "node test/zalo-ext-static.test.ts",
     "test:bang": "node test/bang-lead.test.ts",

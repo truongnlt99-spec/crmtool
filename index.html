@@ -45,15 +45,12 @@
     return ref(db, 'crmData_users/' + uid);
   }
 
-  // Cấu hình share + khoá MCP + nhật ký truy cập cũng tách theo tài khoản, giống dữ liệu CRM.
-  // Chủ cũ giữ nguyên nhánh 'appConfig'/'shareLog'; tài khoản khác dùng nhánh riêng theo uid.
+  // Cấu hình + khoá MCP cũng tách theo tài khoản, giống dữ liệu CRM.
+  // Chủ cũ giữ nguyên nhánh 'appConfig'; tài khoản khác dùng nhánh riêng theo uid.
   function appConfigBase(){
     const uid = auth.currentUser && auth.currentUser.uid;
     return (!uid || uid === OLD_OWNER_UID) ? 'appConfig' : 'appConfig_users/' + uid;
   }
-  function shareLogBase(){
-    const uid = auth.currentUser && auth.currentUser.uid;
-    return (!uid || uid === OLD_OWNER_UID) ? 'shareLog' : 'shareLog_users/' + uid;
   }
   // Dữ liệu extension Zalo, tách theo tài khoản giống crmData.
   function zaloBase(){
@@ -122,7 +119,7 @@
 
   window.__firebase = {
     db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
-    appConfigBase, shareLogBase, currentUid, zaloBase, aiBase, query, limitToLast, orderByChild, equalTo,
+    appConfigBase, currentUid, zaloBase, aiBase, query, limitToLast, orderByChild, equalTo,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -317,27 +314,8 @@
   .theme-icon{display:flex; flex:none;}
   .theme-icon svg{width:15px; height:15px;}
   .sidebar-theme:hover{color:var(--amber); border-color:var(--amber); background:var(--amber-soft);}
-  .sidebar-share{margin-top:10px;}
-  .sidebar-share:hover{color:var(--slate); border-color:var(--slate); background:var(--slate-soft);}
 
-  /* ---------- Modal: chia sẻ chỉ xem ---------- */
-  .share-row{display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;}
-  .share-on{
-    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800;
-    padding:3px 9px; border-radius:999px; 
-  }
-  .share-on.bat{color:var(--green-700); background:var(--green-50);}
-  .share-on.tat{color:var(--gray-tag); background:var(--gray-tag-soft);}
   .log-list{max-height:210px; overflow-y:auto; margin-top:8px;}
-  .log-row{
-    display:flex; align-items:center; gap:9px; padding:7px 9px; border-radius:var(--radius-sm);
-    background:var(--bg); margin-bottom:5px; font-size:11.5px; font-weight:600;
-  }
-  .log-row.sai{background:var(--red-soft);}
-  .log-when{flex:none; color:var(--ink-faint); font-weight:700;}
-  .log-ua{flex:1; min-width:0; color:var(--ink-soft); overflow-wrap:anywhere;}
-  .log-kq{flex:none; font-weight:800;}
-  .log-kq.ok{color:var(--green-600);} .log-kq.sai{color:var(--red);}
 
   /* ---------- Modal: link kết nối Claude ---------- */
   .mcp-url-box{
@@ -1106,7 +1084,7 @@
   .nav-item.active{background:var(--green-500); color:#fff; box-shadow:0 4px 14px rgba(23,121,92,.28);}
   .sidebar{border-right:1px solid var(--border); padding:22px 14px;}
   .sidebar-stat{border-radius:18px; padding:14px;}
-  .sidebar-logout,.sidebar-connect,.sidebar-theme,.sidebar-share{border-radius:12px; padding:10px 13px;}
+  .sidebar-logout,.sidebar-connect,.sidebar-theme{border-radius:12px; padding:10px 13px;}
   .topbar{height:72px; padding:0 24px;}
   .topbar-search{border-radius:999px; padding:9px 15px;}
   .btn{border-radius:14px; padding:11px 18px; font-size:13.5px;}
@@ -1150,7 +1128,7 @@
       border-right:none; border-top:1px solid var(--border);
     }
     .sidebar-toggle, .brand, .sidebar-divider, .sidebar-deco, .sidebar-stat,
-    .sidebar-share, .sidebar-connect{display:none;}
+    .sidebar-connect{display:none;}
     .nav{flex-direction:row; flex:1; margin:0; gap:3px;}
     .nav-item, body.sidebar-collapsed .nav-item{
       flex:1; min-width:0; min-height:56px; flex-direction:column; justify-content:center;
@@ -2108,7 +2086,7 @@
         <span>Claude đề xuất</span>
         <span class="nav-badge" id="navDeXuatBadge" hidden>0</span>
       </button>
-      <!-- Chỉ hiện trên điện thoại: gom Nhắc nhở, giao diện, chia sẻ, Claude, đăng xuất vào một tấm trượt -->
+      <!-- Chỉ hiện trên điện thoại: gom Nhắc nhở, giao diện, Claude, đăng xuất vào một tấm trượt -->
       <button class="nav-item nav-more" id="navMore" onclick="moMenuKhac()" aria-haspopup="dialog">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
         <span>Khác</span>
@@ -2139,11 +2117,6 @@
     <button class="sidebar-logout sidebar-theme" onclick="doiCheDoGiaoDien()" id="btnTheme" title="Đổi giao diện sáng / tối / tự động">
       <span id="themeIcon" class="theme-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17Z" fill="currentColor" stroke="none"/></svg></span>
       <span class="sidebar-logout-text" id="themeText">Tự động</span>
-    </button>
-
-    <button class="sidebar-logout sidebar-share" onclick="openShareModal()" title="Chia sẻ link chỉ xem cho sếp">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span class="sidebar-logout-text">Chia sẻ chỉ xem</span>
     </button>
 
     <button class="sidebar-logout sidebar-connect" onclick="openMcpModal()" title="Lấy link kết nối Claude">
@@ -2408,20 +2381,6 @@
   </div>
 </div>
 
-<!-- ============ MODAL: Chia sẻ chỉ xem ============ -->
-<div class="modal-overlay" id="shareOverlay">
-  <div class="modal">
-    <div class="modal-header">
-      <h3>Chia sẻ chỉ xem</h3>
-      <p>Gửi link kèm mật khẩu cho người cần xem báo cáo — họ xem được Pipeline và Dashboard, không sửa được gì</p>
-    </div>
-    <div class="modal-body" id="shareBody"></div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeShareModal()">Đóng</button>
-    </div>
-  </div>
-</div>
-
 <!-- ============ MODAL: Link kết nối Claude (MCP) ============ -->
 <div class="modal-overlay" id="mcpOverlay">
   <div class="modal">
@@ -2499,7 +2458,6 @@
       <button type="button" class="menu-khac-item" onclick="doiCheDoGiaoDien(); veMenuKhac()">
         <span>Giao diện</span><span class="menu-khac-meta" id="menuKhacTheme"></span>
       </button>
-      <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); openShareModal()"><span>Chia sẻ chỉ xem</span><span class="menu-khac-meta">›</span></button>
       <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); openMcpModal()"><span>Kết nối Claude</span><span class="menu-khac-meta">›</span></button>
       <button type="button" class="menu-khac-item menu-khac-danger" onclick="dongMenuKhac(); doLogout()"><span>Đăng xuất</span></button>
     </div>
@@ -2614,7 +2572,7 @@ let dashLeadType = 'all';               // Bộ lọc loại lead trên dashboar
    Trước đây chỉ xem được theo tháng. Nay chọn ĐƠN VỊ (tuần/tháng/quý/năm) rồi lùi
    bao nhiêu kỳ cũng được — một đơn vị phủ vô hạn kỳ, đỡ phải liệt kê từng lựa chọn.
    Công thức phải trùng khít với tinhKhoang() trong api/mcp.ts để số liệu trên app
-   và trên báo cáo chia sẻ luôn khớp nhau. */
+   và trong api/mcp.ts luôn khớp nhau. */
 let dashDon = 'thang';                  // 'tuan' | 'thang' | 'quy' | 'nam' | 'tuyChon'
 let dashLui = 0;                        // 0 = kỳ hiện tại, 1 = kỳ trước...
 let dashTu = '', dashDen = '', dashNhan = '';
@@ -3082,207 +3040,6 @@ setInterval(() => {
   window.__theme.apDung('auto');
   veNutTheme();
 }, 60000);
-
-/* ======================= MODAL: Chia sẻ chỉ xem ======================= */
-const SHARE_BASE_URL = 'https://huyentran.vercel.app/xem';
-
-// Băm mật khẩu ngay tại trình duyệt. Máy chủ chỉ nhận và lưu chuỗi băm —
-// mật khẩu gốc không bao giờ được lưu ở đâu cả, kể cả trong database.
-// Công thức phải trùng khít với bamMatKhau() trong api/mcp.ts: sha256("muối:mật khẩu").
-async function bamMatKhau(salt, pass){
-  if (!(window.crypto && crypto.subtle)){
-    throw new Error('Trình duyệt không hỗ trợ mã hoá ở trang này (cần HTTPS).');
-  }
-  const buf = new TextEncoder().encode(salt + ':' + pass);
-  const h = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(h), b => b.toString(16).padStart(2, '0')).join('');
-}
-function chuoiNgauNhien(soByte){
-  const b = new Uint8Array(soByte);
-  crypto.getRandomValues(b);
-  return Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
-}
-
-function openShareModal(){
-  document.getElementById('shareOverlay').classList.add('show');
-  renderShareModal();
-}
-function closeShareModal(){
-  document.getElementById('shareOverlay').classList.remove('show');
-}
-
-async function docCauHinhChiaSe(){
-  const snap = await window.__firebase.get(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'));
-  return snap.exists() ? snap.val() : null;
-}
-
-async function renderShareModal(){
-  const body = document.getElementById('shareBody');
-  body.innerHTML = '<div class="list-empty">Đang tải...</div>';
-
-  let cfg = null;
-  try { cfg = await docCauHinhChiaSe(); }
-  catch(e){ body.innerHTML = '<div class="mcp-empty">Chưa đọc được cấu hình chia sẻ.</div>'; return; }
-
-  if (!cfg || !cfg.token){
-    body.innerHTML = `
-      <div class="mcp-empty">Chưa tạo link chia sẻ nào.</div>
-      <div class="field-group" style="margin-top:12px;">
-        <label class="field-label">Đặt mật khẩu cho người xem (ít nhất 4 ký tự)</label>
-        <input class="field-input" id="shareNewPass" type="text" placeholder="VD: 246810" autocomplete="off">
-      </div>
-      <div class="mcp-actions">
-        <button class="btn btn-primary" onclick="taoLinkChiaSe()">Tạo link chia sẻ</button>
-      </div>
-      <div class="mcp-warn">
-        Người có link <b>và</b> mật khẩu sẽ xem được toàn bộ Pipeline và Dashboard.
-        Số điện thoại, Facebook và ghi chú của khách đã được lược bỏ khỏi trang xem.
-      </div>`;
-    return;
-  }
-
-  const url = `${SHARE_BASE_URL}?t=${cfg.token}`;
-  const bat = cfg.enabled !== false;
-  body.innerHTML = `
-    <div class="share-row" style="margin-top:0;">
-      <span class="share-on ${bat ? 'bat' : 'tat'}">${bat ? '● Đang bật' : '○ Đang tắt'}</span>
-    </div>
-
-    <div class="field-label" style="margin:12px 0 6px;">Đường link gửi cho người xem</div>
-    <div class="mcp-url-box" id="shareUrlBox">${esc(url)}</div>
-    <div class="mcp-actions">
-      <button class="btn btn-primary" id="shareCopyBtn" onclick="copyShareUrl()">Copy link</button>
-      <button class="btn btn-secondary" onclick="doiMatKhauChiaSe()">Đổi mật khẩu</button>
-      <button class="btn btn-secondary" onclick="batTatChiaSe(${bat ? 'false' : 'true'})">${bat ? 'Tắt chia sẻ' : 'Bật lại'}</button>
-      <button class="btn btn-secondary" onclick="taoLinkChiaSe(true)">Tạo link mới</button>
-    </div>
-
-    <div class="mcp-warn">
-      Mật khẩu chỉ lưu dưới dạng đã mã hoá, không xem lại được. Quên thì bấm "Đổi mật khẩu".
-      Nhập sai 10 lần liên tiếp thì link tự khoá 15 phút.
-    </div>
-
-    <div class="field-label" style="margin:16px 0 0;">Lịch sử truy cập</div>
-    <div class="log-list" id="shareLogList"><div class="list-empty">Đang tải...</div></div>`;
-
-  renderShareLog();
-}
-
-async function renderShareLog(){
-  const box = document.getElementById('shareLogList');
-  if (!box) return;
-  try {
-    const snap = await window.__firebase.get(window.__firebase.refAt(window.__firebase.shareLogBase()));
-    const rows = snap.exists() ? Object.entries(snap.val()) : [];
-    if (!rows.length){ box.innerHTML = '<div class="list-empty">Chưa có ai mở link.</div>'; return; }
-    rows.sort((a, b) => String(b[0]).localeCompare(String(a[0])));
-    box.innerHTML = rows.slice(0, 50).map(([, r]) => {
-      const t = r.at ? new Date(r.at).toLocaleString('vi-VN') : '—';
-      return `<div class="log-row ${r.ok ? '' : 'sai'}">
-        <span class="log-when">${esc(t)}</span>
-        <span class="log-ua">${esc(moTaThietBi(r.ua || ''))}</span>
-        <span class="log-kq ${r.ok ? 'ok' : 'sai'}">${r.ok ? 'Đã xem' : 'Sai mật khẩu'}</span>
-      </div>`;
-    }).join('');
-  } catch(e){
-    box.innerHTML = '<div class="list-empty">Không đọc được lịch sử.</div>';
-  }
-}
-
-// Đoán tên thiết bị từ User-Agent cho dễ đọc
-function moTaThietBi(ua){
-  if (!ua) return 'Không rõ thiết bị';
-  const hdh = /iPhone|iPad/i.test(ua) ? 'iPhone/iPad'
-    : /Android/i.test(ua) ? 'Android'
-    : /Windows/i.test(ua) ? 'Windows'
-    : /Macintosh|Mac OS/i.test(ua) ? 'Mac'
-    : /Linux/i.test(ua) ? 'Linux' : 'Không rõ';
-  const td = /Edg\//i.test(ua) ? 'Edge'
-    : /OPR\/|Opera/i.test(ua) ? 'Opera'
-    : /Chrome\//i.test(ua) ? 'Chrome'
-    : /Firefox\//i.test(ua) ? 'Firefox'
-    : /Safari\//i.test(ua) ? 'Safari' : 'trình duyệt lạ';
-  return hdh + ' · ' + td;
-}
-
-async function taoLinkChiaSe(daCo){
-  if (daCo && !confirm('Tạo link mới sẽ làm link cũ NGỪNG hoạt động ngay.\n\nNgười đang giữ link cũ sẽ không xem được nữa. Tiếp tục?')) return;
-
-  let pass;
-  if (daCo){
-    pass = prompt('Đặt mật khẩu cho link mới (ít nhất 4 ký tự):');
-    if (pass === null) return;
-  } else {
-    pass = (document.getElementById('shareNewPass') || {}).value || '';
-  }
-  pass = String(pass).trim();
-  if (pass.length < 4){ alert('Mật khẩu cần ít nhất 4 ký tự.'); return; }
-
-  const body = document.getElementById('shareBody');
-  body.innerHTML = '<div class="list-empty">Đang tạo...</div>';
-  try {
-    const salt = chuoiNgauNhien(16);
-    await window.__firebase.set(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), {
-      token: window.__firebase.currentUid() + '.' + chuoiNgauNhien(24),
-      salt,
-      passHash: await bamMatKhau(salt, pass),
-      enabled: true,
-      createdAt: new Date().toISOString(),
-      failCount: 0,
-      lockedUntil: 0,
-    });
-  } catch(e){
-    console.error(e);
-    body.innerHTML = `<div class="mcp-empty">Không tạo được link: ${esc(e.message || e)}</div>`;
-    return;
-  }
-  renderShareModal();
-}
-
-async function doiMatKhauChiaSe(){
-  const pass = prompt('Mật khẩu mới cho người xem (ít nhất 4 ký tự):');
-  if (pass === null) return;
-  if (String(pass).trim().length < 4){ alert('Mật khẩu cần ít nhất 4 ký tự.'); return; }
-  try {
-    const salt = chuoiNgauNhien(16);
-    // Đổi mật khẩu thì gỡ luôn khoá tạm và bộ đếm sai
-    await window.__firebase.update(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), {
-      salt,
-      passHash: await bamMatKhau(salt, String(pass).trim()),
-      failCount: 0,
-      lockedUntil: 0,
-    });
-    alert('Đã đổi mật khẩu. Link giữ nguyên, nhớ báo mật khẩu mới cho người xem.');
-  } catch(e){
-    alert('Không đổi được mật khẩu: ' + (e.message || e));
-  }
-  renderShareModal();
-}
-
-async function batTatChiaSe(bat){
-  if (!bat && !confirm('Tắt chia sẻ? Người đang giữ link sẽ không xem được nữa.')) return;
-  try {
-    await window.__firebase.update(window.__firebase.refAt(window.__firebase.appConfigBase() + '/share'), { enabled: !!bat });
-  } catch(e){
-    alert('Không đổi được trạng thái: ' + (e.message || e));
-  }
-  renderShareModal();
-}
-
-async function copyShareUrl(){
-  const url = document.getElementById('shareUrlBox').textContent.trim();
-  const btn = document.getElementById('shareCopyBtn');
-  try {
-    await navigator.clipboard.writeText(url);
-    btn.textContent = 'Đã copy ✓';
-    setTimeout(() => { btn.textContent = 'Copy link'; }, 1600);
-  } catch(e){
-    const box = document.getElementById('shareUrlBox');
-    const r = document.createRange(); r.selectNodeContents(box);
-    const s = getSelection(); s.removeAllRanges(); s.addRange(r);
-    btn.textContent = 'Bấm Ctrl+C';
-  }
-}
 
 /* ======================= MODAL: Link kết nối Claude (MCP) ======================= */
 // Khoá KHÔNG được nhúng vào file này — index.html công khai trên GitHub, nhúng vào là
@@ -3961,7 +3718,7 @@ function cardHtml(lead){
 const DONG_MODAL = {
   addLeadOverlay: () => closeAddLead(),        lostReasonOverlay: () => closeLostReason(),
   wonConfirmOverlay: () => closeWonConfirm(),  remindersOverlay: () => closeRemindersModal(),
-  shareOverlay: () => closeShareModal(),       mcpOverlay: () => closeMcpModal(),
+  mcpOverlay: () => closeMcpModal(),
   revenueListOverlay: () => closeRevenueListModal(), todoCompletedOverlay: () => closeTodoCompletedModal(),
   quickMoveOverlay: () => closeQuickMove(),    menuKhacOverlay: () => dongMenuKhac(),
   deXuatOverlay: () => dongModalDeXuat(),
