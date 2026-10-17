@@ -3,8 +3,8 @@
     ".read": false,
     ".write": false,
     "crmData": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/crm').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "leads": {
         ".indexOn": [
           "ownerUid"
@@ -34,8 +34,8 @@
     },
     "crmData_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/crm').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
         "leads": {
           ".indexOn": [
             "ownerUid"
@@ -65,55 +65,71 @@
       }
     },
     "zalo": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'"
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/zalo').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)"
     },
     "zalo_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid"
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/zalo').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)"
       }
     },
     "aiData": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      "proposals": { ".indexOn": ["status"] }
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + '7ePgCPmzxHdEAEazHo9IkyKf2rw2' + '/ai').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      "proposals": {
+        ".indexOn": [
+          "status"
+        ]
+      }
     },
     "aiData_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
-        "proposals": { ".indexOn": ["status"] }
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true || root.child('quyenXem/' + auth.uid + '/' + $uid + '/ai').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && ((auth.uid === $uid && root.child('taiKhoan/' + auth.uid + '/coKho').val() !== false) || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+        "proposals": {
+          ".indexOn": [
+            "status"
+          ]
+        }
       }
     },
     "appConfig": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "mcpSecret": {
         ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
       }
     },
     "appConfig_users": {
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && auth.uid === $uid",
+        ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+        ".write": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
         "mcpSecret": {
           ".validate": "newData.isString() && newData.val().length >= 32 && newData.val().length <= 200"
         }
       }
     },
-    "shareLog_users": {
+    "taiKhoan": {
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": false
+        ".read": "auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+        ".validate": "(!newData.hasChild('coKho') || newData.child('coKho').isBoolean()) && (!newData.hasChild('admin') || newData.child('admin').isBoolean()) && (!newData.hasChild('khoa') || newData.child('khoa').isBoolean()) && (!newData.hasChild('ten') || newData.child('ten').isString()) && (!newData.hasChild('email') || newData.child('email').isString())"
       }
     },
-    "shareLog": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
-      ".write": false
+    "quyenXem": {
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
+      "$nguoiXem": {
+        ".read": "auth.uid === $nguoiXem",
+        "$chu": {
+          ".validate": "(!newData.hasChild('crm') || newData.child('crm').isBoolean()) && (!newData.hasChild('zalo') || newData.child('zalo').isBoolean()) && (!newData.hasChild('ai') || newData.child('ai').isBoolean()) && (!newData.hasChild('tenChuKho') || newData.child('tenChuKho').isString())"
+        }
+      }
     },
     "authLog": {
-      ".read": "auth != null && auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2'",
+      ".read": "auth != null && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "$entry": {
         ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
         ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"

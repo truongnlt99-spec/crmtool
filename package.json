@@ -18,6 +18,7 @@
     "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
     "test:zalo-tinh": "node test/zalo-ext-static.test.ts",
     "test:bang": "node test/bang-lead.test.ts",
+    "test:rules-tinh": "node test/rules-tinh.test.ts",
     "test:phan-quyen": "node test/phan-quyen.test.ts",
     "test:zalo-dom": "node test/zalo-dom.test.ts",
     "test:zalo-db": "node test/zalo-rtdb.test.ts",
