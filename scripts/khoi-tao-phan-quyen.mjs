@@ -25,7 +25,7 @@ async function laySaToken(scope) {
   const r = await (await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: `${head}.${claim}.${b64(sg.sign(sa.private_key.replace(/\n/g, '\n')))}` }),
+      assertion: `${head}.${claim}.${b64(sg.sign(sa.private_key.replace(/\\n/g, '\n')))}` }),
   })).json();
   if (!r.access_token) throw new Error('Khong lay duoc access token: ' + JSON.stringify(r));
   return r.access_token;
