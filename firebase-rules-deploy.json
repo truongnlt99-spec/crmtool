@@ -111,15 +111,15 @@
       }
     },
     "taiKhoan": {
-      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$uid": {
-        ".read": "auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+        ".read": "auth.uid === $uid || (root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true)",
         ".validate": "(!newData.hasChild('coKho') || newData.child('coKho').isBoolean()) && (!newData.hasChild('admin') || newData.child('admin').isBoolean()) && (!newData.hasChild('khoa') || newData.child('khoa').isBoolean()) && (!newData.hasChild('ten') || newData.child('ten').isString()) && (!newData.hasChild('email') || newData.child('email').isString())"
       }
     },
     "quyenXem": {
-      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$nguoiXem": {
         ".read": "auth.uid === $nguoiXem",
@@ -129,7 +129,7 @@
       }
     },
     "authLog": {
-      ".read": "auth != null && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "$entry": {
         ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
         ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"

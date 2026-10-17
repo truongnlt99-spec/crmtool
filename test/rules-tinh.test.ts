@@ -67,6 +67,12 @@ check('co nhanh quyenXem', !!R.quyenXem);
 check('quyenXem .read chi admin', /admin/.test(R.quyenXem?.['.read'] ?? ''));
 check('quyenXem .write admin + chua khoa', /admin/.test(R.quyenXem?.['.write'] ?? '') && String(R.quyenXem?.['.write']).includes(KHONG_KHOA));
 check('quyenXem/$nguoiXem doc duoc cua minh', /auth\.uid === \$nguoiXem/.test(R.quyenXem?.$nguoiXem?.['.read'] ?? ''));
+check('taiKhoan .read admin phai chua khoa', String(R.taiKhoan?.['.read']).includes(KHONG_KHOA));
+check('taiKhoan/$uid .read: admin phai chua khoa', String(R.taiKhoan?.$uid?.['.read']).includes(KHONG_KHOA));
+check('taiKhoan/$uid .read: chinh chu doc duoc ke ca khi bi khoa', String(R.taiKhoan?.$uid?.['.read']).startsWith('auth.uid === $uid ||'));
+check('quyenXem .read admin phai chua khoa', String(R.quyenXem?.['.read']).includes(KHONG_KHOA));
+check('quyenXem/$nguoiXem .read: chinh chu khong can chua khoa', R.quyenXem?.$nguoiXem?.['.read'] === 'auth.uid === $nguoiXem');
+check('authLog .read phai chua khoa', String(R.authLog?.['.read']).includes(KHONG_KHOA));
 check('authLog .read co admin', /admin/.test(R.authLog?.['.read'] ?? '') && String(R.authLog['.read']).includes(OWNER));
 
 console.log(`\n${pass} OK, ${fail} FAIL`);

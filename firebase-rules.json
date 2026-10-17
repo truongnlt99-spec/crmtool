@@ -7,13 +7,13 @@
     "   moi tai khoan khac co kho rieng o crmData_users/<uid>, zalo_users/<uid>, aiData_users/<uid>, appConfig_users/<uid>.",
     "2. taiKhoan/<uid> {ten, email, coKho, admin, khoa}: ho so + quyen cua tung tai khoan. Khong co ban ghi = coKho true, admin false, khoa false.",
     "   - khoa === true: tai khoan bi khoa, KHONG doc/ghi duoc gi (moi nhanh deu kiem tra KHONG_KHOA).",
-    "   - admin === true: doc/ghi moi kho, doc/ghi taiKhoan va quyenXem, doc authLog.",
+    "   - admin === true (va chua bi khoa): doc/ghi moi kho, doc/ghi taiKhoan va quyenXem, doc authLog. Admin bi khoa mat het quyen admin.",
     "   - coKho === false: khong ghi duoc vao kho cua chinh minh (chi xem kho nguoi khac duoc cap).",
-    "   Chi admin (chua bi khoa) ghi taiKhoan; moi nguoi chi doc ban ghi cua minh, admin doc tat ca.",
+    "   Chi admin (chua bi khoa) ghi taiKhoan; moi nguoi chi doc ban ghi cua minh (ke ca khi bi khoa, de app hien thong bao khoa), admin chua khoa doc tat ca.",
     "3. quyenXem/<nguoiXem>/<chuKho> {crm, zalo, ai, tenChuKho}: cap quyen CHI XEM. Nguoi xem doc duoc nhom da tick",
     "   (crm -> crmData*, zalo -> zalo*, ai -> aiData*) cua chu kho do, KHONG BAO GIO ghi. appConfig (khoa MCP) khong bao gio lo cho nguoi xem.",
     "   Chi admin ghi quyenXem; nguoi xem doc duoc ban ghi cua minh.",
-    "4. authLog: ai dang nhap cung ghi duoc mot dong moi (khong sua/xoa dong cu); chi chu cu va admin doc duoc.",
+    "4. authLog: ai dang nhap cung ghi duoc mot dong moi (khong sua/xoa dong cu); chi chu cu va admin doc duoc (deu phai chua bi khoa).",
     "5. Da bo shareLog / shareLog_users cung link chia se chi xem (thay bang quyenXem).",
     "",
     "MCP server khong bi anh huong: no dung service account, quyen admin, bo qua rules.",
@@ -145,15 +145,15 @@
       }
     },
     "taiKhoan": {
-      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$uid": {
-        ".read": "auth.uid === $uid || root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+        ".read": "auth.uid === $uid || (root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true)",
         ".validate": "(!newData.hasChild('coKho') || newData.child('coKho').isBoolean()) && (!newData.hasChild('admin') || newData.child('admin').isBoolean()) && (!newData.hasChild('khoa') || newData.child('khoa').isBoolean()) && (!newData.hasChild('ten') || newData.child('ten').isString()) && (!newData.hasChild('email') || newData.child('email').isString())"
       }
     },
     "quyenXem": {
-      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true",
+      ".read": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       ".write": "root.child('taiKhoan/' + auth.uid + '/admin').val() === true && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true",
       "$nguoiXem": {
         ".read": "auth.uid === $nguoiXem",
@@ -163,7 +163,7 @@
       }
     },
     "authLog": {
-      ".read": "auth != null && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
+      ".read": "auth != null && root.child('taiKhoan/' + auth.uid + '/khoa').val() !== true && (auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2' || root.child('taiKhoan/' + auth.uid + '/admin').val() === true)",
       "$entry": {
         ".write": "auth != null && (!data.exists() || auth.uid === '7ePgCPmzxHdEAEazHo9IkyKf2rw2')",
         ".validate": "newData.hasChildren(['at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('at').isString()"
