@@ -1943,6 +1943,25 @@
   .menu-khac-item .chon-kho{max-width:60%;}
   /* Ở kho người khác (kể cả admin): khoá MCP thuộc kho mình -> ẩn "Kết nối Claude" */
   body.kho-nguoi-khac .chi-kho-minh{display:none !important;}
+  /* Mục "Quản trị": chỉ admin thấy (apDungQuyenQuanTri bỏ hidden) */
+  .quan-tri-muc[hidden]{display:none !important;}
+  .qt-thong-bao{padding:9px 12px; border-radius:var(--r-md); font-size:13.5px; font-weight:600; margin-bottom:12px;}
+  .qt-thong-bao[hidden]{display:none;}
+  .qt-loi{background:var(--danger-soft); color:var(--danger-ink); border:1px solid var(--danger-border);}
+  .qt-ok{background:var(--ok-soft); color:var(--ok-ink); border:1px solid var(--ok-border);}
+  .qt-muc{font-size:14px; font-weight:700; margin:18px 0 8px;}
+  .qt-muc.dau{margin-top:0;}
+  .qt-bang{overflow-x:auto; -webkit-overflow-scrolling:touch;}
+  .bang-tai-khoan{width:100%; border-collapse:collapse; font-size:13px;}
+  .bang-tai-khoan th, .bang-tai-khoan td{padding:7px 8px; border-bottom:1px solid var(--border); text-align:left; vertical-align:middle; white-space:nowrap;}
+  .bang-tai-khoan th{font-size:12px; font-weight:600; color:var(--ink-faint);}
+  .qt-thao-tac{display:flex; gap:10px; align-items:center;}
+  .qt-form{display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:8px; align-items:center;}
+  .qt-tick{display:flex; align-items:center; gap:6px; font-size:13.5px; cursor:pointer;}
+  .qt-ticks{display:flex; gap:14px; flex-wrap:wrap; margin:8px 0;}
+  .qt-nut-nho{min-height:32px !important; padding:4px 10px !important; font-size:12.5px !important;}
+  .qt-ds-quyen{list-style:none; margin:10px 0 0; padding:0;}
+  .qt-ds-quyen li{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
   /* Chỉ xem: ẩn mọi nút sửa; các ô/thao tác còn lại thì không bấm được */
   body.chi-xem .can-sua,
   body.chi-xem .dx-nut, body.chi-xem .dx-sua, body.chi-xem .dx-nhanh,
@@ -2182,6 +2201,11 @@
     <button class="sidebar-logout sidebar-connect can-sua chi-kho-minh" onclick="openMcpModal()" title="Lấy link kết nối Claude">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.8 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.8-1.7"/></svg>
       <span class="sidebar-logout-text">Kết nối Claude</span>
+    </button>
+
+    <button class="sidebar-logout sidebar-connect quan-tri-muc" id="navQuanTri" onclick="moQuanTri()" title="Tạo/khoá tài khoản, gán quyền xem" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 4.5 3.4 8.2 8 9 4.6-.8 8-4.5 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span class="sidebar-logout-text">Quản trị</span>
     </button>
 
     <button class="sidebar-logout" onclick="doLogout()" title="Đăng xuất khỏi CRM">
@@ -2458,6 +2482,20 @@
   </div>
 </div>
 
+<!-- ============ MODAL: Quản trị tài khoản (chỉ admin; quyền thật do rules + /api/admin chặn) ============ -->
+<div class="modal-overlay" id="quanTriOverlay">
+  <div class="modal wide">
+    <div class="modal-header">
+      <h3>Quản trị tài khoản</h3>
+      <p>Tạo/khoá tài khoản, bật kho riêng, gán ai được xem dữ liệu của ai</p>
+    </div>
+    <div class="modal-body" id="quanTriBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="dongQuanTri()">Đóng</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============ MODAL: Danh sách lead theo doanh thu (Tiềm năng / Dự kiến chốt tháng) ============ -->
 <div class="modal-overlay" id="revenueListOverlay">
   <div class="modal wide">
@@ -2526,6 +2564,7 @@
         <select class="select-pill chon-kho" onchange="window.__firebase.chuyenKho(this.value)"></select>
       </label>
       <button type="button" class="menu-khac-item can-sua chi-kho-minh" onclick="dongMenuKhac(); openMcpModal()"><span>Kết nối Claude</span><span class="menu-khac-meta">›</span></button>
+      <button type="button" class="menu-khac-item quan-tri-muc" id="menuKhacQuanTri" onclick="dongMenuKhac(); moQuanTri()" hidden><span>Quản trị</span><span class="menu-khac-meta">›</span></button>
       <button type="button" class="menu-khac-item menu-khac-danger" onclick="dongMenuKhac(); doLogout()"><span>Đăng xuất</span></button>
     </div>
     <div class="modal-footer">
@@ -3221,6 +3260,243 @@ async function taoLinkMcp(daCo){
   renderMcpModal();
 }
 
+/* ======================= QUẢN TRỊ TÀI KHOẢN (chỉ admin) ======================= */
+// Giao diện chỉ để tiện tay: quyền thật do Security Rules (taiKhoan, quyenXem chỉ admin ghi)
+// và /api/admin (kiểm tra ID token + taiKhoan/<uid>.admin) chặn. Mọi chữ lấy từ DB / máy chủ
+// vẽ ra đều escape; thông báo lỗi dùng textContent.
+const QT = { duLieu: null, tb: null, dangChay: false };
+
+// Hiện/ẩn mục "Quản trị" (sidebar + tấm "Khác"). Gọi lúc khởi động theo quyền.
+function apDungQuyenQuanTri(laAdmin){
+  document.querySelectorAll('.quan-tri-muc').forEach(el => { el.hidden = !laAdmin; });
+}
+
+function moQuanTri(){
+  if (!(window.__taiKhoan && window.__taiKhoan.admin)) return Promise.resolve();
+  QT.tb = null;
+  QT.duLieu = null;
+  document.getElementById('quanTriOverlay').classList.add('show');
+  document.getElementById('quanTriBody').innerHTML = '<div class="list-empty">Đang tải...</div>';
+  return taiQuanTri();
+}
+function dongQuanTri(){
+  document.getElementById('quanTriOverlay').classList.remove('show');
+}
+
+// Gọi backend quản trị. Luôn trả object: thành công { ok, ... }, lỗi { loi } (không ném).
+async function goiApiAdmin(body){
+  const f = window.__firebase;
+  const nguoi = f && f.auth && f.auth.currentUser;
+  if (!nguoi) return { loi: 'Chưa đăng nhập.' };
+  let res;
+  try {
+    const token = await nguoi.getIdToken();
+    res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(body),
+    });
+  } catch(e){
+    console.error(e);
+    return { loi: 'Không kết nối được máy chủ. Thử lại giúp nhé.' };
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data || typeof data !== 'object'){
+    return { loi: (data && typeof data.loi === 'string' && data.loi) || `Máy chủ báo lỗi (${res.status}).` };
+  }
+  return data;
+}
+
+// Đọc toàn bộ taiKhoan + quyenXem (rules chỉ cho admin) rồi vẽ lại modal.
+async function taiQuanTri(){
+  const f = window.__firebase;
+  try {
+    const [a, b] = await Promise.all([f.get(f.refAt('taiKhoan')), f.get(f.refAt('quyenXem'))]);
+    QT.duLieu = {
+      taiKhoan: (a.exists() && a.val()) || {},
+      quyenXem: (b.exists() && b.val()) || {},
+    };
+  } catch(e){
+    console.error(e);
+    QT.duLieu = null;
+    document.getElementById('quanTriBody').innerHTML = '<div class="mcp-empty">Không đọc được danh sách tài khoản.</div>';
+    return;
+  }
+  veQuanTri();
+}
+
+// Tên hiển thị của một tài khoản. Trân (chủ cũ) có thể chưa có bản ghi taiKhoan.
+function tenTaiKhoanQT(uid){
+  const tk = (QT.duLieu && QT.duLieu.taiKhoan) || {};
+  const t = tk[uid] || {};
+  return t.ten || t.email || (uid === window.__firebase.ownerUid ? 'Trân' : uid);
+}
+
+function veQuanTri(){
+  const body = document.getElementById('quanTriBody');
+  const d = QT.duLieu;
+  if (!body || !d) return;
+  const P = window.PhanQuyen, e = P.escapeHtml, f = window.__firebase;
+  const tk = d.taiKhoan, qx = d.quyenXem, toi = f.currentUid();
+  const uids = Object.keys(tk);
+
+  const rows = uids.map(uid => {
+    const q = P.quyenTaiKhoan(tk[uid]);
+    return { uid, ten: q.ten, email: q.email, coKho: q.coKho, admin: q.admin, khoa: q.khoa,
+      dangXem: Object.keys(qx[uid] || {}).map(tenTaiKhoanQT) };
+  });
+  // Người xem: mọi tài khoản. Chủ kho: tài khoản có kho + Trân (kể cả chưa có bản ghi).
+  const dsChu = [...new Set([f.ownerUid, ...uids.filter(u => P.quyenTaiKhoan(tk[u]).coKho)])];
+  const opt = uid => `<option value="${e(uid)}">${e(tenTaiKhoanQT(uid))}</option>`;
+
+  const dsQuyen = [];
+  for (const xem of Object.keys(qx)){
+    for (const chu of Object.keys(qx[xem] || {})){
+      const m = qx[xem][chu] || {};
+      const nhom = [m.crm && 'CRM', m.zalo && 'Zalo', m.ai && 'Hồ sơ AI'].filter(Boolean).join(', ') || '—';
+      dsQuyen.push(`<li><span>${e(tenTaiKhoanQT(xem))} xem ${e(m.tenChuKho || tenTaiKhoanQT(chu))}: ${e(nhom)}</span>`
+        + `<button type="button" class="btn btn-secondary qt-nut-nho" data-qt="thuHoi" data-xem="${e(xem)}" data-chu="${e(chu)}">Thu hồi</button></li>`);
+    }
+  }
+
+  body.innerHTML = `
+    <div id="qtThongBao" class="qt-thong-bao" role="status" hidden></div>
+    <h4 class="qt-muc dau">Tài khoản</h4>
+    <div class="qt-bang">${P.veBangTaiKhoan(rows)}</div>
+    <h4 class="qt-muc">Tạo tài khoản</h4>
+    <div class="qt-form">
+      <input class="field-input" id="qtEmail" type="email" placeholder="Email" autocomplete="off">
+      <input class="field-input" id="qtTen" type="text" placeholder="Tên hiển thị" autocomplete="off">
+      <input class="field-input" id="qtMatKhau" type="text" placeholder="Mật khẩu ban đầu (≥ 8 ký tự)" autocomplete="new-password">
+      <label class="qt-tick"><input type="checkbox" id="qtCoKho"> Có kho riêng</label>
+    </div>
+    <div class="mcp-actions"><button type="button" class="btn btn-primary" data-qt="tao">Tạo tài khoản</button></div>
+    <h4 class="qt-muc">Gán quyền xem</h4>
+    <div class="qt-form">
+      <select class="select-pill" id="qtNguoiXem" aria-label="Người xem">${uids.map(opt).join('')}</select>
+      <select class="select-pill" id="qtChuKho" aria-label="Chủ kho được xem">${dsChu.map(opt).join('')}</select>
+    </div>
+    <div class="qt-ticks">
+      <label class="qt-tick"><input type="checkbox" id="qtCrm" checked> CRM</label>
+      <label class="qt-tick"><input type="checkbox" id="qtZalo"> Zalo</label>
+      <label class="qt-tick"><input type="checkbox" id="qtAi"> Hồ sơ AI</label>
+    </div>
+    <div class="mcp-actions"><button type="button" class="btn btn-primary" data-qt="gan">Gán quyền xem</button></div>
+    ${dsQuyen.length ? `<ul class="qt-ds-quyen">${dsQuyen.join('')}</ul>` : '<div class="list-empty">Chưa gán quyền xem cho ai.</div>'}`;
+
+  // Cột thao tác: dựng bằng DOM (uid gắn qua dataset, không nối chuỗi HTML)
+  const thRow = body.querySelector('table.bang-tai-khoan thead tr');
+  if (thRow){ const th = document.createElement('th'); th.textContent = 'Thao tác'; thRow.appendChild(th); }
+  body.querySelectorAll('table.bang-tai-khoan tbody tr').forEach(tr => {
+    const uid = tr.dataset.uid;
+    const q = P.quyenTaiKhoan(tk[uid]);
+    const td = document.createElement('td');
+    const hop = document.createElement('div'); hop.className = 'qt-thao-tac';
+    const nhan = document.createElement('label'); nhan.className = 'qt-tick';
+    const o = document.createElement('input'); o.type = 'checkbox'; o.checked = q.coKho;
+    o.dataset.qt = 'coKho'; o.dataset.uid = uid;
+    nhan.append(o, ' Có kho');
+    hop.appendChild(nhan);
+    if (uid !== toi){   // không tự khoá chính mình (backend cũng chặn)
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn btn-secondary qt-nut-nho';
+      b.dataset.qt = q.khoa ? 'moKhoa' : 'khoa'; b.dataset.uid = uid;
+      b.textContent = q.khoa ? 'Mở khoá' : 'Khoá';
+      hop.appendChild(b);
+    }
+    td.appendChild(hop);
+    tr.appendChild(td);
+  });
+
+  body.onclick = qtBam;
+  body.onchange = qtDoi;
+  if (QT.tb) hienTBQuanTri(QT.tb.loai, QT.tb.chu);
+}
+
+function hienTBQuanTri(loai, chu){
+  QT.tb = { loai, chu };
+  const el = document.getElementById('qtThongBao');
+  if (!el) return;
+  el.textContent = chu;
+  el.className = 'qt-thong-bao ' + (loai === 'loi' ? 'qt-loi' : 'qt-ok');
+  el.hidden = false;
+}
+
+function khoaNutQuanTri(bat){
+  document.querySelectorAll('#quanTriBody button, #quanTriBody input, #quanTriBody select')
+    .forEach(x => { x.disabled = bat; });
+}
+
+// Chạy một thao tác: tắt nút trong lúc chờ; lỗi -> hiện loi; xong -> tải lại dữ liệu + vẽ lại.
+async function qtThucHien(viec, thanhCong){
+  if (QT.dangChay) return;
+  QT.dangChay = true;
+  khoaNutQuanTri(true);
+  let loi = null;
+  try {
+    const kq = await viec();
+    if (kq && kq.loi) loi = String(kq.loi);
+  } catch(e){
+    console.error(e);
+    loi = 'Không thực hiện được. Thử lại giúp nhé.';
+  }
+  QT.dangChay = false;
+  if (loi){
+    khoaNutQuanTri(false);
+    hienTBQuanTri('loi', loi);
+    return false;
+  }
+  QT.tb = { loai: 'ok', chu: thanhCong };
+  await taiQuanTri();
+  return true;
+}
+
+function qtBam(ev){
+  const nut = ev.target.closest('button[data-qt]');
+  if (!nut || nut.disabled) return;
+  const f = window.__firebase, P = window.PhanQuyen;
+  const val = id => document.getElementById(id).value;
+  const tick = id => document.getElementById(id).checked;
+  const hd = nut.dataset.qt;
+
+  if (hd === 'khoa' || hd === 'moKhoa'){
+    const uid = nut.dataset.uid;
+    if (hd === 'khoa' && !confirm(`Khoá tài khoản ${tenTaiKhoanQT(uid)}?\n\nNgười này bị đăng xuất và mất quyền ngay, link kết nối Claude của họ cũng bị thu hồi.`)) return;
+    return qtThucHien(() => goiApiAdmin({ hanhDong: hd, uid }), hd === 'khoa' ? 'Đã khoá tài khoản.' : 'Đã mở khoá tài khoản.');
+  }
+  if (hd === 'tao'){
+    const email = val('qtEmail').trim(), ten = val('qtTen').trim(), matKhau = val('qtMatKhau');
+    if (!email.includes('@')) return hienTBQuanTri('loi', 'Email không hợp lệ.');
+    if (matKhau.length < 8) return hienTBQuanTri('loi', 'Mật khẩu ban đầu phải có ít nhất 8 ký tự.');
+    return qtThucHien(() => goiApiAdmin({ hanhDong: 'tao', email, matKhau, ten, coKho: tick('qtCoKho') }),
+      'Đã tạo. Gửi email + mật khẩu cho người dùng qua Zalo');
+  }
+  if (hd === 'gan'){
+    const xem = val('qtNguoiXem'), chu = val('qtChuKho');
+    if (!xem || !chu) return hienTBQuanTri('loi', 'Chọn người xem và chủ kho.');
+    if (xem === chu) return hienTBQuanTri('loi', 'Người xem và chủ kho phải là hai tài khoản khác nhau.');
+    const kq = P.chuanHoaQuyenXem({ crm: tick('qtCrm'), zalo: tick('qtZalo'), ai: tick('qtAi') });
+    if (!kq.ok) return hienTBQuanTri('loi', kq.loi);
+    const tenChuKho = tenTaiKhoanQT(chu);
+    return qtThucHien(() => f.update(f.refAt(`quyenXem/${xem}/${chu}`), { ...kq.gia, tenChuKho }), 'Đã gán quyền xem.');
+  }
+  if (hd === 'thuHoi'){
+    const xem = nut.dataset.xem, chu = nut.dataset.chu;
+    if (!confirm(`Thu hồi quyền xem của ${tenTaiKhoanQT(xem)} vào dữ liệu của ${tenTaiKhoanQT(chu)}?`)) return;
+    return qtThucHien(() => f.update(f.refAt('quyenXem/' + xem), { [chu]: null }), 'Đã thu hồi quyền xem.');
+  }
+}
+
+function qtDoi(ev){
+  const o = ev.target;
+  if (!o || o.dataset.qt !== 'coKho') return;
+  const f = window.__firebase;
+  const coKho = o.checked;
+  return qtThucHien(() => f.update(f.refAt('taiKhoan/' + o.dataset.uid), { coKho }),
+    coKho ? 'Đã bật kho riêng.' : 'Đã tắt kho riêng.')
+    .then(xong => { if (xong === false) o.checked = !coKho; });   // ghi lỗi -> trả ô tick về như cũ
+}
+
 /* ======================= VIEW SWITCH ======================= */
 function toggleSidebar(){
   document.body.classList.toggle('sidebar-collapsed');
@@ -3791,7 +4067,7 @@ function cardHtml(lead){
 const DONG_MODAL = {
   addLeadOverlay: () => closeAddLead(),        lostReasonOverlay: () => closeLostReason(),
   wonConfirmOverlay: () => closeWonConfirm(),  remindersOverlay: () => closeRemindersModal(),
-  mcpOverlay: () => closeMcpModal(),
+  mcpOverlay: () => closeMcpModal(),           quanTriOverlay: () => dongQuanTri(),
   revenueListOverlay: () => closeRevenueListModal(), todoCompletedOverlay: () => closeTodoCompletedModal(),
   quickMoveOverlay: () => closeQuickMove(),    menuKhacOverlay: () => dongMenuKhac(),
   deXuatOverlay: () => dongModalDeXuat(),
@@ -6408,6 +6684,7 @@ async function khoiDongTheoQuyen(user){
     try { uidDaNho = localStorage.getItem('khoDangXem'); } catch(e){ /* bị chặn thì thôi */ }
     const qd = quyetDinhKhoiDong(window.PhanQuyen, { uid: user.uid, ownerUid: f.ownerUid, uidDaNho, ...quyenDoc });
     window.__taiKhoan = qd.quyen;
+    apDungQuyenQuanTri(!!(qd.quyen && qd.quyen.admin));
     if (qd.loai === 'khoa'){
       // Đăng xuất luôn; màn đăng nhập hiện lại kèm lời nhắn này (showLockScreen giữ chữ lỗi).
       hienManKhoa('Tài khoản đã bị khoá. Liên hệ admin.');

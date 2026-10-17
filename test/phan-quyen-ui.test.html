@@ -269,6 +269,149 @@ const KHO_XEM = { uid: OWNER, ten: 'Trân', cuaToi: false, sua: false, nhom: { c
   khung.remove();
   window.__chiXem = false;
 }
+
+/* ---------- 8. Màn Quản trị: hàm + markup THẬT của index.html ---------- */
+{
+  window.PhanQuyen = PhanQuyen;
+  const doc = new DOMParser().parseFromString(src, 'text/html');
+  const khung = document.createElement('div');
+  for (const sel of ['aside.sidebar', '#menuKhacOverlay', '#quanTriOverlay']) {
+    const el = doc.querySelector(sel);
+    check('index.html co ' + sel, !!el);
+    if (el) khung.appendChild(document.importNode(el, true));
+  }
+  document.body.appendChild(khung);
+  const trangThaiQT = (src.match(/^const QT = \{[^\n]*\};$/m) || [''])[0];
+  check('index.html co trang thai QT', !!trangThaiQT);
+  const qt = new Function(trangThaiQT + '\n' + ['apDungQuyenQuanTri', 'moQuanTri', 'dongQuanTri', 'goiApiAdmin', 'taiQuanTri',
+    'veQuanTri', 'tenTaiKhoanQT', 'hienTBQuanTri', 'khoaNutQuanTri', 'qtThucHien', 'qtBam', 'qtDoi'].map(trichHam).join('\n')
+    + '\nreturn { apDungQuyenQuanTri, moQuanTri, goiApiAdmin, QT };')();
+
+  // Mục menu chỉ admin thấy
+  const mucQT = () => [...khung.querySelectorAll('.quan-tri-muc')];
+  const mucKhac = () => khung.querySelector('#menuKhacOverlay .quan-tri-muc');
+  check('co muc Quan tri o sidebar + tam Khac', mucQT().length === 2, mucQT().length);
+  check('mac dinh (chua biet quyen): muc Quan tri an', mucQT().every(el => el.hidden) && getComputedStyle(mucKhac()).display === 'none');
+  qt.apDungQuyenQuanTri(false);
+  check('khong admin: muc Quan tri an', mucQT().every(el => el.hidden) && getComputedStyle(mucKhac()).display === 'none');
+  window.__taiKhoan = { admin: false };
+  await qt.moQuanTri();
+  const ov = khung.querySelector('#quanTriOverlay');
+  check('khong admin: moQuanTri khong mo modal', !ov.classList.contains('show'));
+  qt.apDungQuyenQuanTri(true);
+  check('admin: muc Quan tri hien', mucQT().every(el => !el.hidden) && getComputedStyle(mucKhac()).display !== 'none');
+
+  // Firebase giả: admin 'A' (có bản ghi), 'B' tên độc hại + coKho false; Trân KHÔNG có bản ghi
+  const ghiQT = [];
+  let soLanDoc = 0;
+  const TK = {
+    A: { email: 'truong@x.vn', ten: 'Trường', admin: true, coKho: true },
+    B: { email: 'b@x.vn', ten: '<img src=x onerror=alert(1)>', coKho: false },
+  };
+  const QX = { B: { [OWNER]: { crm: true, zalo: false, ai: false, tenChuKho: 'Trân' } } };
+  window.__firebase = {
+    ownerUid: OWNER, currentUid: () => 'A', refAt: p => p,
+    auth: { currentUser: { getIdToken: async () => 'TOKEN123' } },
+    get: async p => { soLanDoc++; const v = p === 'taiKhoan' ? TK : p === 'quyenXem' ? QX : null; return { exists: () => v != null, val: () => v }; },
+    update: async (p, v) => { ghiQT.push([p, v]); },
+  };
+  window.__taiKhoan = { admin: true };
+  window.confirm = () => true;
+  const fetchGoc = window.fetch;
+  const goiFetch = [];
+  let traFetch = () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  window.fetch = async (url, opt) => { goiFetch.push([url, opt]); return traFetch(); };
+  const $ = id => khung.querySelector('#' + id);
+  const tb = () => $('qtThongBao');
+
+  await qt.moQuanTri();
+  const body = $('quanTriBody');
+  check('admin: modal mo', ov.classList.contains('show'));
+  check('bang tai khoan co 2 dong', body.querySelectorAll('table.bang-tai-khoan tbody tr').length === 2, body.innerHTML.slice(0, 300));
+  check('ten doc hai khong thanh the img', !body.querySelector('img') && body.textContent.includes('<img src=x'), body.innerHTML.slice(0, 500));
+  const dongA = body.querySelector('tr[data-uid="A"]'), dongB = body.querySelector('tr[data-uid="B"]');
+  check('dong cua chinh minh: khong co nut Khoa', dongA && !dongA.querySelector('[data-qt="khoa"]'));
+  check('dong nguoi khac: co nut Khoa', dongB && !!dongB.querySelector('[data-qt="khoa"]'));
+  check('cot dang xem: B dang xem Tran', dongB && dongB.textContent.includes('Trân'), dongB && dongB.textContent);
+  const giaTriChon = id => [...$(id).options].map(o => o.value);
+  check('chon chu kho: Tran (khong ban ghi) + A, khong co B (coKho false)',
+    JSON.stringify(giaTriChon('qtChuKho').sort()) === JSON.stringify([OWNER, 'A'].sort()), giaTriChon('qtChuKho').join(','));
+  check('chon nguoi xem: moi tai khoan', JSON.stringify(giaTriChon('qtNguoiXem').sort()) === JSON.stringify(['A', 'B']), giaTriChon('qtNguoiXem').join(','));
+
+  // Tick chỉ Zalo -> lỗi, không ghi
+  $('qtNguoiXem').value = 'B'; $('qtChuKho').value = OWNER;
+  $('qtCrm').checked = false; $('qtZalo').checked = true; $('qtAi').checked = false;
+  body.querySelector('[data-qt="gan"]').click();
+  await cho(30);
+  const loiZalo = PhanQuyen.chuanHoaQuyenXem({ zalo: true }).loi;
+  check('tick chi Zalo: hien loi', !tb().hidden && tb().textContent === loiZalo, tb().textContent);
+  check('tick chi Zalo: khong goi update', ghiQT.length === 0, JSON.stringify(ghiQT));
+
+  // Tick CRM + AI -> ghi đúng đường dẫn, tenChuKho, rồi tải lại dữ liệu
+  const docTruoc = soLanDoc;
+  $('qtCrm').checked = true; $('qtZalo').checked = false; $('qtAi').checked = true;
+  body.querySelector('[data-qt="gan"]').click();
+  await cho(30);
+  check('gan quyen: update quyenXem/<xem>/<chu>', ghiQT.length === 1 && ghiQT[0][0] === 'quyenXem/B/' + OWNER, JSON.stringify(ghiQT));
+  check('gan quyen: gia tri + tenChuKho', ghiQT[0] && JSON.stringify(ghiQT[0][1]) === JSON.stringify({ crm: true, zalo: false, ai: true, tenChuKho: 'Trân' }), ghiQT[0] && JSON.stringify(ghiQT[0][1]));
+  check('gan quyen xong: tai lai du lieu + bao thanh cong', soLanDoc > docTruoc && /Đã gán quyền xem/.test(tb().textContent), tb().textContent);
+
+  // Thu hồi
+  ghiQT.length = 0;
+  body.querySelector('[data-qt="thuHoi"][data-xem="B"]').click();
+  await cho(30);
+  check('thu hoi: update quyenXem/<xem> { [chu]: null }', ghiQT.length === 1 && ghiQT[0][0] === 'quyenXem/B' && ghiQT[0][1][OWNER] === null && Object.keys(ghiQT[0][1]).length === 1, JSON.stringify(ghiQT));
+
+  // Bật/tắt Có kho
+  ghiQT.length = 0;
+  const oCoKho = body.querySelector('tr[data-uid="B"] [data-qt="coKho"]');
+  oCoKho.checked = true;
+  oCoKho.dispatchEvent(new Event('change', { bubbles: true }));
+  await cho(30);
+  check('doi Co kho: update taiKhoan/<uid> { coKho }', ghiQT.length === 1 && ghiQT[0][0] === 'taiKhoan/B' && ghiQT[0][1].coKho === true, JSON.stringify(ghiQT));
+
+  // Tạo tài khoản: mật khẩu ngắn -> lỗi, không gọi API
+  $('qtEmail').value = 'moi@x.vn'; $('qtTen').value = 'Người mới'; $('qtMatKhau').value = 'abc';
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('mat khau < 8: hien loi, khong goi API', goiFetch.length === 0 && /ít nhất 8 ký tự/.test(tb().textContent), tb().textContent);
+
+  // goiApiAdmin trả { loi } -> hiện đúng loi, đã escape
+  const loiDocHai = '<img src=x onerror=alert(2)>Email này đã có tài khoản.';
+  traFetch = () => new Response(JSON.stringify({ loi: loiDocHai }), { status: 409, headers: { 'Content-Type': 'application/json' } });
+  $('qtMatKhau').value = 'matkhau123';
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('API tra loi: hien dung loi', tb().textContent === loiDocHai, tb().textContent);
+  check('API tra loi: khong tao the img', !tb().querySelector('img') && !body.querySelector('img'));
+  check('API tra loi: nut duoc bat lai', [...body.querySelectorAll('button')].every(b => !b.disabled));
+  const [url, opt] = goiFetch[0] || [];
+  check('goiApiAdmin: POST /api/admin + Bearer token', url === '/api/admin' && opt.method === 'POST' && opt.headers.Authorization === 'Bearer TOKEN123', JSON.stringify(opt));
+  const than = opt ? JSON.parse(opt.body) : {};
+  check('tao: than dung', than.hanhDong === 'tao' && than.email === 'moi@x.vn' && than.matKhau === 'matkhau123' && than.ten === 'Người mới' && than.coKho === false, opt && opt.body);
+
+  // Tạo thành công -> lời nhắc gửi qua Zalo
+  traFetch = () => new Response(JSON.stringify({ ok: true, uid: 'C' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  body.querySelector('[data-qt="tao"]').click();
+  await cho(30);
+  check('tao xong: bao gui email + mat khau qua Zalo', tb().textContent === 'Đã tạo. Gửi email + mật khẩu cho người dùng qua Zalo', tb().textContent);
+
+  // Khoá: nút bị tắt trong lúc chờ, xong thì tải lại
+  goiFetch.length = 0;
+  let mo;
+  traFetch = () => new Promise(r => { mo = () => r(new Response(JSON.stringify({ ok: true }), { status: 200 })); });
+  body.querySelector('tr[data-uid="B"] [data-qt="khoa"]').click();
+  await cho(10);
+  check('dang goi API: moi nut bi tat', [...body.querySelectorAll('button')].every(b => b.disabled));
+  if (mo) mo();
+  await cho(30);
+  const thanKhoa = goiFetch[0] ? JSON.parse(goiFetch[0][1].body) : {};
+  check('khoa: than { hanhDong: khoa, uid }', thanKhoa.hanhDong === 'khoa' && thanKhoa.uid === 'B', JSON.stringify(thanKhoa));
+  check('khoa xong: nut bat lai', [...body.querySelectorAll('button')].every(b => !b.disabled));
+
+  window.fetch = fetchGoc;
+  khung.remove();
+}
 } catch (e) {
   check('khong loi khi chay test', false, e && e.stack || e);
 }
