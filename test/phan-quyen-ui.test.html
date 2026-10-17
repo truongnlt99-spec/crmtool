@@ -30,24 +30,48 @@ function trichHam(ten) {
   if (het < 0) throw new Error('khong thay cuoi ham ' + ten);
   return src.slice(i, het + 2);
 }
-const nguon = ['chuSoHuuMoi', 'migrateLead', 'laLoiQuyen', 'hienManKhoa', 'initCloudSync', 'quyetDinhKhoiDong']
+const nguon = ['chuSoHuuMoi', 'migrateLead', 'laLoiQuyen', 'hienManKhoa', 'initCloudSync', 'quyetDinhKhoiDong', 'khoCoNhom']
+  .map(trichHam).join('\n');
+// Luồng lưu THẬT (chế độ chỉ xem phải chặn ở đây, không phải ở bản giả)
+const nguonLuu = ['datBanGocTheoMay', 'applyRemoteData', 'leadsToObject', 'dailyTodosToObject', 'scheduleSave', 'tinhThayDoiCucBo', 'saveToCloud']
   .map(trichHam).join('\n');
 
 // Dựng một "app" thu nhỏ: biến trạng thái + các hàm phụ initCloudSync gọi tới đều là bản giả.
-function taoApp() {
-  return new Function(`
+// thatLuu = true -> dùng scheduleSave/saveToCloud/applyRemoteData thật của index.html.
+function taoApp({ leadsBanDau = [], thatLuu = false } = {}) {
+  return new Function('leadsBanDau', `
     let cloudLoaded = false, lastSyncedRaw = null, pendingRemote = null, saveTimer = null;
-    const leads = []; const chuSoHuuChuaLuu = new Set(); const trangThai = [];
+    let leads = leadsBanDau.slice(); let dailyTodos = []; let planRevenue = 0, planLeads = 0;
+    let banGoc = { leads: {}, dailyTodos: null, planRevenue: undefined, planLeads: undefined };
+    const chuSoHuuChuaLuu = new Set(); const trangThai = []; const goi = { zalo: 0, ai: 0, luu: 0 };
     function setSyncStatus(s){ trangThai.push(s); }
-    function datBanGocTheoMay(){} function applyRemoteData(){} function renderAll(){}
-    function scheduleSave(){} function uiIsBusy(){ return false; }
-    function initZalo(){} function initAI(){} async function saveToCloud(){}
+    function renderAll(){} function uiIsBusy(){ return false; } function doiSoatDeXuat(){}
+    function initZalo(){ goi.zalo++; } function initAI(){ goi.ai++; }
     function nowLabel(){ return '01/10/2026 10:00'; }
+    ${thatLuu ? nguonLuu : `
+      function datBanGocTheoMay(){} function applyRemoteData(){}
+      function scheduleSave(){ goi.luu++; } async function saveToCloud(){ goi.luu++; }`}
     ${nguon}
-    return { chuSoHuuMoi, migrateLead, initCloudSync, quyetDinhKhoiDong, chuSoHuuChuaLuu, trangThai,
-             get cloudLoaded(){ return cloudLoaded; } };
-  `)();
+    return { chuSoHuuMoi, migrateLead, initCloudSync, quyetDinhKhoiDong, chuSoHuuChuaLuu, trangThai, goi,
+             ${thatLuu ? 'saveToCloud, scheduleSave,' : ''}
+             get cloudLoaded(){ return cloudLoaded; }, get saveTimer(){ return saveTimer; } };
+  `)(leadsBanDau);
 }
+// window.__firebase giả có spy cho mọi lệnh ghi
+function fbGia(duLieu, kho) {
+  const ghi = [];
+  return {
+    ghi,
+    khoUid: () => (kho && kho.uid) || OWNER,
+    kho: () => kho || null,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => duLieu != null, val: () => duLieu }),
+    onValue: () => () => {},
+    set: (...a) => { ghi.push(['set', a]); return Promise.resolve(); },
+    update: (...a) => { ghi.push(['update', a]); return Promise.resolve(); },
+  };
+}
+const cho = ms => new Promise(r => setTimeout(r, ms));
 
 /* ---------- 1. Admin đang ở kho Trân: lead mới + lead cũ gắn chủ = Trân (Review Focus 1) ---------- */
 {
@@ -120,6 +144,130 @@ function taoApp() {
   check('admin nho kho Tran -> mo kho Tran', admin.loai === 'vao' && admin.kho.uid === OWNER && admin.ds.length === 2, JSON.stringify(admin.ds));
   const nguoiXem = qd({ uid: 'D', taiKhoanToi: { coKho: false }, quyenXemToi: { [OWNER]: { crm: true, tenChuKho: 'Trân' } }, uidDaNho: 'ZZ' });
   check('nguoi xem: kho nho bi thu hoi -> kho dau tien duoc xem', nguoiXem.loai === 'vao' && nguoiXem.kho.uid === OWNER && nguoiXem.kho.sua === false, JSON.stringify(nguoiXem.kho));
+}
+
+/* ---------- 5. Chỉ xem: mở kho trống khi trong máy có lead -> không ghi gì (Review Focus 2) ---------- */
+const KHO_XEM = { uid: OWNER, ten: 'Trân', cuaToi: false, sua: false, nhom: { crm: true, zalo: false, ai: false } };
+{
+  window.__authUser = { uid: 'D' };
+  window.__chiXem = true;
+  const fb = fbGia(null, KHO_XEM);
+  window.__firebase = fb;
+  const app = taoApp({ leadsBanDau: [{ id: 'L9', name: 'Lead trong may' }], thatLuu: true });
+  await app.initCloudSync();
+  check('chi xem + DB trong + co lead trong may: khong set/update', fb.ghi.length === 0, JSON.stringify(fb.ghi));
+  check('chi xem + DB trong: van nap xong (cloudLoaded)', app.cloudLoaded === true);
+  check('chi xem: khong bao "seeded"', !app.trangThai.includes('seeded'), app.trangThai.join(','));
+  check('nhom zalo false -> khong gan listener Zalo', app.goi.zalo === 0, app.goi.zalo);
+  check('nhom ai false -> khong gan listener AI', app.goi.ai === 0, app.goi.ai);
+}
+{
+  // DB có lead cũ chưa có chủ: lúc thường app gắn ownerUid rồi tự lưu. Chỉ xem thì không.
+  window.__chiXem = true;
+  const fb = fbGia({ leads: { L1: { id: 'L1', name: 'Lan' } } }, KHO_XEM);
+  window.__firebase = fb;
+  const app = taoApp({ thatLuu: true });
+  await app.initCloudSync();
+  check('chi xem: lead cu khong bi danh dau gan chu', app.chuSoHuuChuaLuu.size === 0, [...app.chuSoHuuChuaLuu].join(','));
+  app.scheduleSave();
+  check('chi xem: scheduleSave khong hen lich luu', !app.saveTimer);
+  await app.saveToCloud();
+  await cho(900);
+  check('chi xem: DB co lead cu -> khong set/update', fb.ghi.length === 0, JSON.stringify(fb.ghi));
+}
+{
+  // Đối chứng: không phải chỉ xem thì nhánh seed VẪN ghi (test trên không đỗ vì lý do khác)
+  window.__chiXem = false;
+  const fb = fbGia(null, { uid: OWNER, ten: 'Trân', cuaToi: true, sua: true, nhom: { crm: true, zalo: true, ai: true } });
+  window.__firebase = fb;
+  const app = taoApp({ leadsBanDau: [{ id: 'L9', name: 'Lead trong may' }], thatLuu: true });
+  await app.initCloudSync();
+  check('doi chung: kho cua minh trong -> seed ghi len', fb.ghi.some(g => g[0] === 'update'), JSON.stringify(fb.ghi));
+  check('doi chung: du nhom -> gan listener Zalo + AI', app.goi.zalo === 1 && app.goi.ai === 1, JSON.stringify(app.goi));
+}
+
+/* ---------- 6. Chốt chặn ghi ở cầu nối Firebase ---------- */
+{
+  let goiThat = 0, canhBao = 0;
+  const update = PhanQuyen.chanGhiKhiChiXem(() => { goiThat++; return Promise.resolve('ok'); }, () => window.__chiXem === true, () => { canhBao++; });
+  window.__chiXem = true;
+  let loi = null;
+  try { await update('REF', { a: 1 }); } catch (e) { loi = e; }
+  check('chi xem: update reject "chi-xem"', loi && loi.message === 'chi-xem', loi);
+  check('chi xem: khong goi lenh ghi that', goiThat === 0);
+  check('chi xem: co console.warn', canhBao === 1, canhBao);
+  window.__chiXem = false;
+  check('khong chi xem: lenh ghi chay binh thuong', (await update('REF', {})) === 'ok' && goiThat === 1);
+  // Cầu nối thật trong index.html phải bọc set + update bằng chốt này
+  check('index.html boc set bang chanGhiKhiChiXem', /\bset:\s*PhanQuyen\.chanGhiKhiChiXem\(set\b/.test(src));
+  check('index.html boc update bang chanGhiKhiChiXem', /\bupdate:\s*PhanQuyen\.chanGhiKhiChiXem\(update\b/.test(src));
+}
+
+/* ---------- 7. Giao diện: CSS + markup THẬT của index.html ---------- */
+{
+  const doc = new DOMParser().parseFromString(src, 'text/html');
+  doc.querySelectorAll('style').forEach(s => document.head.appendChild(document.importNode(s, true)));
+  const khung = document.createElement('div');
+  khung.id = 'khungApp';
+  for (const sel of ['aside.sidebar', 'header.topbar', '#khoBanner', '#menuKhacOverlay']) {
+    const el = doc.querySelector(sel);
+    check('index.html co ' + sel, !!el);
+    if (el) khung.appendChild(document.importNode(el, true));
+  }
+  document.body.appendChild(khung);
+  const apDung = new Function(trichHam('apDungCheDoKho') + '\nreturn apDungCheDoKho;')();
+  const nutThem = document.querySelector('header.topbar .btn-primary');
+  const hien = el => !!el && getComputedStyle(el).display !== 'none';
+  // Cửa sổ Chrome ngầm hẹp (~758px) = bố cục điện thoại: nút sidebar ẩn sẵn, nên kiểm tra mục
+  // 'Kết nối Claude' trong tấm 'Khác' (không phụ thuộc bề rộng) và thuộc tính hidden của bộ chuyển kho.
+  const nutClaude = () => document.querySelector('#menuKhacOverlay .chi-kho-minh');
+  const coBoChuyen = () => document.getElementById('khoiChonKho').hidden === false && document.getElementById('menuKhacKho').hidden === false;
+
+  check('binh thuong: nut them lead hien', hien(nutThem));
+  apDung(KHO_XEM, [KHO_XEM]);
+  check('apDungCheDoKho dat window.__chiXem', window.__chiXem === true);
+  check('body co class chi-xem', document.body.classList.contains('chi-xem'));
+  check('chi-xem: nut them lead an', nutThem && getComputedStyle(nutThem).display === 'none');
+  check('nhom zalo false: #navConversations an', !hien(document.getElementById('navConversations')));
+  check('kho nguoi khac: nut Ket noi Claude an', !hien(nutClaude()));
+  const dai = document.getElementById('khoBanner');
+  check('dai bao hien', hien(dai) && /Đang xem dữ liệu của Trân — chỉ xem/.test(dai.textContent), dai && dai.textContent);
+  check('1 kho: khong hien bo chuyen kho', !coBoChuyen() && !hien(document.getElementById('khoiChonKho')));
+
+  // Tên chủ kho độc hại không được thành thẻ HTML
+  const doc2 = { ...KHO_XEM, uid: 'X', ten: '<img src=x onerror=alert(1)>' };
+  const cuaToi = { uid: 'D', ten: 'Kho của tôi', cuaToi: true, sua: true, nhom: { crm: true, zalo: true, ai: true } };
+  apDung(doc2, [cuaToi, doc2]);
+  check('ten doc hai: dai bao khong tao the img', !dai.querySelector('img') && dai.textContent.includes('<img src=x'), dai.innerHTML);
+  const chon = document.getElementById('chonKho');
+  check('2 kho: hien bo chuyen kho (sidebar + tam Khac)', coBoChuyen());
+  check('2 kho: ca hai bo chuyen deu co du muc', [...document.querySelectorAll('select.chon-kho')].every(x => x.options.length === 2), document.querySelectorAll('select.chon-kho').length);
+  check('bo chuyen kho: "Của tôi" + ten chu kho, chon dung kho dang xem',
+    chon.options.length === 2 && chon.options[0].textContent === 'Của tôi' && chon.options[1].textContent === doc2.ten && chon.value === 'X',
+    [...chon.options].map(o => o.value + '=' + o.textContent).join('|'));
+  check('bo chuyen kho: khong tao the img', !document.querySelector('#khoiChonKho img'));
+  let daChuyen = null;
+  window.__firebase = { chuyenKho: uid => { daChuyen = uid; } };
+  chon.value = 'D';
+  chon.dispatchEvent(new Event('change'));
+  check('doi kho -> goi chuyenKho(uid)', daChuyen === 'D', daChuyen);
+
+  // Admin ở kho người khác: dải báo khác, KHÔNG chỉ xem
+  const admin = { uid: OWNER, ten: 'Trân', cuaToi: false, sua: true, nhom: { crm: true, zalo: true, ai: true } };
+  apDung(admin, [cuaToi, admin]);
+  check('admin kho khac: khong chi-xem', !document.body.classList.contains('chi-xem') && window.__chiXem === false);
+  check('admin kho khac: dai bao admin', /Admin đang xem\/sửa dữ liệu của Trân/.test(dai.textContent), dai.textContent);
+  check('admin kho khac: nut them lead hien', hien(nutThem));
+  check('admin kho khac: nut Ket noi Claude van an', !hien(nutClaude()));
+  check('admin du nhom: #navConversations hien', hien(document.getElementById('navConversations')));
+
+  // Về kho của mình: sạch hết
+  apDung(cuaToi, [cuaToi, admin]);
+  check('kho cua minh: khong dai bao', !hien(dai));
+  check('kho cua minh: nut Ket noi Claude hien', hien(nutClaude()));
+  check('kho cua minh: khong chi-xem', !document.body.classList.contains('chi-xem'));
+  khung.remove();
+  window.__chiXem = false;
 }
 } catch (e) {
   check('khong loi khi chay test', false, e && e.stack || e);

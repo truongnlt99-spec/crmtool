@@ -67,5 +67,17 @@ check('khong co <b>X', !html.includes('<b>X'));
 check('co data-uid da escape', html.includes('data-uid="U&quot;1"'));
 check('rong -> van tra chuoi', typeof P.veBangTaiKhoan([]) === 'string');
 
+console.log('chanGhiKhiChiXem');
+await (async () => {
+  let goi = 0, canh = 0, xem = true;
+  const ghi = P.chanGhiKhiChiXem(async (x: any) => { goi++; return x; }, () => xem, () => { canh++; });
+  let loi: any = null;
+  try { await ghi(1); } catch (e) { loi = e; }
+  check('chi xem -> reject chi-xem', loi && loi.message === 'chi-xem');
+  check('chi xem -> khong goi ghi that, co canh bao', goi === 0 && canh === 1);
+  xem = false;
+  check('het chi xem -> ghi chay, tra ket qua', (await ghi(7)) === 7 && goi === 1);
+})();
+
 console.log(`\n${pass} OK, ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

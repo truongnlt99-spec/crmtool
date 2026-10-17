@@ -130,8 +130,13 @@
     }
   }
 
+  // Chế độ chỉ xem (window.__chiXem, đặt lúc khởi động theo quyền): mọi lệnh ghi qua cầu nối
+  // bị từ chối. logLogin dùng set/update gốc trong module nên nhật ký đăng nhập vẫn ghi được.
+  const laChiXem = () => window.__chiXem === true;
   window.__firebase = {
-    db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
+    db, userDataRef, get, onValue, auth, persistenceOk, logLogin,
+    set: PhanQuyen.chanGhiKhiChiXem(set, laChiXem),
+    update: PhanQuyen.chanGhiKhiChiXem(update, laChiXem),
     appConfigBase, currentUid, zaloBase, aiBase, query, limitToLast, orderByChild, equalTo,
     // Kho hiệu lực (phân quyền tài khoản)
     ownerUid: OLD_OWNER_UID, khoUid, kho: () => khoDangXem, dsKho: () => dsKhoHienCo.slice(), chuyenKho, datKhoDangXem,
@@ -1922,6 +1927,37 @@
   .bg-pa .bg-tong{margin-top:auto;}
   .bg-chon{margin-top:8px; align-self:flex-start;}
   .zalo-row.zalo-flash .zalo-bubble{outline:2px solid var(--purple); outline-offset:2px; transition:outline-color .3s;}
+
+  /* ===== Phân quyền: kho đang xem (class trên <body> do apDungCheDoKho đặt) ===== */
+  .kho-banner{
+    margin:12px 22px 0; padding:10px 14px; border-radius:var(--r-lg); font-weight:600; font-size:14px;
+    background:var(--amber-soft); border:1px solid var(--amber-line); color:var(--amber);
+    position:sticky; top:0; z-index:5;
+  }
+  .kho-banner[hidden], .sidebar-kho[hidden], .menu-khac-item[hidden]{display:none !important;}
+  .sidebar-kho{display:flex; flex-direction:column; gap:4px; margin:0 0 12px;}
+  .sidebar-kho-label{font-size:12px; font-weight:600; color:var(--ink-faint);}
+  .sidebar-kho .select-pill{width:100%;}
+  body.sidebar-collapsed .sidebar-kho{display:none !important;}
+  @media (max-width:760px){ .sidebar-kho{display:none !important;} }
+  .menu-khac-item .chon-kho{max-width:60%;}
+  /* Ở kho người khác (kể cả admin): khoá MCP thuộc kho mình -> ẩn "Kết nối Claude" */
+  body.kho-nguoi-khac .chi-kho-minh{display:none !important;}
+  /* Chỉ xem: ẩn mọi nút sửa; các ô/thao tác còn lại thì không bấm được */
+  body.chi-xem .can-sua,
+  body.chi-xem .dx-nut, body.chi-xem .dx-sua, body.chi-xem .dx-nhanh,
+  body.chi-xem .bg-chon,
+  body.chi-xem .card-move-btn,
+  body.chi-xem #drawerHeaderActions .btn,
+  body.chi-xem .add-todo-row, body.chi-xem .note-actions, body.chi-xem #noteInput,
+  body.chi-xem #drawerTodos .icon-btn-mini, body.chi-xem #notesStreamBox .icon-btn-mini{display:none !important;}
+  body.chi-xem .detail-stepper, body.chi-xem .todo-check, body.chi-xem #tagToggleBtn,
+  body.chi-xem #planRevenueInput, body.chi-xem #planLeadsInput{pointer-events:none;}
+  body.chi-xem .card{cursor:pointer;}
+  /* Không được xem nhóm Zalo / hồ sơ AI */
+  body.an-zalo #navConversations, body.an-zalo .detail-tab[data-tab="hoithoai"], body.an-zalo .detail-col-zalo{display:none !important;}
+  body.an-ai .detail-tab[data-tab="hoso"], body.an-ai .block-hoso, body.an-ai .block-dexuat,
+  body.an-ai #navDeXuat, body.an-ai #menuKhacDeXuat{display:none !important;}
 </style>
 </head>
 <body>
@@ -2081,6 +2117,11 @@
       </div>
     </div>
 
+    <!-- Bộ chuyển kho: chỉ hiện khi xem được nhiều hơn một kho (admin, người được cấp quyền xem) -->
+    <div class="sidebar-kho" id="khoiChonKho" hidden>
+      <label class="sidebar-kho-label" for="chonKho">Kho dữ liệu</label>
+      <select class="select-pill chon-kho" id="chonKho" onchange="window.__firebase.chuyenKho(this.value)"></select>
+    </div>
     <nav class="nav">
       <button class="nav-item active" id="navPipeline" onclick="setView('pipeline')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 4v5.5a2 2 0 0 0 .59 1.41L11 15v5M18 4v5.5a2 2 0 0 1-.59 1.41L13 15"/></svg>
@@ -2138,7 +2179,7 @@
       <span class="sidebar-logout-text" id="themeText">Tự động</span>
     </button>
 
-    <button class="sidebar-logout sidebar-connect" onclick="openMcpModal()" title="Lấy link kết nối Claude">
+    <button class="sidebar-logout sidebar-connect can-sua chi-kho-minh" onclick="openMcpModal()" title="Lấy link kết nối Claude">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.8 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.8-1.7"/></svg>
       <span class="sidebar-logout-text">Kết nối Claude</span>
     </button>
@@ -2192,11 +2233,14 @@
 
       <span class="sync-status" id="syncStatus"><span class="sync-dot"></span>Đang kết nối...</span>
 
-      <button class="btn btn-primary" onclick="openAddLead()">
+      <button class="btn btn-primary can-sua" onclick="openAddLead()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         Thêm lead
       </button>
     </header>
+
+    <!-- Dải báo kho: đang xem kho người khác (chỉ xem, hoặc admin xem/sửa). Chữ đặt bằng textContent -->
+    <div class="kho-banner" id="khoBanner" role="status" hidden></div>
 
     <!-- Dải lỗi đồng bộ: hiện khi không đọc/ghi được máy chủ (thay cho việc chỉ đổi màu chữ) -->
     <div class="error-banner" id="syncBanner" role="alert" hidden>
@@ -2477,7 +2521,11 @@
       <button type="button" class="menu-khac-item" onclick="doiCheDoGiaoDien(); veMenuKhac()">
         <span>Giao diện</span><span class="menu-khac-meta" id="menuKhacTheme"></span>
       </button>
-      <button type="button" class="menu-khac-item" onclick="dongMenuKhac(); openMcpModal()"><span>Kết nối Claude</span><span class="menu-khac-meta">›</span></button>
+      <label class="menu-khac-item" id="menuKhacKho" hidden>
+        <span>Kho dữ liệu</span>
+        <select class="select-pill chon-kho" onchange="window.__firebase.chuyenKho(this.value)"></select>
+      </label>
+      <button type="button" class="menu-khac-item can-sua chi-kho-minh" onclick="dongMenuKhac(); openMcpModal()"><span>Kết nối Claude</span><span class="menu-khac-meta">›</span></button>
       <button type="button" class="menu-khac-item menu-khac-danger" onclick="dongMenuKhac(); doLogout()"><span>Đăng xuất</span></button>
     </div>
     <div class="modal-footer">
@@ -3081,6 +3129,10 @@ async function docKhoaMcp(){
 }
 
 function openMcpModal(){
+  // Khoá MCP luôn thuộc kho của người đăng nhập: đang ở kho người khác (kể cả admin) thì
+  // không mở, kẻo tưởng nhầm link này đọc kho đang xem.
+  const k = window.__firebase && window.__firebase.kho ? window.__firebase.kho() : null;
+  if (k && !k.cuaToi) return;
   document.getElementById('mcpOverlay').classList.add('show');
   renderMcpModal();
 }
@@ -3181,6 +3233,7 @@ const VIEWS = {
 };
 function setView(view){
   if (!VIEWS[view]) view = 'pipeline';
+  if (view === 'conversations' && !khoCoNhom('zalo')) view = 'pipeline';
   document.body.dataset.view = view;   // CSS dựa vào đây để ẩn bộ lọc Pipeline ở tab Hội thoại
   Object.entries(VIEWS).forEach(([k, v]) => {
     document.getElementById(v.el).classList.toggle('active', k === view);
@@ -3279,7 +3332,7 @@ function renderBangLead(){
   `;
 
   if (!leads.length){
-    scroll.innerHTML = `<div class="bang-trong">Chưa có lead nào.<button type="button" class="btn btn-primary" onclick="openAddLead()">+ Thêm lead</button></div>`;
+    scroll.innerHTML = `<div class="bang-trong">Chưa có lead nào.<button type="button" class="btn btn-primary can-sua" onclick="openAddLead()">+ Thêm lead</button></div>`;
     return;
   }
   if (!dong.length){
@@ -3466,6 +3519,7 @@ function batDauKeoCot(ev, khoa){
 }
 
 function suaOBang(id, khoa, td){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   const c = window.BangLead.COT.find(x => x.khoa === khoa);
   clearTimeout(bangHenMoLead);
@@ -3641,7 +3695,7 @@ function renderPipeline(){
       <div class="empty-sub">${dangLoc ? 'Thử bỏ bớt điều kiện lọc hoặc đổi từ khoá tìm kiếm.' : 'Thêm lead đầu tiên để bắt đầu theo dõi khách.'}</div>
       ${dangLoc
         ? '<button type="button" class="btn btn-ghost" onclick="xoaBoLocPipeline()">Xoá bộ lọc</button>'
-        : '<button type="button" class="btn btn-primary" onclick="openAddLead()">+ Thêm lead</button>'}
+        : '<button type="button" class="btn btn-primary can-sua" onclick="openAddLead()">+ Thêm lead</button>'}
     `;
     board.prepend(trong);
   }
@@ -3700,7 +3754,7 @@ function cardHtml(lead){
   const todoCount = lead.todos && lead.todos.length ? `<span class="card-todo">✓ ${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '<span></span>';
   const tag = (lead.tags && lead.tags[0]) ? `<span class="card-tag">🔥 ${esc(lead.tags[0])}</span>` : '';
   return `
-    <div class="card status-${status.type}" draggable="true" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')">
+    <div class="card status-${status.type}" draggable="${window.__chiXem ? 'false' : 'true'}" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')">
       <div class="card-top">
         <span class="card-dot"></span>
         <div class="card-name">${esc(lead.name)}</div>
@@ -3781,6 +3835,7 @@ function dongMenuKhac(){
 
 /* ======================= QUICK MOVE (chuyển giai đoạn nhanh — dùng tốt trên mobile) ======================= */
 function openQuickMove(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   document.getElementById('quickMoveTitle').textContent = `Chuyển "${lead.name}" đến giai đoạn`;
@@ -3796,6 +3851,7 @@ function closeQuickMove(){
 
 /* ======================= DRAG & DROP ======================= */
 function handleDragStart(ev, id){
+  if (window.__chiXem){ ev.preventDefault(); return; }   // chỉ xem: không kéo thả đổi giai đoạn
   ev.dataTransfer.setData('text/plain', id);
   setTimeout(() => ev.target.classList.add('dragging'), 0);
 }
@@ -3810,6 +3866,7 @@ function dragLeave(ev){
   ev.currentTarget.classList.remove('drag-over');
 }
 function handleDrop(ev, stageId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   ev.preventDefault();
   ev.currentTarget.classList.remove('drag-over');
   const id = ev.dataTransfer.getData('text/plain');
@@ -3820,6 +3877,7 @@ function handleDrop(ev, stageId){
    nút "Chuyển giai đoạn nhanh" trên card (chạm tay, thay thế kéo-thả trên mobile),
    và thanh stepper bấm được trong màn chi tiết lead. */
 function moveLeadToStage(id, newStage, opts){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   opts = opts || {};
   const lead = leads.find(l => l.id === id);
   if (!lead || lead.stage === newStage) return;
@@ -3980,7 +4038,7 @@ function openLead(id){
             <h3 class="block-title">Báo giá</h3>
             <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
           </div>
-          <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: true }) : ''}</div>
+          <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: !window.__chiXem }) : ''}</div>
         </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
@@ -4091,6 +4149,7 @@ function openLead(id){
   initAutoGrowTextareas();
   chonTabChiTiet(tabChiTiet);
   moHoSo(id);
+  khoaONhapChiXem(document.getElementById('drawerBody'));
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
 }
@@ -4109,6 +4168,8 @@ function veChipDauChiTiet(lead){
 /* Điện thoại: chi tiết lead chia 3 tab thay vì chồng khối. Máy tính bỏ qua (CSS hiện hết). */
 let tabChiTiet = 'viec';
 function chonTabChiTiet(tab){
+  // Tab bị ẩn theo quyền (Hội thoại / Hồ sơ) thì về tab Việc, không để màn trống
+  if ((tab === 'hoithoai' && !khoCoNhom('zalo')) || (tab === 'hoso' && !khoCoNhom('ai'))) tab = 'viec';
   tabChiTiet = tab;
   const body = document.getElementById('drawerBody');
   if (!body) return;
@@ -4150,6 +4211,17 @@ function renderDrawerTodos(lead){
       </button>
     </div>`;
   }).join('');
+  khoaONhapChiXem(box);
+}
+
+// Chỉ xem: khoá ô nhập trong chi tiết lead (ô tìm trong hội thoại vẫn gõ được).
+function khoaONhapChiXem(root){
+  if (!window.__chiXem || !root) return;
+  root.querySelectorAll('input, textarea, select').forEach(el => {
+    if (el.classList.contains('zalo-search')) return;
+    if (el.tagName === 'SELECT' || el.type === 'date' || el.type === 'month') el.disabled = true;
+    else el.readOnly = true;
+  });
 }
 
 function autoGrowTextarea(el){
@@ -4161,6 +4233,7 @@ function initAutoGrowTextareas(){
   document.querySelectorAll('#drawerBody textarea.auto-grow').forEach(autoGrowTextarea);
 }
 function onFieldChange(id, field, value){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   lead[field] = value;
@@ -4176,6 +4249,7 @@ function onFieldChange(id, field, value){
 }
 
 function changeStageFromDrawer(id, newStage){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   moveLeadToStage(id, newStage, {reopenDrawer:true});
 }
 
@@ -4221,6 +4295,7 @@ function resetNoteInputUI(){
 }
 
 function saveNote(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   const input = document.getElementById('noteInput');
@@ -4240,6 +4315,7 @@ function saveNote(id){
 }
 
 function editNote(id, noteId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   const note = (lead.notesList||[]).find(n => n.id === noteId);
@@ -4261,6 +4337,7 @@ function cancelNoteEdit(id){
 }
 
 function removeNote(id, noteId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   if (!confirm('Xóa ghi chú này?')) return;
@@ -4277,6 +4354,7 @@ function refreshTagToggleUI(lead){
   if (btn) btn.classList.toggle('active', (lead.tags||[]).includes('Tiềm năng'));
 }
 function toggleTag(id, tag){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   if (!lead) return;
   lead.tags = lead.tags || [];
@@ -4301,6 +4379,7 @@ function findTodo(lead, todoId){
 }
 
 function toggleTodo(id, todoId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   const t = findTodo(lead, todoId);
   if (!t) return;
@@ -4315,6 +4394,7 @@ function toggleTodo(id, todoId){
 
 // Đổi hạn riêng của một việc. Hạn lead tự dời theo nếu việc có hạn xa hơn.
 function setTodoDue(id, todoId, value){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   const t = findTodo(lead, todoId);
   if (!t) return;
@@ -4327,6 +4407,7 @@ function setTodoDue(id, todoId, value){
   scheduleSave();
 }
 function removeTodo(id, todoId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === id);
   const i = (lead && lead.todos) ? lead.todos.findIndex(t => t.id === todoId) : -1;
   if (i < 0) return;
@@ -4339,6 +4420,7 @@ function removeTodo(id, todoId){
   scheduleSave();
 }
 function addTodo(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const input = document.getElementById('newTodoInput');
   const dueInput = document.getElementById('newTodoDue');
   const text = input.value.trim();
@@ -4367,6 +4449,7 @@ function closeDrawer(){
   dongHoSo();
 }
 function deleteCurrentLead(){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   if (!currentLeadId) return;
   if (!confirm('Xóa lead này khỏi pipeline?')) return;
   const id = currentLeadId;
@@ -4432,7 +4515,8 @@ function leadTrenMayChu(id){
 
 /** Đề xuất mà bản máy chủ của lead đã mang giá trị -> đánh dấu duyet (đúng thứ tự: lead trước, trạng thái sau). */
 function doiSoatDeXuat(){
-  if (!window.HoSoAI || !window.__firebase) return;
+  // Chỉ xem: không ghi trạng thái đề xuất (cầu nối cũng chặn, nhưng chạy mỗi lần vẽ lại -> bẩn console)
+  if (window.__chiXem || !window.HoSoAI || !window.__firebase) return;
   Object.values(aiDeXuat).forEach(p => {
     if (aiDaGuiDuyet.has(p.id)) return;
     if (!HoSoAI.daApDung(p, leadTrenMayChu(p.leadId))) return;
@@ -4466,16 +4550,19 @@ function apDungDeXuat(p, giaTri){
 }
 
 function duyetDeXuat(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   if (aiDangDuyet.has(id)) return;
   const p = aiDeXuat[id];
   if (p) apDungDeXuat(p, p.newValue);
 }
 
 function moSuaDeXuat(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   document.querySelectorAll(`[data-dx="${id}"] .dx-sua`).forEach(el => { el.hidden = !el.hidden; });
 }
 
 function duyetDeXuatSua(id, btn){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   if (aiDangDuyet.has(id)) return;
   const p = aiDeXuat[id];
   if (!p) return;
@@ -4492,6 +4579,7 @@ function duyetDeXuatSua(id, btn){
 }
 
 function boDeXuat(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const f = window.__firebase;
   aiDangDuyet.add(id);
   veLaiPhanDeXuat(true);
@@ -4556,7 +4644,7 @@ function moHoSo(leadId){
   dongHoSo();
   hoSoBrief = undefined; hoSoLoi = false;
   const f = window.__firebase;
-  if (!f || !f.aiBase) return;
+  if (!f || !f.aiBase || !khoCoNhom('ai')) return;   // không được xem hồ sơ AI: không gắn listener
   hoSoUnsub = f.onValue(f.refAt(`${f.aiBase()}/briefs/${leadId}`), s => {
     hoSoBrief = s.val() || null;
     if (currentLeadId === leadId) veKhoiHoSo(leadId);
@@ -4639,6 +4727,7 @@ function xemNguon(convId, msgId){
 
 /* ----- Báo giá nhiều phương án: khách chọn phương án (Trân bấm -> cập nhật thẳng lead) ----- */
 function chonPhuongAn(baoGiaId, ma){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === currentLeadId);
   if (!lead || !window.BaoGia) return;
   const bg = lead.baoGia && lead.baoGia[baoGiaId];
@@ -4702,6 +4791,7 @@ function closeZaloChat(){
 
 function openZaloChat(leadId){
   closeZaloChat();
+  if (!khoCoNhom('zalo')) return;   // không được xem Zalo: không gắn listener
   const convs = zaloConvsOf(leadId);
   zaloOpenFor = zaloKey(leadId);
   if (!convs.some(c => c.convId === zaloActiveConv)) zaloActiveConv = convs.length ? convs[0].convId : null;
@@ -4893,6 +4983,7 @@ function setConvFilter(k){
 }
 
 function openConversation(convId){
+  if (!khoCoNhom('zalo')) return;
   stopConvTabListen();
   convTabActive = convId;
   convTabMsgs = null;
@@ -4960,6 +5051,7 @@ function renderConvMessages(){
 
 /* ======================= LOST REASON MODAL ======================= */
 function openLostReason(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   pendingDropId = id;
   document.getElementById('lostReasonBody').innerHTML = LOST_REASONS.map(r => `
     <div class="reason-option" onclick="confirmLostReason('${esc(r)}')">${esc(r)}</div>
@@ -4967,6 +5059,7 @@ function openLostReason(id){
   document.getElementById('lostReasonOverlay').classList.add('show');
 }
 function confirmLostReason(reason){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === pendingDropId);
   const reopenId = pendingDropId;
   if (lead){
@@ -4987,6 +5080,7 @@ function closeLostReason(){
 
 /* ======================= WON CONFIRM MODAL ======================= */
 function openWonConfirm(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   pendingDropId = id;
   const lead = leads.find(l => l.id === id);
   document.getElementById('wonConfirmBody').innerHTML = `
@@ -4999,6 +5093,7 @@ function openWonConfirm(id){
   document.getElementById('wonConfirmOverlay').classList.add('show');
 }
 function submitWonConfirm(){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === pendingDropId);
   const reopenId = pendingDropId;
   const val = moneyInputValue(document.getElementById('wonRevenueInput'));
@@ -5020,6 +5115,7 @@ function closeWonConfirm(){
 
 /* ======================= ADD LEAD MODAL ======================= */
 function openAddLead(){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   document.getElementById('addLeadBody').innerHTML = `
     <div class="field-group">
       <label class="field-label">Tên khách hàng</label>
@@ -5076,6 +5172,7 @@ function closeAddLead(){
   document.getElementById('addLeadOverlay').classList.remove('show');
 }
 function submitAddLead(){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const name = document.getElementById('newName').value.trim();
   if (!name){ alert('Vui lòng nhập tên khách hàng.'); return; }
   const lead = {
@@ -5113,6 +5210,7 @@ function onFilterStatus(v){ filterStatus = v; filterTag = ''; renderPipeline(); 
 
 /* ======================= DASHBOARD ======================= */
 function updatePlan(key, value){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const num = Number(value) || 0;
   if (key === 'revenue') planRevenue = num;
   if (key === 'leads') planLeads = num;
@@ -5281,7 +5379,7 @@ function renderDashboard(){
       <div class="box-label">Doanh thu thực tế</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${formatMoney(actualRevenue)}</div>
-        <input type="text" inputmode="numeric" id="planRevenueInput" value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
+        <input type="text" inputmode="numeric" id="planRevenueInput" ${window.__chiXem ? "readonly" : ""} value="${moneyDisplay(planRevenue)}" oninput="formatMoneyInput(this); updatePlan('revenue', moneyInputValue(this))" title="Chỉnh KPI kế hoạch">
       </div>
       <div class="progress-track"><div class="progress-fill ${revenuePct>=100?'over':''}" id="revenueProgressFill" style="width:${revenuePct}%"></div></div>
       <div class="kpi-percent" id="revenuePercentText">${revenuePct}% so với kế hoạch ${formatMoney(planRevenue)}</div>
@@ -5291,7 +5389,7 @@ function renderDashboard(){
       <div class="box-label">Số lead nhận</div>
       <div class="kpi-row">
         <div class="box-value" style="font-size:22px">${monthLeads.length}</div>
-        <input type="number" id="planLeadsInput" value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
+        <input type="number" id="planLeadsInput" ${window.__chiXem ? "readonly" : ""} value="${planLeads}" oninput="updatePlan('leads', this.value)" title="Chỉnh KPI kế hoạch">
       </div>
       <div class="progress-track"><div class="progress-fill ${leadsPct>=100?'over':''}" id="leadsProgressFill" style="width:${leadsPct}%"></div></div>
       <div class="kpi-percent" id="leadsPercentText">${leadsPct}% so với kế hoạch ${planLeads} lead</div>
@@ -5518,6 +5616,7 @@ function renderRemindersModal(){
     reminderSectionHtml('🗂️ Sau đó nữa', later);
 }
 function toggleReminderItem(leadId, todoId){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const lead = leads.find(l => l.id === leadId);
   const t = findTodo(lead, todoId);
   if (!t) return;
@@ -5823,6 +5922,7 @@ function dailyTodosToObject(){
 
 let saveTimer = null;
 function scheduleSave(){
+  if (window.__chiXem) return;   // chỉ xem: không hẹn lưu, không báo "có thay đổi chưa lưu"
   setSyncStatus('pending');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(saveToCloud, 700);
@@ -5853,6 +5953,8 @@ async function saveToCloud(){
   // Đánh dấu đã hết thay đổi cục bộ đang chờ — nếu không, cờ saveTimer sẽ kẹt ở giá trị cũ
   // và chặn vĩnh viễn luồng đồng bộ realtime ở initCloudSync().
   saveTimer = null;
+  // Chỉ xem kho người khác: không bao giờ ghi (cầu nối Firebase cũng chặn, đây là lớp thứ hai)
+  if (window.__chiXem) return;
   if (!window.__firebase){ setSyncStatus('offline'); return; }
 
   // CHỐT AN TOÀN. Sự cố đã xảy ra một lần: Security Rules bị siết trước khi app có
@@ -5923,6 +6025,58 @@ function chuSoHuuMoi(){
   return uid || null;
 }
 
+// Kho đang xem có cho xem nhóm dữ liệu này không ('crm' | 'zalo' | 'ai').
+// Chưa chọn kho / kho không ghi nhóm (luồng cũ) thì coi như được xem đủ.
+function khoCoNhom(nhom){
+  const f = window.__firebase;
+  const k = f && f.kho ? f.kho() : null;
+  return !k || !k.nhom || k.nhom[nhom] !== false;
+}
+
+// Áp chế độ theo kho đang xem, gọi một lần lúc khởi động (đổi kho = tải lại trang):
+//  - chi-xem      : người được cấp quyền xem (kho.sua = false) -> khoá mọi nút sửa, chặn ghi
+//  - kho-nguoi-khac: đang ở kho không phải của mình (kể cả admin) -> ẩn "Kết nối Claude",
+//                   vì khoá MCP luôn thuộc kho của người đăng nhập (appConfigBase)
+//  - an-zalo / an-ai: không được xem nhóm đó -> ẩn phần giao diện tương ứng
+// Dải báo + bộ chuyển kho dùng textContent: tên chủ kho do người dùng đặt, không thành thẻ HTML.
+function apDungCheDoKho(kho, ds){
+  const k = kho || null;
+  const chiXem = !!(k && k.sua === false);
+  window.__chiXem = chiXem;
+  const nhom = (k && k.nhom) || {};
+  const lop = document.body.classList;
+  lop.toggle('chi-xem', chiXem);
+  lop.toggle('kho-nguoi-khac', !!(k && !k.cuaToi));
+  lop.toggle('an-zalo', nhom.zalo === false);
+  lop.toggle('an-ai', nhom.ai === false);
+
+  const dai = document.getElementById('khoBanner');
+  if (dai){
+    const ten = (k && k.ten) || '';
+    const chu = chiXem ? `Đang xem dữ liệu của ${ten} — chỉ xem`
+      : (k && !k.cuaToi) ? `Admin đang xem/sửa dữ liệu của ${ten}` : '';
+    dai.textContent = chu;
+    dai.hidden = !chu;
+  }
+
+  const danhSach = Array.isArray(ds) ? ds : [];
+  const coChon = danhSach.length > 1;
+  const khoi = document.getElementById('khoiChonKho');
+  if (khoi) khoi.hidden = !coChon;
+  const mucMenu = document.getElementById('menuKhacKho');
+  if (mucMenu) mucMenu.hidden = !coChon;
+  document.querySelectorAll('select.chon-kho').forEach(sel => {
+    sel.textContent = '';
+    danhSach.forEach(x => {
+      const o = document.createElement('option');
+      o.value = x.uid;
+      o.textContent = x.cuaToi ? 'Của tôi' : (x.ten || x.uid);
+      o.selected = !!k && x.uid === k.uid;
+      sel.appendChild(o);
+    });
+  });
+}
+
 // Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
 // để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
 // RTDB có thể trả mảng về dạng object {0:..,1:..} (ghi tay trên Console, client khác...);
@@ -5944,8 +6098,9 @@ function migrateLead(l){
   // Chỉ gắn khi CHƯA có chủ — không bao giờ ghi đè chủ cũ, kẻo người thứ hai đăng nhập
   // là cướp mất quyền sở hữu lead của người trước.
   // Chủ = chủ KHO đang xem, không phải người đang đăng nhập (admin mở kho Trân).
+  // Chỉ xem thì không gắn: gắn là phải ghi xuống, mà người xem không được ghi.
   const chu = chuSoHuuMoi();
-  if (!l.ownerUid && chu){
+  if (!l.ownerUid && chu && !window.__chiXem){
     l.ownerUid = chu;
     chuSoHuuChuaLuu.add(l.id);   // để ghi hẳn xuống database, không chỉ gắn trong bộ nhớ
   }
@@ -6086,7 +6241,7 @@ async function initCloudSync(){
 
       // Vừa gắn chủ sở hữu cho lead cũ -> lưu một lần để ghi hẳn xuống database.
       // Đặt SAU cloudLoaded = true, nếu không chốt an toàn trong saveToCloud sẽ chặn.
-      if (chuSoHuuChuaLuu.size){
+      if (chuSoHuuChuaLuu.size && !window.__chiXem){
         console.info('Đã gắn chủ sở hữu cho các lead cũ, đang lưu lại...');
         scheduleSave();
       }
@@ -6095,7 +6250,8 @@ async function initCloudSync(){
       // kết quả đúng là trống), nhưng chỉ khởi tạo khi trong máy thực sự có dữ liệu
       // để đẩy lên — cả hai bên đều trống thì không ghi gì cả.
       cloudLoaded = true;
-      if (leads.length){
+      // Chỉ xem kho trống: tuyệt đối không đẩy lead trong máy lên kho người khác (Review Focus 2).
+      if (leads.length && !window.__chiXem){
         setSyncStatus('saving');
         await saveToCloud();
         setSyncStatus('seeded');
@@ -6135,9 +6291,14 @@ async function initCloudSync(){
       }
     });
     // Hội thoại Zalo là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
-    try { initZalo(); } catch(e){ console.warn('Không khởi động được phần hội thoại Zalo:', e); }
+    // Không được xem nhóm nào thì KHÔNG gắn listener: rules trả lỗi quyền, bẩn console.
+    if (khoCoNhom('zalo')){
+      try { initZalo(); } catch(e){ console.warn('Không khởi động được phần hội thoại Zalo:', e); }
+    }
     // Hồ sơ khách AI là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
-    try { initAI(); } catch(e){ console.warn('Không khởi động được phần hồ sơ AI:', e); }
+    if (khoCoNhom('ai')){
+      try { initAI(); } catch(e){ console.warn('Không khởi động được phần hồ sơ AI:', e); }
+    }
   } catch(e){
     console.error('Firebase init error:', e);
     // cloudLoaded vẫn là false -> chốt an toàn trong saveToCloud sẽ chặn mọi lệnh ghi,
@@ -6259,6 +6420,8 @@ async function khoiDongTheoQuyen(user){
       return;
     }
     f.datKhoDangXem(qd.kho, qd.ds);
+    // Đặt window.__chiXem TRƯỚC khi nạp dữ liệu: nhánh seed / gắn chủ lead cũ đọc cờ này.
+    apDungCheDoKho(qd.kho, qd.ds);
     hideLockScreen();
     startWithCloud();
   } finally {

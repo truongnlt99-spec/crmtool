@@ -91,3 +91,16 @@ export function veBangTaiKhoan(rows){
   return '<table class="bang-tai-khoan"><thead><tr><th>Tên</th><th>Email</th><th>Có kho</th><th>Vai trò</th><th>Trạng thái</th><th>Đang xem</th></tr></thead>'
     + `<tbody>${ds.map(dong).join('')}</tbody></table>`;
 }
+
+// Chốt chặn ghi cho chế độ chỉ xem: bọc set/update của Firebase. Đang chỉ xem thì từ chối
+// (Promise.reject 'chi-xem') + cảnh báo, không gọi lệnh ghi thật. laChiXem đọc lúc GỌI, không
+// chốt lúc bọc — cầu nối được dựng trước khi biết kho nào.
+export function chanGhiKhiChiXem(ghi, laChiXem, canhBao = (...a) => console.warn(...a)){
+  return (...args) => {
+    if (laChiXem()) {
+      canhBao('Chế độ chỉ xem: đã chặn một lệnh ghi lên máy chủ.');
+      return Promise.reject(new Error('chi-xem'));
+    }
+    return ghi(...args);
+  };
+}
