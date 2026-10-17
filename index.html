@@ -5398,10 +5398,175 @@ function submitWonConfirm(){
   renderAll();
   scheduleSave();
   if (currentLeadId === reopenId) openLead(reopenId);
+  if (lead) hieuUngChotDeal();
 }
 function closeWonConfirm(){
   document.getElementById('wonConfirmOverlay').classList.remove('show');
   pendingDropId = null;
+}
+
+/* Hiệu ứng mừng chốt deal: hoa nở dọc đáy màn hình, pháo bông bắn lên.
+   Vẽ trên một canvas phủ toàn màn hình, không bắt chuột, tự xoá sau 5 giây. */
+const HIEU_UNG_CHOT_MS = 5000;
+function hieuUngChotDeal(){
+  if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cu = document.getElementById('hieuUngChotDeal');
+  if (cu) cu.remove();
+  const cv = document.createElement('canvas');
+  cv.id = 'hieuUngChotDeal';
+  cv.setAttribute('aria-hidden', 'true');
+  cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:2147483000';
+  document.body.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0, H = 0;
+  const doKichThuoc = () => {
+    W = innerWidth; H = innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  doKichThuoc();
+  addEventListener('resize', doKichThuoc);
+
+  const r = (a, b) => a + Math.random() * (b - a);
+  const kep = v => Math.max(0, Math.min(1, v));
+  const easeOut = p => 1 - Math.pow(1 - p, 3);
+  const easeBack = p => { const c = 1.7; return 1 + (c + 1) * Math.pow(p - 1, 3) + c * Math.pow(p - 1, 2); };
+  const MAU_HOA = ['#ff6fa5', '#ff9ec4', '#ffd166', '#ffffff', '#f78fb3', '#c77dff', '#ff8a5c'];
+  const MAU_TAM = ['#ffd23f', '#ff9f1c', '#fff3b0'];
+  const chon = ds => ds[Math.floor(Math.random() * ds.length)];
+
+  // --- Hoa dưới đất: thân mọc lên rồi nở ---
+  const hoaDat = [];
+  for (let i = 0, n = Math.round(W / 17); i < n; i++){
+    hoaDat.push({ x: (i + r(0.1, 0.9)) * W / n, cao: r(18, 90), batDau: r(150, 1900), tgThan: 420,
+      rr: r(7, 13), soCanh: Math.random() < 0.5 ? 5 : 6, mau: chon(MAU_HOA), tam: chon(MAU_TAM), xoay: r(0, 6.28),
+      // đung đưa qua lại: lệch ngọn theo sin, mỗi bông một nhịp riêng
+      bien: r(6, 13), toc: r(0.0025, 0.0045), pha: r(0, 6.28) });
+  }
+  hoaDat.sort((a, b) => b.cao - a.cao);   // bông cao vẽ trước, bông thấp đè lên → thành nhiều lớp
+  // --- Pháo bông: lịch bắn sẵn, nổ thì sinh một chùm hạt ---
+  const phao = [];
+  let chum = [];
+  for (let t = 0; t < 4000; t += r(90, 200)){
+    const x0 = r(0.08, 0.92) * W;
+    phao.push({ tPhong: t, x0, xDich: x0 + r(-60, 60), yDich: r(0.08, 0.45) * H, tg: r(550, 800),
+      hue: r(0, 360), no: false });
+  }
+
+  // Mỗi kiểu hoa vẽ sẵn một lần ra canvas phụ, mỗi khung chỉ drawImage → đỡ lag khi nhiều bông.
+  const R_MAU = 16, anhHoa = {};
+  function layAnhHoa(soCanh, mau, tam){
+    const khoa = soCanh + mau + tam;
+    if (anhHoa[khoa]) return anhHoa[khoa];
+    const c = document.createElement('canvas'), co = (R_MAU * 2 + 4) * dpr;
+    c.width = c.height = co;
+    const g = c.getContext('2d');
+    g.scale(dpr, dpr);
+    g.translate(R_MAU + 2, R_MAU + 2);
+    g.fillStyle = mau;
+    g.strokeStyle = 'rgba(180,60,110,.35)';
+    g.lineWidth = 0.8;
+    for (let i = 0; i < soCanh; i++){
+      g.rotate(Math.PI * 2 / soCanh);
+      g.beginPath();
+      g.ellipse(R_MAU * 0.55, 0, R_MAU * 0.55, R_MAU * 0.33, 0, 0, Math.PI * 2);
+      g.fill(); g.stroke();
+    }
+    g.fillStyle = tam;
+    g.beginPath(); g.arc(0, 0, R_MAU * 0.28, 0, Math.PI * 2); g.fill();
+    return (anhHoa[khoa] = c);
+  }
+  function veHoa(x, y, rr, soCanh, mau, tam, xoay){
+    if (rr <= 0.2) return;
+    const k = rr / R_MAU, nua = (R_MAU + 2) * k;
+    ctx.setTransform(dpr * Math.cos(xoay), dpr * Math.sin(xoay), -dpr * Math.sin(xoay), dpr * Math.cos(xoay), x * dpr, y * dpr);
+    ctx.drawImage(layAnhHoa(soCanh, mau, tam), -nua, -nua, nua * 2, nua * 2);
+  }
+
+  const t0 = performance.now();
+  let tTruoc = t0, xong = false;
+  function don(){
+    if (xong) return;
+    xong = true;
+    removeEventListener('resize', doKichThuoc);
+    cv.remove();
+  }
+  setTimeout(don, HIEU_UNG_CHOT_MS + 300);   // tab bị ẩn thì rAF dừng, vẫn phải dọn canvas
+
+  function khung(now){
+    if (xong) return;
+    const t = now - t0, dt = Math.min(50, now - tTruoc);
+    tTruoc = now;
+    if (t >= HIEU_UNG_CHOT_MS){ don(); return; }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    const mo = t > HIEU_UNG_CHOT_MS - 700 ? (HIEU_UNG_CHOT_MS - t) / 700 : 1;
+    ctx.globalAlpha = mo;
+
+    ctx.lineCap = 'round';
+    // Hoa dưới đất: gom hết thân vào một nét vẽ, rồi đặt hoa
+    const ngon = [];
+    ctx.strokeStyle = '#4f8a3c'; ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (const f of hoaDat){
+      const pt = kep((t - f.batDau) / f.tgThan);
+      if (!pt) continue;
+      const cao = f.cao * easeOut(pt), yNgon = H - cao;
+      const lech = Math.sin(t * f.toc + f.pha) * f.bien * (cao / f.cao), xNgon = f.x + lech;
+      ctx.moveTo(f.x, H + 2);
+      ctx.quadraticCurveTo(f.x, H - cao * 0.5, xNgon, yNgon);
+      const pn = kep((t - f.batDau - f.tgThan) / 650);
+      if (pn) ngon.push([f, xNgon, yNgon, pn, lech]);
+    }
+    ctx.stroke();
+    for (const [f, x, y, pn, lech] of ngon) veHoa(x, y, f.rr * easeBack(pn), f.soCanh, f.mau, f.tam, f.xoay + pn + lech * 0.04);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Pháo bông: đuôi pháo bay lên
+    ctx.lineWidth = 2.5;
+    for (const f of phao){
+      if (f.no || t < f.tPhong) continue;
+      const p = kep((t - f.tPhong) / f.tg);
+      const x = f.x0 + (f.xDich - f.x0) * easeOut(p), y = H + (f.yDich - H) * easeOut(p);
+      if (p >= 1){
+        f.no = true;
+        const n = 45 + Math.floor(r(0, 25)), hat = [];
+        for (let i = 0; i < n; i++){
+          const goc = Math.PI * 2 * i / n + r(-0.05, 0.05), v = r(0.06, 0.3);
+          hat.push({ x, y, vx: Math.cos(goc) * v, vy: Math.sin(goc) * v, x0: x, y0: y });
+        }
+        chum.push({ hat, tuoi: 0, tho: r(1000, 1500),
+          mau1: `hsl(${Math.round(f.hue)},100%,62%)`, mau2: `hsl(${Math.round((f.hue + 40) % 360)},100%,70%)` });
+        continue;
+      }
+      const yTruoc = H + (f.yDich - H) * easeOut(Math.max(0, p - 0.08));
+      ctx.strokeStyle = `hsla(${Math.round(f.hue)},100%,70%,.9)`;
+      ctx.beginPath(); ctx.moveTo(x, yTruoc); ctx.lineTo(x, y); ctx.stroke();
+    }
+    // Chùm hạt: mỗi chùm hai màu, mỗi màu một nét vẽ (không vẽ lẻ từng hạt)
+    const can = Math.pow(0.985, dt / 16);
+    chum = chum.filter(c => (c.tuoi += dt) < c.tho);
+    ctx.lineWidth = 2.2;
+    for (const c of chum){
+      ctx.globalAlpha = mo * (1 - c.tuoi / c.tho);
+      for (const h of c.hat){
+        h.x0 = h.x; h.y0 = h.y;
+        h.vx *= can; h.vy = h.vy * can + 0.00012 * dt;
+        h.x += h.vx * dt; h.y += h.vy * dt;
+      }
+      for (let le = 0; le < 2; le++){
+        ctx.strokeStyle = le ? c.mau2 : c.mau1;
+        ctx.beginPath();
+        for (let i = le; i < c.hat.length; i += 2){
+          const h = c.hat[i];
+          ctx.moveTo(h.x0, h.y0); ctx.lineTo(h.x, h.y);
+        }
+        ctx.stroke();
+      }
+    }
+    requestAnimationFrame(khung);
+  }
+  requestAnimationFrame(khung);
 }
 
 /* ======================= ADD LEAD MODAL ======================= */
