@@ -38,6 +38,7 @@ function dataRoot(): string {
 const SCOPES = [
   'https://www.googleapis.com/auth/firebase.database',
   'https://www.googleapis.com/auth/userinfo.email',
+  'https://www.googleapis.com/auth/identitytoolkit',
 ].join(' ');
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
@@ -3042,6 +3043,122 @@ async function xuLyChiaSe(request: Request, url: URL): Promise<Response> {
   });
 }
 
+/* ===================== API admin: tạo / khoá tài khoản ===================== */
+
+const FIREBASE_PROJECT_ID = 'huyentrancrm';
+// Khoá web công khai của Firebase (có sẵn trong index.html), chỉ dùng để xác minh ID token của người gọi.
+const FIREBASE_WEB_API_KEY = 'AIzaSyDT8jy6J5ohBbnJxZdrOnZhyI57D2ZRDhQ';
+const IDENTITY_URL = 'https://identitytoolkit.googleapis.com/v1';
+
+export type YeuCauAdmin =
+  | { hanhDong: 'tao'; email: string; matKhau: string; ten: string; coKho: boolean }
+  | { hanhDong: 'khoa'; uid: string }
+  | { hanhDong: 'moKhoa'; uid: string };
+
+/** Kiểm tra thân yêu cầu /api/admin. Hàm thuần, không chạm mạng. */
+export function kiemTraYeuCauAdmin(
+  body: unknown, uidNguoiGoi: string
+): { ok: true; yeuCau: YeuCauAdmin } | { ok: false; status: 400; loi: string } {
+  const loi = (m: string) => ({ ok: false as const, status: 400 as const, loi: m });
+  if (!body || typeof body !== 'object') return loi('Yêu cầu không hợp lệ.');
+  const b = body as Record<string, unknown>;
+  if (b.hanhDong === 'tao') {
+    const email = String(b.email ?? '').trim().toLowerCase();
+    const matKhau = String(b.matKhau ?? '');
+    const ten = String(b.ten ?? '').trim();
+    if (!email || !email.includes('@')) return loi('Email không hợp lệ.');
+    if (matKhau.length < 8) return loi('Mật khẩu phải có ít nhất 8 ký tự.');
+    return { ok: true, yeuCau: { hanhDong: 'tao', email, matKhau, ten, coKho: b.coKho === true } };
+  }
+  if (b.hanhDong === 'khoa' || b.hanhDong === 'moKhoa') {
+    const uid = String(b.uid ?? '').trim();
+    if (!uid) return loi('Thiếu tài khoản cần thao tác.');
+    if (b.hanhDong === 'khoa' && uid === uidNguoiGoi) return loi('Không thể tự khoá chính mình.');
+    return { ok: true, yeuCau: { hanhDong: b.hanhDong, uid } };
+  }
+  return loi('Hành động không hợp lệ.');
+}
+
+/** Gọi Identity Toolkit (Admin) bằng service account. */
+async function identityAdmin(hanhDong: string, body: unknown): Promise<{ status: number; data: any }> {
+  const token = await getAccessToken();
+  const res = await fetch(`${IDENTITY_URL}/projects/${FIREBASE_PROJECT_ID}/${hanhDong}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  });
+  return { status: res.status, data: await res.json().catch(() => ({})) };
+}
+
+async function xuLyAdmin(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+
+  // 1. Xác minh người gọi bằng ID token Firebase
+  const m = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') || '');
+  if (!m) return traLoiJson({ loi: 'Chưa đăng nhập.' }, 401);
+  const tra = await fetch(`${IDENTITY_URL}/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: m[1].trim() }),
+  });
+  const traData: any = await tra.json().catch(() => ({}));
+  const nguoiGoi = tra.ok ? traData?.users?.[0] : null;
+  if (!nguoiGoi?.localId || nguoiGoi.disabled) return traLoiJson({ loi: 'Phiên đăng nhập không hợp lệ.' }, 401);
+  const uidNguoiGoi = String(nguoiGoi.localId);
+
+  // 2. Phải là admin và không đang bị khoá (đọc bằng service account, rules không chặn)
+  const tk = await readPath<any>(`taiKhoan/${uidNguoiGoi}`);
+  if (!tk || tk.admin !== true || tk.khoa === true) {
+    return traLoiJson({ loi: 'Bạn không có quyền quản trị.' }, 403);
+  }
+
+  // 3. Kiểm tra dữ liệu
+  const body = await request.json().catch(() => null);
+  const kt = kiemTraYeuCauAdmin(body, uidNguoiGoi);
+  if (!kt.ok) return traLoiJson({ loi: kt.loi }, kt.status);
+  const yc = kt.yeuCau;
+
+  if (yc.hanhDong === 'tao') {
+    const r = await identityAdmin('accounts', { email: yc.email, password: yc.matKhau, emailVerified: false });
+    if (r.status !== 200) {
+      const mess = String(r.data?.error?.message || '');
+      if (mess.includes('EMAIL_EXISTS')) return traLoiJson({ loi: 'Email này đã có tài khoản.' }, 409);
+      if (mess.includes('INVALID_EMAIL')) return traLoiJson({ loi: 'Email không hợp lệ.' }, 400);
+      if (mess.includes('WEAK_PASSWORD')) return traLoiJson({ loi: 'Mật khẩu quá yếu.' }, 400);
+      console.error('Admin tao loi:', r.status, JSON.stringify(r.data));
+      return traLoiJson({ loi: 'Không tạo được tài khoản. Thử lại sau.' }, 500);
+    }
+    const uid = String(r.data.localId);
+    await patchPath(`taiKhoan/${uid}`, {
+      email: yc.email, ten: yc.ten, coKho: yc.coKho, admin: false, khoa: false, taoLuc: Date.now(),
+    });
+    return traLoiJson({ ok: true, uid });
+  }
+
+  // khoa / moKhoa
+  const khoa = yc.hanhDong === 'khoa';
+  const r = await identityAdmin('accounts:update', {
+    localId: yc.uid,
+    disableUser: khoa,
+    ...(khoa ? { validSince: String(Math.floor(Date.now() / 1000)) } : {}),
+  });
+  if (r.status !== 200) {
+    const mess = String(r.data?.error?.message || '');
+    if (mess.includes('USER_NOT_FOUND')) return traLoiJson({ loi: 'Không tìm thấy tài khoản.' }, 400);
+    console.error('Admin khoa loi:', r.status, JSON.stringify(r.data));
+    return traLoiJson({ loi: 'Không cập nhật được tài khoản. Thử lại sau.' }, 500);
+  }
+  await patchPath(`taiKhoan/${yc.uid}`, { khoa });
+  if (khoa) {
+    // Thu hồi khoá MCP của tài khoản bị khoá (mở khoá không khôi phục)
+    const cfg = resolveScope(`${yc.uid}.x`).configPath;
+    await patchPath(cfg, { mcpSecret: null });
+    cachedSecrets.delete(cfg);
+    if (cfg === 'appConfig') cachedSecret = null;
+  }
+  return traLoiJson({ ok: true });
+}
+
 /* ===================== Vercel Function (framework: other) ===================== */
 
 export default {
@@ -3056,6 +3173,16 @@ export default {
       } catch (e) {
         console.error('Share error:', e);
         return traLoiJson({ loi: 'Không tải được dữ liệu. Thử lại sau.' }, 500);
+      }
+    }
+
+    // Nhánh quản trị tài khoản — xác thực bằng ID token Firebase của admin, không dùng khoá MCP.
+    if (url.searchParams.get('mode') === 'admin') {
+      try {
+        return await xuLyAdmin(request);
+      } catch (e) {
+        console.error('Admin error:', e);
+        return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 500);
       }
     }
 
@@ -3081,6 +3208,21 @@ export default {
         hopLe = provided === luu;
       }
       if (!hopLe) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Tài khoản bị khoá (taiKhoan/<uid>/khoa) thì khoá MCP của họ không dùng được nữa.
+    // Không cache để khoá có hiệu lực ngay. Khoá env MCP_SECRET là khoá vận hành, không bị ảnh hưởng.
+    if (provided && provided !== envSecret) {
+      let biKhoa = false;
+      try {
+        biKhoa = (await readPath<unknown>(`taiKhoan/${scope.uid}/khoa`)) === true;
+      } catch { /* không đọc được thì giữ hành vi cũ */ }
+      if (biKhoa) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,
           headers: { 'Content-Type': 'application/json' },

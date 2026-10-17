@@ -10,6 +10,10 @@
       "destination": "/api/mcp?mode=share"
     },
     {
+      "source": "/api/admin",
+      "destination": "/api/mcp?mode=admin"
+    },
+    {
       "source": "/xem",
       "destination": "/xem.html"
     }
