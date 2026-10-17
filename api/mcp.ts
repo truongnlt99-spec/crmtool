@@ -3221,7 +3221,15 @@ export default {
       let biKhoa = false;
       try {
         biKhoa = (await readPath<unknown>(`taiKhoan/${scope.uid}/khoa`)) === true;
-      } catch { /* không đọc được thì giữ hành vi cũ */ }
+      } catch (e) {
+        // Không xác minh được trạng thái khoá -> từ chối (fail closed), tránh lọt khoá đã bị khoá
+        // vào instance khác còn cache mcpSecret.
+        console.error('Khong doc duoc taiKhoan/khoa:', e);
+        return new Response(JSON.stringify({ error: 'Service Unavailable' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
       if (biKhoa) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), {
           status: 401,

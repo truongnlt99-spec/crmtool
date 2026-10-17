@@ -169,6 +169,26 @@ try {
   check('B đăng nhập lại được', dnB3.status === 200, String(dnB3.status));
   check('mcpSecret không tự khôi phục', (await dbJson(`appConfig_users/${uidB}/mcpSecret`)) === null);
 
+  console.log('\n>> Không đọc được trạng thái khoá -> fail closed (503)');
+  const uidGia = "pqGia" + rand; cacUid.push(uidGia);
+  const khoaB2 = `${uidGia}.` + randomBytes(20).toString('hex');
+  await db(`appConfig_users/${uidGia}`, { method: "PATCH", body: JSON.stringify({ mcpSecret: khoaB2 }) });
+  const fetchGoc = globalThis.fetch;
+  globalThis.fetch = ((input: any, init?: any) =>
+    String(input?.url ?? input).includes(`taiKhoan/${uidGia}/khoa`)
+      ? Promise.reject(new Error('mat mang gia lap'))
+      : fetchGoc(input, init)) as typeof fetch;
+  let r503: Response;
+  try {
+    r503 = await handler.fetch(new Request(`http://x/api/mcp?key=${khoaB2}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    }));
+  } finally { globalThis.fetch = fetchGoc; }
+  check('đọc khoa lỗi -> 503, không cho qua', r503.status === 503, String(r503.status));
+  await db(`appConfig_users/${uidB}/mcpSecret`, { method: 'DELETE' });
+
   console.log('\n>> Admin bị khoá không gọi được');
   await db(`taiKhoan/${uidA}`, { method: 'PATCH', body: JSON.stringify({ khoa: true }) });
   const rAK = await goiAdmin(tokenA, { hanhDong: 'moKhoa', uid: uidB });
