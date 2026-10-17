@@ -165,7 +165,7 @@ Chỉ làm bước này **sau khi 2.1–2.3 đã xong và đã kiểm tra app đ
 
 > **Vì sao khoá theo UID chứ không chỉ `auth != null`?** Firebase Email/Password mặc định cho phép **bất kỳ ai** tự đăng ký tài khoản, mà cấu hình Firebase nằm công khai trong `index.html`. Rules chỉ yêu cầu "có đăng nhập" thì người lạ chỉ cần tự tạo tài khoản là đọc được sạch dữ liệu khách hàng.
 
-> **Mỗi tài khoản một kho riêng.** Rules đã bao gồm sẵn các nhánh theo từng tài khoản: `crmData_users/<uid>` (dữ liệu CRM), `appConfig_users/<uid>` (link chia sẻ + khoá MCP), `shareLog_users/<uid>` (nhật ký truy cập) — mỗi tài khoản chỉ đọc/ghi được nhánh của chính mình. Khi cập nhật rules, dán lại **toàn bộ** phần `rules` (hoặc dùng thẳng [`firebase-rules-deploy.json`](firebase-rules-deploy.json) đã bỏ sẵn `_huong_dan`) rồi **Publish** để các nhánh này có hiệu lực.
+> **Mỗi tài khoản một kho riêng.** Rules đã bao gồm sẵn các nhánh theo từng tài khoản: `crmData_users/<uid>` (dữ liệu CRM), `appConfig_users/<uid>` (khoá MCP) — mỗi tài khoản chỉ đọc/ghi được nhánh của chính mình, trừ khi admin gắn quyền xem (`quyenXem`). Khi cập nhật rules, dán lại **toàn bộ** phần `rules` (hoặc dùng thẳng [`firebase-rules-deploy.json`](firebase-rules-deploy.json) đã bỏ sẵn `_huong_dan`) rồi **Publish** để các nhánh này có hiệu lực.
 
 ### Bước 2.5 — Kiểm chứng đã đóng
 
@@ -176,6 +176,19 @@ curl "https://huyentrancrm-default-rtdb.asia-southeast1.firebasedatabase.app/crm
 Phải trả về lỗi `Permission denied`. Nếu vẫn ra dữ liệu là rules chưa ăn.
 
 Sau đó kiểm tra lại: app của vợ vẫn vào được (sau khi đăng nhập), và Claude vẫn gọi tool được.
+
+### Bước 2.6 — Phân quyền tài khoản (từ 2026-10)
+
+Rules có thêm nhánh `taiKhoan` (hồ sơ: admin / khoá / có kho riêng), `quyenXem` (quyền xem kho người khác theo nhóm `crm`/`zalo`/`ai`) và kiểm tra "bị khoá" trên mọi nhánh. Link chia sẻ chỉ xem (`xem.html`, `/api/share`) đã **bỏ**; thay bằng tài khoản có quyền xem, admin quản lý ở màn **Quản trị** trong app.
+
+**Thứ tự triển khai (bắt buộc):**
+1. **Dán rules:** dán `firebase-rules-deploy.json` vào Firebase Console → Realtime Database → Rules → **Publish**.
+2. **Chạy script khởi tạo:** `node scripts/khoi-tao-phan-quyen.mjs` (cần `.env.local` có `FIREBASE_SERVICE_ACCOUNT`). Tạo bản ghi `taiKhoan` cho admin (truongnlt99@gmail.com) và Trân; chạy lại không sao.
+3. **Merge PR** vào `main` (Vercel tự deploy).
+
+Làm ngược thứ tự thì tài khoản chưa có bản ghi `taiKhoan` hoặc rules cũ sẽ làm app và `/api/admin` hoạt động sai. Sau khi dán rules có thể chạy `npm run test:rules-that` để kiểm tra rules thật.
+
+> **Service account cần quyền Firebase Authentication Admin** (tạo/vô hiệu hoá user, thu hồi token) cho `/api/admin`. Kiểm tra trong Google Cloud Console → IAM; nếu dùng service account tự tạo thì thêm role **Firebase Authentication Admin**.
 
 ---
 

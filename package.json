@@ -17,6 +17,7 @@
     "test:zalo": "node test/zalo-map.test.ts && node test/zalo-fb.test.ts",
     "test:zalo-tinh": "node test/zalo-ext-static.test.ts",
     "test:bang": "node test/bang-lead.test.ts",
+    "test:html-tinh": "node test/html-tinh.test.ts",
     "test:rules-tinh": "node test/rules-tinh.test.ts",
     "test:phan-quyen": "node test/phan-quyen.test.ts",
     "test:phan-quyen-ui": "node test/zalo-dom.test.ts test/phan-quyen-ui.test.html",

@@ -47,7 +47,7 @@ const doc = async (path: string) => {
 /* ---- Cac nhanh o goc: phat hien nhanh rac do loi ghep duong dan hoac test bo quen ---- */
 const goc = await doc('?shallow=true');
 const nhanhGoc = Object.keys(goc || {});
-const HOP_LE = ['crmData', 'appConfig', 'authLog', 'shareLog'];
+const HOP_LE = ['crmData', 'appConfig', 'authLog'];
 const nhanhRac = nhanhGoc.filter((k) => !HOP_LE.includes(k));
 
 const raw = await doc('crmData/leads');
