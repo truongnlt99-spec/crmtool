@@ -1,0 +1,130 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test phan quyen trong app (kho hieu luc, khoa giua phien)</title>
+<!--
+  Chay HAM THAT trong index.html (chuSoHuuMoi, migrateLead, initCloudSync, hienManKhoa,
+  quyetDinhKhoiDong): trich nguyen van ham tu index.html roi chay trong trinh duyet that.
+  Chay bang: node test/zalo-dom.test.ts test/phan-quyen-ui.test.html
+-->
+<body>
+<div class="lock-screen unlocked" id="lockScreen">
+  <div class="lock-form" id="lockForm"></div>
+  <div class="lock-error" id="lockError"></div>
+</div>
+<script type="module">
+import * as PhanQuyen from '../web/phan-quyen.js';
+
+const ket = [];
+const check = (ten, dieuKien, chiTiet = '') => ket.push({ ten, ok: !!dieuKien, chiTiet: String(chiTiet) });
+const OWNER = '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
+
+try {
+/* ---------- Trích hàm từ index.html ---------- */
+const src = await (await fetch('../index.html')).text();
+function trichHam(ten) {
+  // Ham o cap ngoai cung -> ket thuc o dong "}" sat le trai. Giu ca chu "async " phia truoc.
+  let i = src.indexOf('function ' + ten + '(');
+  if (i < 0) throw new Error('khong tim thay ham ' + ten + ' trong index.html');
+  if (src.slice(i - 6, i) === 'async ') i -= 6;
+  const het = src.indexOf(String.fromCharCode(10) + '}', i);
+  if (het < 0) throw new Error('khong thay cuoi ham ' + ten);
+  return src.slice(i, het + 2);
+}
+const nguon = ['chuSoHuuMoi', 'migrateLead', 'laLoiQuyen', 'hienManKhoa', 'initCloudSync', 'quyetDinhKhoiDong']
+  .map(trichHam).join('\n');
+
+// Dựng một "app" thu nhỏ: biến trạng thái + các hàm phụ initCloudSync gọi tới đều là bản giả.
+function taoApp() {
+  return new Function(`
+    let cloudLoaded = false, lastSyncedRaw = null, pendingRemote = null, saveTimer = null;
+    const leads = []; const chuSoHuuChuaLuu = new Set(); const trangThai = [];
+    function setSyncStatus(s){ trangThai.push(s); }
+    function datBanGocTheoMay(){} function applyRemoteData(){} function renderAll(){}
+    function scheduleSave(){} function uiIsBusy(){ return false; }
+    function initZalo(){} function initAI(){} async function saveToCloud(){}
+    function nowLabel(){ return '01/10/2026 10:00'; }
+    ${nguon}
+    return { chuSoHuuMoi, migrateLead, initCloudSync, quyetDinhKhoiDong, chuSoHuuChuaLuu, trangThai,
+             get cloudLoaded(){ return cloudLoaded; } };
+  `)();
+}
+
+/* ---------- 1. Admin đang ở kho Trân: lead mới + lead cũ gắn chủ = Trân (Review Focus 1) ---------- */
+{
+  window.__authUser = { uid: 'A' };
+  window.__firebase = { khoUid: () => OWNER };
+  const app = taoApp();
+  check('chuSoHuuMoi tra UID chu kho, khong phai UID admin', app.chuSoHuuMoi() === OWNER, app.chuSoHuuMoi());
+  const cu = app.migrateLead({ id: 'L1', name: 'Lan' });
+  check('lead cu duoc gan ownerUid = chu kho', cu.ownerUid === OWNER, cu.ownerUid);
+  check('lead cu duoc danh dau de ghi xuong', app.chuSoHuuChuaLuu.has('L1'));
+  const daCoChu = app.migrateLead({ id: 'L2', ownerUid: 'X' });
+  check('lead da co chu khong bi ghi de', daCoChu.ownerUid === 'X' && !app.chuSoHuuChuaLuu.has('L2'), daCoChu.ownerUid);
+  const than = trichHam('submitAddLead');
+  check('submitAddLead gan ownerUid bang chuSoHuuMoi()', /ownerUid:\s*chuSoHuuMoi\(\)/.test(than), than.slice(0, 400));
+  check('submitAddLead khong con dung UID nguoi dang nhap', !/ownerUid:[^\n]*__authUser/.test(than));
+}
+
+/* ---------- 2. Bị khoá giữa phiên: onValue permission_denied (Review Focus 5) ---------- */
+{
+  window.__authUser = { uid: OWNER };
+  let loiCb = null, giaTriCb = null;
+  window.__firebase = {
+    khoUid: () => OWNER,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => true, val: () => ({ leads: {} }) }),
+    onValue: (r, cb, err) => { giaTriCb = cb; loiCb = err; return () => {}; },
+  };
+  const app = taoApp();
+  await app.initCloudSync();
+  check('nap xong thi cloudLoaded = true', app.cloudLoaded === true);
+  check('onValue co callback loi', typeof loiCb === 'function');
+  if (loiCb) loiCb(Object.assign(new Error("permission_denied at /crmData: Client doesn't have permission to access the desired data."), { code: 'PERMISSION_DENIED' }));
+  check('permission_denied -> cloudLoaded = false', app.cloudLoaded === false);
+  const s = document.getElementById('lockScreen');
+  check('hien man khoa', !s.classList.contains('unlocked') && s.classList.contains('bi-chan'), s.className);
+  const loi = document.getElementById('lockError').textContent;
+  check('thong bao mat quyen', /Mất quyền truy cập/.test(loi), loi);
+  check('trang thai dong bo = denied', app.trangThai.includes('denied'), app.trangThai.join(','));
+}
+
+/* ---------- 3. Lỗi khác (không phải quyền) không khoá app ---------- */
+{
+  const s = document.getElementById('lockScreen');
+  s.className = 'lock-screen unlocked';
+  document.getElementById('lockError').textContent = '';
+  let loiCb = null;
+  window.__firebase = {
+    khoUid: () => OWNER,
+    userDataRef: () => 'REF',
+    get: async () => ({ exists: () => true, val: () => ({ leads: {} }) }),
+    onValue: (r, cb, err) => { loiCb = err; return () => {}; },
+  };
+  const app = taoApp();
+  await app.initCloudSync();
+  if (loiCb) loiCb(new Error('network error'));
+  check('loi mang khong hien man khoa', s.classList.contains('unlocked'), s.className);
+}
+
+/* ---------- 4. Quyết định khởi động theo quyền ---------- */
+{
+  const app = taoApp();
+  const qd = (x) => app.quyetDinhKhoiDong(PhanQuyen, { ownerUid: OWNER, taiKhoanToi: null, quyenXemToi: null, tatCaTaiKhoan: null, uidDaNho: null, ...x });
+  const tran = qd({ uid: OWNER });
+  check('Tran khong co ban ghi -> vao kho cua minh', tran.loai === 'vao' && tran.kho.uid === OWNER && tran.kho.cuaToi, JSON.stringify(tran));
+  const khoa = qd({ uid: 'B', taiKhoanToi: { khoa: true } });
+  check('tai khoan bi khoa -> loai khoa', khoa.loai === 'khoa', khoa.loai);
+  const trong = qd({ uid: 'C', taiKhoanToi: { coKho: false } });
+  check('coKho false chua duoc xem ai -> loai trong', trong.loai === 'trong' && trong.kho === null, trong.loai);
+  const admin = qd({ uid: 'A', taiKhoanToi: { admin: true }, tatCaTaiKhoan: { [OWNER]: { ten: 'Trân' } }, uidDaNho: OWNER });
+  check('admin nho kho Tran -> mo kho Tran', admin.loai === 'vao' && admin.kho.uid === OWNER && admin.ds.length === 2, JSON.stringify(admin.ds));
+  const nguoiXem = qd({ uid: 'D', taiKhoanToi: { coKho: false }, quyenXemToi: { [OWNER]: { crm: true, tenChuKho: 'Trân' } }, uidDaNho: 'ZZ' });
+  check('nguoi xem: kho nho bi thu hoi -> kho dau tien duoc xem', nguoiXem.loai === 'vao' && nguoiXem.kho.uid === OWNER && nguoiXem.kho.sua === false, JSON.stringify(nguoiXem.kho));
+}
+} catch (e) {
+  check('khong loi khi chay test', false, e && e.stack || e);
+}
+
+window.__ketQua = ket;
+</script>
+</body>

@@ -18,6 +18,11 @@
     getAuth, setPersistence, browserLocalPersistence,
     signInWithEmailAndPassword, onAuthStateChanged, signOut
   } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-auth.js";
+  // Logic thuần phân quyền (test ở test/phan-quyen.test.ts). Nạp NGAY trong module này chứ
+  // không để module riêng: luồng khởi động sau auth-changed cần nó, mà auth-changed do chính
+  // module này bắn ra -> nạp ở đây thì chắc chắn có trước, không phải chờ/đoán thứ tự.
+  import * as PhanQuyen from './web/phan-quyen.js';
+  window.PhanQuyen = PhanQuyen;
 
   const firebaseConfig = {
     apiKey: "AIzaSyDT8jy6J5ohBbnJxZdrOnZhyI57D2ZRDhQ",
@@ -39,31 +44,39 @@
   // Tính theo currentUser mỗi lần gọi (không chốt cứng lúc nạp trang) vì lúc này
   // có thể chưa đăng nhập; các lệnh đọc/ghi chỉ chạy sau khi onAuthStateChanged báo có user.
   const OLD_OWNER_UID = '7ePgCPmzxHdEAEazHo9IkyKf2rw2';
-  function userDataRef(){
-    const uid = auth.currentUser && auth.currentUser.uid;
-    if (!uid || uid === OLD_OWNER_UID) return ref(db, 'crmData');
-    return ref(db, 'crmData_users/' + uid);
-  }
 
-  // Cấu hình + khoá MCP cũng tách theo tài khoản, giống dữ liệu CRM.
-  // Chủ cũ giữ nguyên nhánh 'appConfig'; tài khoản khác dùng nhánh riêng theo uid.
-  function appConfigBase(){
-    const uid = auth.currentUser && auth.currentUser.uid;
-    return (!uid || uid === OLD_OWNER_UID) ? 'appConfig' : 'appConfig_users/' + uid;
-  }
-  }
-  // Dữ liệu extension Zalo, tách theo tài khoản giống crmData.
-  function zaloBase(){
-    const uid = auth.currentUser && auth.currentUser.uid;
-    return (!uid || uid === OLD_OWNER_UID) ? 'zalo' : 'zalo_users/' + uid;
-  }
-  // Hồ sơ khách + hàng chờ đề xuất do Claude ghi (MCP), tách theo tài khoản giống crmData.
-  function aiBase(){
-    const uid = auth.currentUser && auth.currentUser.uid;
-    return (!uid || uid === OLD_OWNER_UID) ? 'aiData' : 'aiData_users/' + uid;
-  }
+  // KHO HIỆU LỰC: kho đang xem có thể không phải kho của người đăng nhập (admin mở kho
+  // người khác, người xem được cấp quyền). Luồng khởi động (auth-changed) đọc quyền rồi
+  // gọi datKhoDangXem(); chưa chọn kho thì coi như kho của chính mình.
+  // Đổi kho = ghi localStorage rồi tải lại trang (chuyenKho), không đổi nóng listener.
+  let khoDangXem = null;
+  let dsKhoHienCo = [];
   function currentUid(){
     return (auth.currentUser && auth.currentUser.uid) || '';
+  }
+  // UID chủ kho đang xem. Lead mới / lead cũ được gắn chủ theo UID này, không theo UID người đăng nhập.
+  function khoUid(){
+    return (khoDangXem && khoDangXem.uid) || currentUid();
+  }
+  function duongDan(uid){
+    return PhanQuyen.duongDanKho(uid || OLD_OWNER_UID, OLD_OWNER_UID);
+  }
+  function userDataRef(){ return ref(db, duongDan(khoUid()).crm); }
+  // Dữ liệu extension Zalo của kho đang xem.
+  function zaloBase(){ return duongDan(khoUid()).zalo; }
+  // Hồ sơ khách + hàng chờ đề xuất do Claude ghi (MCP) của kho đang xem.
+  function aiBase(){ return duongDan(khoUid()).ai; }
+  // Cấu hình + khoá MCP: LUÔN là kho của người đăng nhập. Khoá MCP sinh ra mang currentUid(),
+  // ghi nó vào appConfig của kho người khác thì khoá trỏ một nơi, cấu hình nằm một nẻo.
+  function appConfigBase(){ return duongDan(currentUid()).appConfig; }
+
+  function datKhoDangXem(kho, ds){
+    khoDangXem = kho || null;
+    dsKhoHienCo = Array.isArray(ds) ? ds : [];
+  }
+  function chuyenKho(uid){
+    try { localStorage.setItem('khoDangXem', String(uid || '')); } catch(e){ /* bị chặn lưu trữ thì vẫn tải lại */ }
+    location.reload();
   }
 
   // Đăng nhập thật bằng Firebase Authentication.
@@ -120,6 +133,8 @@
   window.__firebase = {
     db, userDataRef, get, set, update, onValue, auth, persistenceOk, logLogin,
     appConfigBase, currentUid, zaloBase, aiBase, query, limitToLast, orderByChild, equalTo,
+    // Kho hiệu lực (phân quyền tài khoản)
+    ownerUid: OLD_OWNER_UID, khoUid, kho: () => khoDangXem, dsKho: () => dsKhoHienCo.slice(), chuyenKho, datKhoDangXem,
     // Trỏ tới một nhánh bất kỳ (dùng cho appConfig/mcpSecret)
     refAt: (path) => ref(db, path),
     signIn: (email, pass) => signInWithEmailAndPassword(auth, email, pass),
@@ -1063,6 +1078,9 @@
   @media (prefers-reduced-motion:reduce){ .lock-spinner{animation:none;} }
   .lock-screen.checking .lock-form{display:none;}
   .lock-screen:not(.checking) .lock-checking{display:none;}
+  /* Bị chặn khi đã đăng nhập (khoá / chưa được cấp quyền / mất quyền giữa phiên): chỉ hiện lời nhắn + nút Đăng xuất */
+  .lock-screen.bi-chan .lock-form{display:none;}
+  .lock-screen:not(.bi-chan) .lock-logout{display:none;}
   .lock-btn{width:100%; justify-content:center;}
   .lock-error{font-size:12px; color:var(--red); font-weight:600; margin-top:10px; min-height:16px;}
 
@@ -2045,6 +2063,7 @@
     </div>
 
     <div class="lock-error" id="lockError"></div>
+    <button class="btn btn-primary lock-btn lock-logout" id="lockLogoutBtn" onclick="dangXuatManKhoa()">Đăng xuất</button>
   </div>
 </div>
 
@@ -2967,7 +2986,7 @@ async function doLogout(){
 // Hiện màn đăng nhập kèm form. Bỏ 'checking' vì đến đây đã biết chắc là chưa đăng nhập.
 function showLockScreen(){
   const s = document.getElementById('lockScreen');
-  if (s){ s.classList.remove('unlocked'); s.classList.remove('checking'); }
+  if (s){ s.classList.remove('unlocked'); s.classList.remove('checking'); s.classList.remove('bi-chan'); }
   const el = document.getElementById('lockEmailInput');
   // Không tự focus trên điện thoại — sẽ bật bàn phím ảo che mất màn hình chào
   if (el && window.innerWidth > 720) el.focus();
@@ -5061,8 +5080,8 @@ function submitAddLead(){
   if (!name){ alert('Vui lòng nhập tên khách hàng.'); return; }
   const lead = {
     id: 'L' + Date.now(),
-    // Chủ sở hữu = người đang đăng nhập. Lead tạo từ app luôn thuộc về người tạo.
-    ownerUid: (window.__authUser && window.__authUser.uid) || null,
+    // Chủ sở hữu = chủ kho đang xem (admin tạo lead trong kho Trân thì lead vẫn là của Trân).
+    ownerUid: chuSoHuuMoi(),
     name,
     facebook: document.getElementById('newFacebook').value.trim(),
     phone: document.getElementById('newPhone').value.trim(),
@@ -5896,6 +5915,14 @@ async function saveToCloud(){
   }
 }
 
+// Chủ sở hữu gắn cho lead mới / lead cũ chưa có chủ: UID chủ KHO đang xem. Dùng UID người
+// đăng nhập là sai khi admin mở kho người khác — lead của Trân sẽ bị gắn chủ là admin.
+function chuSoHuuMoi(){
+  const f = window.__firebase;
+  const uid = f && f.khoUid ? f.khoUid() : (window.__authUser && window.__authUser.uid);
+  return uid || null;
+}
+
 // Chuyển dữ liệu ghi chú cũ (lead.notes dạng chuỗi) sang định dạng note stream (lead.notesList dạng mảng)
 // để tương thích ngược với các lead đã lưu trước khi có tính năng note stream.
 // RTDB có thể trả mảng về dạng object {0:..,1:..} (ghi tay trên Console, client khác...);
@@ -5916,8 +5943,10 @@ function migrateLead(l){
   // (chỉ cần đổi rules + lọc theo ownerUid, không phải di chuyển lại toàn bộ dữ liệu).
   // Chỉ gắn khi CHƯA có chủ — không bao giờ ghi đè chủ cũ, kẻo người thứ hai đăng nhập
   // là cướp mất quyền sở hữu lead của người trước.
-  if (!l.ownerUid && window.__authUser){
-    l.ownerUid = window.__authUser.uid;
+  // Chủ = chủ KHO đang xem, không phải người đang đăng nhập (admin mở kho Trân).
+  const chu = chuSoHuuMoi();
+  if (!l.ownerUid && chu){
+    l.ownerUid = chu;
     chuSoHuuChuaLuu.add(l.id);   // để ghi hẳn xuống database, không chỉ gắn trong bộ nhớ
   }
 
@@ -6093,6 +6122,17 @@ async function initCloudSync(){
       pendingRemote = null;
       applyRemoteData(data);
       renderAll();
+    }, (err) => {
+      // Listener bị máy chủ huỷ. permission_denied giữa phiên = tài khoản bị khoá hoặc bị thu
+      // hồi quyền xem. Hạ cloudLoaded để chốt an toàn trong saveToCloud chặn mọi lệnh ghi, và
+      // che app bằng màn khoá — không để người dùng nhìn danh sách cũ/rỗng rồi lỡ tay ghi đè.
+      if (laLoiQuyen(err)){
+        setSyncStatus('denied');
+        hienManKhoa('Mất quyền truy cập (tài khoản bị khoá hoặc quyền bị thu hồi).');
+      } else {
+        console.error('Mất kết nối realtime:', err);
+        setSyncStatus('error');
+      }
     });
     // Hội thoại Zalo là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
     try { initZalo(); } catch(e){ console.warn('Không khởi động được phần hội thoại Zalo:', e); }
@@ -6102,7 +6142,7 @@ async function initCloudSync(){
     console.error('Firebase init error:', e);
     // cloudLoaded vẫn là false -> chốt an toàn trong saveToCloud sẽ chặn mọi lệnh ghi,
     // nên màn hình trống lúc này KHÔNG thể ghi đè lên dữ liệu thật.
-    const denied = /permission|denied|PERMISSION/i.test(String((e && e.message) || e));
+    const denied = laLoiQuyen(e);
     setSyncStatus(denied ? 'denied' : 'error');
     if (denied){
       alert(
@@ -6129,13 +6169,109 @@ function startWithCloud(){
 // chỉ cần một thao tác là ghi đè cái rỗng đó lên dữ liệu thật.
 let authResolved = false;
 
+// Lỗi Firebase do Security Rules từ chối (SDK báo code PERMISSION_DENIED / chữ permission_denied).
+function laLoiQuyen(e){
+  return /permission|denied/i.test(String((e && (e.code || '')) + ' ' + ((e && e.message) || e)));
+}
+
+// Che app bằng màn khoá kèm lời nhắn + nút Đăng xuất (không hiện form đăng nhập vì vẫn đang
+// có phiên). Hạ cloudLoaded để chốt an toàn trong saveToCloud chặn mọi lệnh ghi còn sót.
+function hienManKhoa(thongBao){
+  cloudLoaded = false;
+  const s = document.getElementById('lockScreen');
+  if (s){ s.classList.remove('unlocked'); s.classList.remove('checking'); s.classList.add('bi-chan'); }
+  const errEl = document.getElementById('lockError');
+  if (errEl) errEl.textContent = thongBao;
+}
+
+async function dangXuatManKhoa(){
+  try { await window.__firebase.signOut(); } catch(e){ console.error(e); }
+  location.reload();
+}
+
+// Từ quyền đã đọc -> vào kho nào. Hàm thuần (PQ = module web/phan-quyen.js) để test được.
+//  'khoa'  : tài khoản bị khoá
+//  'trong' : không có kho nào để mở (coKho: false và chưa được ai cho xem)
+//  'vao'   : mở kho `kho` (kho đã nhớ nếu còn quyền, không thì kho đầu tiên)
+function quyetDinhKhoiDong(PQ, { uid, ownerUid, taiKhoanToi, quyenXemToi, tatCaTaiKhoan, uidDaNho }){
+  const quyen = PQ.quyenTaiKhoan(taiKhoanToi);
+  if (quyen.khoa) return { loai: 'khoa', quyen, ds: [], kho: null };
+  const ds = PQ.danhSachKho({ uid, ownerUid, taiKhoanToi, quyenXemToi, tatCaTaiKhoan });
+  const kho = PQ.chonKho(ds, uidDaNho);
+  if (!kho) return { loai: 'trong', quyen, ds, kho: null };
+  return { loai: 'vao', quyen, ds, kho };
+}
+
+// get() có giới hạn thời gian: mất mạng thì SDK có thể chờ mãi, không được treo màn chờ.
+function docCoHan(r, ms){
+  return Promise.race([
+    window.__firebase.get(r),
+    new Promise((_, loi) => setTimeout(() => loi(new Error('Hết thời gian chờ đọc ' + ms + 'ms')), ms)),
+  ]);
+}
+
+// Đọc quyền của người đăng nhập. Không đọc được (mất mạng, rules chưa publish...) thì coi như
+// mặc định — kho của chính mình, đủ quyền — giống trước khi có phân quyền. Thiếu bản ghi
+// taiKhoan là chuyện bình thường, tuyệt đối không được chặn Trân khỏi app của mình.
+async function docQuyenKhoiDong(uid){
+  const f = window.__firebase;
+  let taiKhoanToi = null, quyenXemToi = null, tatCaTaiKhoan = null;
+  try {
+    const [a, b] = await Promise.all([
+      docCoHan(f.refAt('taiKhoan/' + uid), 8000),
+      docCoHan(f.refAt('quyenXem/' + uid), 8000),
+    ]);
+    taiKhoanToi = a.exists() ? a.val() : null;
+    quyenXemToi = b.exists() ? b.val() : null;
+  } catch(e){
+    console.warn('Không đọc được quyền tài khoản, dùng kho của mình với quyền mặc định:', e);
+    return { taiKhoanToi: null, quyenXemToi: null, tatCaTaiKhoan: null };
+  }
+  if (window.PhanQuyen.quyenTaiKhoan(taiKhoanToi).admin){
+    try {
+      const t = await docCoHan(f.refAt('taiKhoan'), 8000);
+      tatCaTaiKhoan = t.exists() ? t.val() : null;
+    } catch(e){ console.warn('Admin: không đọc được danh sách tài khoản:', e); }
+  }
+  return { taiKhoanToi, quyenXemToi, tatCaTaiKhoan };
+}
+
+let dangKhoiDong = false;
+async function khoiDongTheoQuyen(user){
+  if (dangKhoiDong || appStarted) return;
+  dangKhoiDong = true;
+  try {
+    const f = window.__firebase;
+    const quyenDoc = await docQuyenKhoiDong(user.uid);
+    let uidDaNho = null;
+    try { uidDaNho = localStorage.getItem('khoDangXem'); } catch(e){ /* bị chặn thì thôi */ }
+    const qd = quyetDinhKhoiDong(window.PhanQuyen, { uid: user.uid, ownerUid: f.ownerUid, uidDaNho, ...quyenDoc });
+    window.__taiKhoan = qd.quyen;
+    if (qd.loai === 'khoa'){
+      // Đăng xuất luôn; màn đăng nhập hiện lại kèm lời nhắn này (showLockScreen giữ chữ lỗi).
+      hienManKhoa('Tài khoản đã bị khoá. Liên hệ admin.');
+      try { await f.signOut(); } catch(e){ console.error(e); }
+      return;
+    }
+    if (qd.loai === 'trong'){
+      // KHÔNG vào app trống: vào được là bấm thêm lead được.
+      hienManKhoa('Chưa được cấp quyền xem dữ liệu nào.');
+      return;
+    }
+    f.datKhoDangXem(qd.kho, qd.ds);
+    hideLockScreen();
+    startWithCloud();
+  } finally {
+    dangKhoiDong = false;   // đăng xuất rồi đăng nhập tài khoản khác thì chạy lại được
+  }
+}
+
 veNutTheme();
 
 window.addEventListener('auth-changed', (e) => {
   const user = e.detail && e.detail.user;
   authResolved = true;
   if (user){
-    hideLockScreen();
     // Ghi nhật ký một lần cho mỗi phiên mở app, không ghi lại mỗi lần vẽ lại màn hình.
     try {
       if (!sessionStorage.getItem('loginLogged')){
@@ -6143,7 +6279,9 @@ window.addEventListener('auth-changed', (e) => {
         if (window.__firebase.logLogin) window.__firebase.logLogin(user);
       }
     } catch(e){ /* sessionStorage bị chặn thì bỏ qua, không cản người dùng vào app */ }
-    startWithCloud();
+    // Màn chờ "Đang kiểm tra đăng nhập..." còn nguyên tới khi biết vào kho nào,
+    // để tài khoản bị khoá không loé thấy app.
+    khoiDongTheoQuyen(user);
   } else {
     // Có thể là chưa từng đăng nhập, cũng có thể là phiên vừa hết hiệu lực giữa chừng
     // (tài khoản bị khoá/xoá). Hạ cờ cloudLoaded để chốt an toàn trong saveToCloud
