@@ -4177,6 +4177,11 @@ function moveLeadToStage(id, newStage, opts){
   if (newStage === 'won'){ openWonConfirm(id); return; }
 
   logActivity(lead, `Chuyển từ "${STAGE_MAP[lead.stage].name}" sang "${STAGE_MAP[newStage].name}"`);
+  if (lead.stage === 'won'){   // rời Won bằng kéo-thả/thanh bước = hoàn tác Won: bỏ doanh thu + ngày chốt cũ
+    lead.revenueActual = 0;
+    lead.wonAt = null;
+    delete lead.stageTruocWon;
+  }
   lead.stage = newStage;
   renderAll();
   if (opts.reopenDrawer) openLead(id);
@@ -4267,6 +4272,7 @@ function openLead(id){
         Đánh dấu Lost
       </button>
     ` : ''}
+    ${lead.stage === 'won' ? `<button class="btn btn-lost-action" onclick="undoWon('${id}')">↶ Hoàn tác Won</button>` : ''}
     <button class="btn btn-danger btn-delete-lead" onclick="deleteCurrentLead()">Xóa lead</button>
   `;
 
@@ -5389,6 +5395,7 @@ function submitWonConfirm(){
   const reopenId = pendingDropId;
   const val = moneyInputValue(document.getElementById('wonRevenueInput'));
   if (lead){
+    lead.stageTruocWon = lead.stage;   // để "Hoàn tác Won" trả về đúng giai đoạn cũ
     lead.stage = 'won';
     lead.revenueActual = val;
     lead.wonAt = todayISO();
@@ -5403,6 +5410,34 @@ function submitWonConfirm(){
 function closeWonConfirm(){
   document.getElementById('wonConfirmOverlay').classList.remove('show');
   pendingDropId = null;
+}
+
+/* Hoàn tác Won: đưa lead về giai đoạn trước khi chốt (lead Won từ trước khi có tính năng này
+   không lưu giai đoạn cũ → lấy từ nhật ký "Chuyển ... sang X" gần nhất, không có thì về Lead in). */
+function giaiDoanTruocWon(lead){
+  if (lead.stageTruocWon && STAGE_MAP[lead.stageTruocWon] && !['won','lost'].includes(lead.stageTruocWon)) return lead.stageTruocWon;
+  const log = lead.activityLog || [];
+  for (let i = log.length - 1; i >= 0; i--){
+    const m = /sang "([^"]+)"/.exec(log[i].text || '');
+    const st = m && STAGES.find(s => s.name === m[1]);
+    if (st && st.id !== 'won' && st.id !== 'lost') return st.id;
+  }
+  return 'leadin';
+}
+function undoWon(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
+  const lead = leads.find(l => l.id === id);
+  if (!lead || lead.stage !== 'won') return;
+  const ve = giaiDoanTruocWon(lead);
+  if (!confirm(`Hoàn tác Won: đưa "${lead.name}" về giai đoạn "${STAGE_MAP[ve].name}"?\nDoanh thu thực tế và ngày chốt sẽ bị xoá.`)) return;
+  logActivity(lead, `Hoàn tác Won — về "${STAGE_MAP[ve].name}" (doanh thu thực tế đã chốt ${formatMoney(lead.revenueActual)})`);
+  lead.stage = ve;
+  lead.revenueActual = 0;
+  lead.wonAt = null;
+  delete lead.stageTruocWon;
+  renderAll();
+  if (currentLeadId === id) openLead(id);
+  scheduleSave();
 }
 
 /* Hiệu ứng mừng chốt deal: hoa nở dọc đáy màn hình, pháo bông bắn lên.
