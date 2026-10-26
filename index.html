@@ -4273,6 +4273,7 @@ function openLead(id){
       </button>
     ` : ''}
     ${lead.stage === 'won' ? `<button class="btn btn-lost-action" onclick="undoWon('${id}')">↶ Hoàn tác Won</button>` : ''}
+    ${lead.stage === 'lost' ? `<button class="btn btn-won-action" onclick="reopenLost('${id}')">↶ Mở lại lead</button>` : ''}
     <button class="btn btn-danger btn-delete-lead" onclick="deleteCurrentLead()">Xóa lead</button>
   `;
 
@@ -5360,6 +5361,7 @@ function confirmLostReason(reason){
   const lead = leads.find(l => l.id === pendingDropId);
   const reopenId = pendingDropId;
   if (lead){
+    lead.stageTruocLost = lead.stage;   // để "Mở lại" trả về đúng giai đoạn cũ
     lead.stage = 'lost';
     lead.lostReason = reason;
     lead.lostAt = todayISO();
@@ -5414,8 +5416,8 @@ function closeWonConfirm(){
 
 /* Hoàn tác Won: đưa lead về giai đoạn trước khi chốt (lead Won từ trước khi có tính năng này
    không lưu giai đoạn cũ → lấy từ nhật ký "Chuyển ... sang X" gần nhất, không có thì về Lead in). */
-function giaiDoanTruocWon(lead){
-  if (lead.stageTruocWon && STAGE_MAP[lead.stageTruocWon] && !['won','lost'].includes(lead.stageTruocWon)) return lead.stageTruocWon;
+function giaiDoanTruocWon(lead, khoa = 'stageTruocWon'){
+  if (lead[khoa] && STAGE_MAP[lead[khoa]] && !['won','lost'].includes(lead[khoa])) return lead[khoa];
   const log = lead.activityLog || [];
   for (let i = log.length - 1; i >= 0; i--){
     const m = /sang "([^"]+)"/.exec(log[i].text || '');
@@ -5435,6 +5437,23 @@ function undoWon(id){
   lead.revenueActual = 0;
   lead.wonAt = null;
   delete lead.stageTruocWon;
+  renderAll();
+  if (currentLeadId === id) openLead(id);
+  scheduleSave();
+}
+
+/* Mở lại lead Lost: về giai đoạn trước khi đóng (lead Lost cũ không lưu → đoán từ nhật ký như Hoàn tác Won). */
+function reopenLost(id){
+  if (window.__chiXem) return;   // chỉ xem: không sửa gì
+  const lead = leads.find(l => l.id === id);
+  if (!lead || lead.stage !== 'lost') return;
+  const ve = giaiDoanTruocWon(lead, 'stageTruocLost');
+  if (!confirm(`Mở lại lead "${lead.name}" về giai đoạn "${STAGE_MAP[ve].name}"?\nLý do Lost và ngày đóng sẽ bị xoá.`)) return;
+  logActivity(lead, `Mở lại lead đã Lost — về "${STAGE_MAP[ve].name}" (lý do Lost trước đó: ${lead.lostReason || 'chưa rõ'})`);
+  lead.stage = ve;
+  lead.lostReason = '';
+  lead.lostAt = null;
+  delete lead.stageTruocLost;
   renderAll();
   if (currentLeadId === id) openLead(id);
   scheduleSave();
