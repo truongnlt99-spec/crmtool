@@ -39,6 +39,9 @@ const CA_GIA_TRI: Array<[string, unknown, boolean]> = [
   ['phone', 'x'.repeat(101), false],
   ['persona', 'Cô dâu làm ngân hàng, thích phong cách tự nhiên', true],
   ['persona', 'x'.repeat(2001), false],
+  ['venueId', 'vn_abc123', true],
+  ['venueId', 'Gem Center', false],
+  ['venueId', 12, false],
   ['stage', 'won', false],
   ['revenueActual', 1, false],
 ];

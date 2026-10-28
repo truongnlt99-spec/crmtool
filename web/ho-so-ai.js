@@ -6,13 +6,14 @@
 // Sửa một bên thì sửa cả hai — test chạy cùng bộ ca trên cả hai bản.
 export const FIELD_WHITELIST = [
   'weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth',
-  'phone', 'facebook', 'schedule', 'persona', 'objection',
+  'phone', 'facebook', 'schedule', 'persona', 'objection', 'venueId',
 ];
 export const PACKAGES = ['Standard', 'Unique', 'Signature', 'HayDay Package', 'Gói lẻ'];
 export const NHAN_O = {
   weddingDate: 'Ngày cưới', package: 'Gói dịch vụ', revenueExpected: 'Doanh thu dự kiến',
   expectedCloseMonth: 'Tháng chốt dự kiến', phone: 'SĐT', facebook: 'Facebook',
   schedule: 'Lịch trình', persona: 'Chân dung khách hàng', objection: 'Objection',
+  venueId: 'Venue dự kiến',
 };
 // id đề xuất / convId / msgId được phép đưa vào onclick
 export const ID_HOP_LE = /^[A-Za-z0-9_-]{1,80}$/;
@@ -31,6 +32,7 @@ export function kiemTraGiaTriO(field, v){
     case 'expectedCloseMonth': return typeof v === 'string' && /^\d{4}-(0[1-9]|1[0-2])$/.test(v) ? null : 'Tháng chốt phải dạng YYYY-MM';
     case 'phone': case 'facebook': return chuoi(1, 100);
     case 'schedule': case 'persona': case 'objection': return chuoi(1, 2000);
+    case 'venueId': return typeof v === 'string' && ID_HOP_LE.test(v) ? null : 'venueId phải là id venue (lấy từ list_venues)';
     default: return `Ô "${field}" không nằm trong danh sách được đề xuất`;
   }
 }
@@ -51,8 +53,13 @@ export function esc(s){
 const mang = v => (Array.isArray(v) ? v : v && typeof v === 'object' ? Object.values(v) : []);
 const ngayVN = iso => { const [y, m, d] = String(iso).split('-'); return `${d}/${m}/${y}`; };
 
+// venueId chỉ là id — app đặt hàm tra tên venue + danh sách venue (datVenue) để thẻ đề xuất hiện tên / ô chọn.
+let layTenVenue = id => id, layDsVenue = () => [];
+export function datVenue(fnTen, fnDs){ layTenVenue = fnTen; layDsVenue = fnDs; }
+
 export function hienGiaTri(field, v){
   if (v === null || v === undefined || v === '') return '(trống)';
+  if (field === 'venueId') return layTenVenue(v);
   if (field === 'weddingDate') return ngayVN(v);
   if (field === 'expectedCloseMonth'){ const [y, m] = String(v).split('-'); return `${m}/${y}`; }
   if (field === 'revenueExpected') return Number(v).toLocaleString('vi-VN').replace(/,/g, '.') + ' đ';
@@ -95,6 +102,9 @@ function oSua(p){
   const v = p.newValue ?? '';
   if (p.field === 'package') {
     return `<select class="field-input">${PACKAGES.map(g => `<option value="${esc(g)}" ${g === v ? 'selected' : ''}>${esc(g)}</option>`).join('')}</select>`;
+  }
+  if (p.field === 'venueId') {
+    return `<select class="field-input">${layDsVenue().map(x => `<option value="${esc(x.id)}" ${x.id === v ? 'selected' : ''}>${esc(x.ten)}</option>`).join('')}</select>`;
   }
   if (p.field === 'weddingDate') return `<input class="field-input" type="date" value="${esc(v)}">`;
   if (p.field === 'expectedCloseMonth') return `<input class="field-input" type="month" value="${esc(v)}">`;
