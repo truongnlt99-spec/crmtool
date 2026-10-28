@@ -295,9 +295,18 @@ interface Lead {
   activityLog?: Activity[];
   /** Báo giá Trân làm trên claude.ai, lưu qua tool save_quote. Khoá = baoGiaId; bản mới nhất = taoLuc lớn nhất. */
   baoGia?: Record<string, BaoGia>;
+  /** Venue dự kiến tổ chức — id trong <kho>/venues. */
+  venueId?: string | null;
 }
 
+/** Venue + sản phẩm theo tone (spec 2026-10-28-venue-design.md). Nằm trong kho CRM: <kho>/venues, <kho>/toneMau. */
+interface SanPhamVenue { id: string; ten: string; link: string; gia?: string | null; tone: string[]; taoLuc?: string }
+interface Venue { id: string; ten: string; taoLuc?: string; sanPham?: Record<string, SanPhamVenue> }
+interface ToneMau { id: string; ten: string; mau?: string }
+
 interface CrmData {
+  venues: Record<string, Venue>;
+  toneMau: Record<string, ToneMau>;
   leads: Lead[];
   dailyTodos: Todo[];
   planRevenue: number;
@@ -456,7 +465,7 @@ export const KET_TIN_THIEU_MS = 3 * 24 * 3600_000;
  */
 export const FIELD_WHITELIST = [
   'weddingDate', 'package', 'revenueExpected', 'expectedCloseMonth',
-  'phone', 'facebook', 'schedule', 'persona', 'objection',
+  'phone', 'facebook', 'schedule', 'persona', 'objection', 'venueId',
 ] as const;
 
 /** null = hợp lệ; chuỗi = lý do sai. */
@@ -484,6 +493,8 @@ export function kiemTraGiaTriO(field: string, v: unknown): string | null {
     case 'persona':
     case 'objection':
       return chuoi(1, 2000);
+    case 'venueId':
+      return typeof v === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(v) ? null : 'venueId phải là id venue (lấy từ list_venues)';
     default:
       return `Ô "${field}" không nằm trong danh sách được đề xuất`;
   }
@@ -645,10 +656,12 @@ const NHAN_O: Record<string, string> = {
   weddingDate: 'Ngày cưới', package: 'Gói dịch vụ', revenueExpected: 'Doanh thu dự kiến',
   expectedCloseMonth: 'Tháng chốt dự kiến', phone: 'SĐT', facebook: 'Facebook',
   schedule: 'Lịch trình', persona: 'Chân dung khách hàng', objection: 'Objection',
+  venueId: 'Venue dự kiến',
 };
 
-function hienGiaTriO(field: string, v: unknown): string {
+function hienGiaTriO(field: string, v: unknown, venues?: Record<string, Venue>): string {
   if (v === null || v === undefined || v === '') return '(trống)';
+  if (field === 'venueId') return venues?.[String(v)]?.ten || String(v);
   if (field === 'weddingDate') { const [y, m, d] = String(v).split('-'); return `${d}/${m}/${y}`; }
   if (field === 'expectedCloseMonth') { const [y, m] = String(v).split('-'); return `${m}/${y}`; }
   if (field === 'revenueExpected') return formatMoney(Number(v));
@@ -1023,10 +1036,14 @@ async function loadCrm(): Promise<CrmData> {
     dailyTodos?: Record<string, Todo>;
     planRevenue?: number;
     planLeads?: number;
+    venues?: Record<string, Venue>;
+    toneMau?: Record<string, ToneMau>;
   } | null>(dataRoot());
 
   const data = raw || {};
   return {
+    venues: data.venues || {},
+    toneMau: data.toneMau || {},
     leads: Object.values(data.leads || {}).map(normalizeLead),
     dailyTodos: Object.values(data.dailyTodos || {}),
     planRevenue: typeof data.planRevenue === 'number' ? data.planRevenue : 0,
@@ -1108,7 +1125,7 @@ function formatMoney(n?: number | null): string {
 }
 
 /** Rút gọn lead cho danh sách — tránh trả activityLog dài làm tốn context. */
-function summarizeLead(l: Lead) {
+function summarizeLead(l: Lead, venues: Record<string, Venue> = {}) {
   const status = leadStatus(l);
   return {
     id: l.id,
@@ -1127,6 +1144,7 @@ function summarizeLead(l: Lead) {
     isPotential: (l.tags || []).includes('Tiềm năng'),
     expectedCloseMonth: l.expectedCloseMonth || null,
     weddingDate: l.weddingDate || null,
+    venue: l.venueId ? venues[l.venueId]?.ten || null : null,
     openTodos: (l.todos || []).filter((t) => !t.done).length,
   };
 }
@@ -1215,6 +1233,41 @@ async function touch(): Promise<void> {
   await patchPath(dataRoot(), { updatedAt: new Date().toISOString() });
 }
 
+/* ===================== Venue + sản phẩm theo tone ===================== */
+
+/** CHÉP Ở 2 NƠI: đây và web/venue.js (TONE_MAC_DINH) — sửa một chỗ thì sửa cả hai. */
+export const TONE_MAC_DINH: ToneMau[] = [
+  { id: 'trang', ten: 'Trắng', mau: '#F5F5F0' },
+  { id: 'xanh-la', ten: 'Xanh lá', mau: '#4CAF7A' },
+  { id: 'xanh-duong', ten: 'Xanh dương', mau: '#4A8FD9' },
+  { id: 'hong', ten: 'Hồng', mau: '#F29BB5' },
+  { id: 'do', ten: 'Đỏ', mau: '#D9463B' },
+  { id: 'vang', ten: 'Vàng/Champagne', mau: '#E3C27A' },
+  { id: 'tim', ten: 'Tím', mau: '#9B7BD1' },
+  { id: 'be', ten: 'Be/Nude', mau: '#D9BFA3' },
+  { id: 'pastel', ten: 'Pastel', mau: '#BFE3E0' },
+  { id: 'den', ten: 'Đen', mau: '#2B2B2B' },
+];
+
+function danhSachTone(toneMau: Record<string, ToneMau>): ToneMau[] {
+  const them = Object.values(toneMau || {}).filter((t) => t && t.id && t.ten && !TONE_MAC_DINH.some((m) => m.id === t.id));
+  return [...TONE_MAC_DINH, ...them];
+}
+
+/** Tone khớp chữ người dùng gõ (không dấu, chứa): "xanh" -> Xanh lá + Xanh dương; khớp id cũng được. */
+export function khopTone(tones: ToneMau[], chu: string): string[] {
+  const k = boDauZalo(chu);
+  return tones.filter((t) => t.id === chu || boDauZalo(t.ten).includes(k)).map((t) => t.id);
+}
+
+function timVenue(venues: Record<string, Venue>, ref: string): Venue | null {
+  if (venues[ref]) return venues[ref];
+  const k = boDauZalo(ref);
+  return Object.values(venues).find((v) => v && boDauZalo(v.ten) === k) || null;
+}
+
+const taoIdVenue = (tienTo: string) => tienTo + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
 /* ===================== Định nghĩa các tool ===================== */
 
 const mcpHandler = createMcpHandler(
@@ -1283,7 +1336,7 @@ const mcpHandler = createMcpHandler(
         return ok({
           total: list.length,
           shown: Math.min(limit, list.length),
-          leads: list.slice(0, limit).map(summarizeLead),
+          leads: list.slice(0, limit).map((l) => summarizeLead(l, crm.venues)),
         });
       }
     );
@@ -1306,6 +1359,7 @@ const mcpHandler = createMcpHandler(
           baoGia: undefined,
           baoGiaMoiNhat: baoGiaMoiNhat(l),
           soBanBaoGia: Object.keys(l.baoGia || {}).length,
+          venue: l.venueId ? crm.venues[l.venueId]?.ten || '(venue đã xoá)' : null,
           stageName: STAGE_NAME[l.stage] || l.stage,
           status: leadStatus(l).label,
           revenueExpectedText: formatMoney(l.revenueExpected),
@@ -1318,6 +1372,113 @@ const mcpHandler = createMcpHandler(
           })),
           zalo: await zaloTomTatLead(l.id, l.stage),
         });
+      }
+    );
+
+    server.registerTool(
+      'list_venues',
+      {
+        title: 'Danh sách venue',
+        description:
+          'Liệt kê venue (nhà hàng / địa điểm tổ chức) trong kho: tên, id, số sản phẩm, số lead đang gắn venue đó, kèm danh sách tone màu hợp lệ.',
+        inputSchema: z.object({}),
+      },
+      async () => {
+        const crm = await loadCrm();
+        const dem: Record<string, number> = {};
+        for (const l of crm.leads) if (l.venueId) dem[l.venueId] = (dem[l.venueId] || 0) + 1;
+        return ok({
+          venues: Object.values(crm.venues).filter((v) => v && v.id)
+            .sort((a, b) => a.ten.localeCompare(b.ten, 'vi'))
+            .map((v) => ({ id: v.id, ten: v.ten, soSanPham: Object.keys(v.sanPham || {}).length, soLead: dem[v.id] || 0 })),
+          tones: danhSachTone(crm.toneMau).map((t) => ({ id: t.id, ten: t.ten })),
+        });
+      }
+    );
+
+    server.registerTool(
+      'find_venue_products',
+      {
+        title: 'Tìm sản phẩm theo venue / tone',
+        description:
+          'Tìm sản phẩm (thường là link bài Facebook HayDay đã làm) theo venue, tone màu hoặc chữ. Vd "sản phẩm ở Gem Center" -> venue "Gem Center"; "mẫu tone xanh" -> tone "xanh" (khớp cả Xanh lá và Xanh dương). Mọi điều kiện đều không phân biệt dấu. Trả link để gửi khách.',
+        inputSchema: z.object({
+          venue: z.string().optional().describe('Tên venue (khớp một phần, không dấu) hoặc id'),
+          tone: z.string().optional().describe('Tên tone (vd "xanh", "hồng", "pastel") hoặc id tone'),
+          q: z.string().optional().describe('Chữ tìm trong tên / giá sản phẩm'),
+          limit: z.number().int().min(1).max(200).optional().describe('Số kết quả tối đa, mặc định 50'),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const tones = danhSachTone(crm.toneMau);
+        const tenTone = Object.fromEntries(tones.map((t) => [t.id, t.ten]));
+        let toneIds: string[] | null = null;
+        if (args.tone) {
+          toneIds = khopTone(tones, args.tone);
+          if (!toneIds.length) throw new Error(`Không có tone nào khớp "${args.tone}". Tone hợp lệ: ${tones.map((t) => t.ten).join(', ')}`);
+        }
+        const kVenue = args.venue ? boDauZalo(args.venue) : '';
+        const kQ = args.q ? boDauZalo(args.q) : '';
+        const ra: Array<Record<string, unknown>> = [];
+        for (const v of Object.values(crm.venues)) {
+          if (!v || !v.id) continue;
+          if (args.venue && v.id !== args.venue && !boDauZalo(v.ten).includes(kVenue)) continue;
+          for (const sp of Object.values(v.sanPham || {})) {
+            if (!sp || !sp.id) continue;
+            if (toneIds && !(sp.tone || []).some((t) => toneIds!.includes(t))) continue;
+            if (kQ && !boDauZalo(sp.ten).includes(kQ) && !boDauZalo(sp.gia).includes(kQ)) continue;
+            ra.push({ venue: v.ten, venueId: v.id, id: sp.id, ten: sp.ten, link: sp.link, gia: sp.gia || null,
+              tone: (sp.tone || []).map((t) => tenTone[t] || t), taoLuc: sp.taoLuc || null });
+          }
+        }
+        ra.sort((a, b) => String(b.taoLuc || '').localeCompare(String(a.taoLuc || '')));
+        const limit = args.limit ?? 50;
+        return ok({ total: ra.length, shown: Math.min(limit, ra.length), sanPham: ra.slice(0, limit) });
+      }
+    );
+
+    server.registerTool(
+      'add_venue_product',
+      {
+        title: 'Thêm sản phẩm vào kho venue',
+        description:
+          'Thêm một sản phẩm (link bài Facebook / album) vào venue, ghi thẳng vào kho (không qua hàng chờ). Venue chưa có thì tự tạo venue mới đúng tên đó — mỗi chi nhánh là một venue riêng (vd "White Palace Võ Văn Kiệt"), nên gọi list_venues trước để dùng đúng tên đã có. Tone phải nằm trong danh sách tone hợp lệ (list_venues). Cùng link trong cùng venue thì không thêm lần hai.',
+        inputSchema: z.object({
+          venue: z.string().min(1).max(120).describe('Tên venue hoặc id venue'),
+          ten: z.string().min(1).max(200).describe('Tên / mô tả ngắn của sản phẩm'),
+          link: z.string().max(1000).describe('Link http(s), thường là bài Facebook'),
+          gia: z.string().max(200).optional().describe('Giá / gói (chữ tự do)'),
+          tone: z.array(z.string()).min(1).max(10).describe('Tên hoặc id tone, vd ["Xanh lá", "Trắng"]'),
+        }),
+      },
+      async (args) => {
+        const link = args.link.trim();
+        if (!/^https?:\/\/\S+$/i.test(link)) throw new Error('Link phải bắt đầu bằng http:// hoặc https:// và không có khoảng trắng.');
+        const crm = await loadCrm();
+        const tones = danhSachTone(crm.toneMau);
+        const toneIds: string[] = [];
+        for (const t of args.tone) {
+          const k = boDauZalo(t);
+          const hit = tones.find((x) => x.id === t || boDauZalo(x.ten) === k);
+          if (!hit) throw new Error(`Tone "${t}" không có trong danh sách. Tone hợp lệ: ${tones.map((x) => x.ten).join(', ')}`);
+          if (!toneIds.includes(hit.id)) toneIds.push(hit.id);
+        }
+        const now = new Date().toISOString();
+        let v = timVenue(crm.venues, args.venue.trim());
+        let venueMoi = false;
+        if (!v) {
+          const id = taoIdVenue('vn_');
+          v = { id, ten: args.venue.trim(), taoLuc: now };
+          await patchPath(`${dataRoot()}/venues/${id}`, v);
+          venueMoi = true;
+        }
+        const trung = Object.values(v.sanPham || {}).find((sp) => sp && sp.link === link);
+        if (trung) return ok({ daCo: true, venue: v.ten, venueId: v.id, sanPham: trung });
+        const sp: SanPhamVenue = { id: taoIdVenue('sp_'), ten: args.ten.trim(), link, gia: args.gia?.trim() || null, tone: toneIds, taoLuc: now };
+        await patchPath(`${dataRoot()}/venues/${v.id}/sanPham/${sp.id}`, sp);
+        await touch();
+        return ok({ daThem: true, venueMoi, venue: v.ten, venueId: v.id, sanPham: { ...sp, tone: toneIds.map((id) => tones.find((t) => t.id === id)!.ten) } });
       }
     );
 
@@ -1571,7 +1732,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Đề xuất sửa lead (chờ Trân duyệt)',
         description:
-          'Tạo đề xuất vào hàng chờ, KHÔNG sửa lead trực tiếp — Trân duyệt trong app. type "field": sửa một trong các ô weddingDate (YYYY-MM-DD), package, revenueExpected (số nguyên VND), expectedCloseMonth (YYYY-MM), phone, facebook, schedule, persona, objection — chỉ khi tin nhắn mâu thuẫn hoặc bổ sung giá trị hiện có. type "todo": tạo việc từ một lời hứa còn mở trong hồ sơ (huaId). Không đề xuất chuyển giai đoạn. Mỗi mục phải có trích dẫn. Trả về mục đã tạo và mục bị bỏ qua kèm lý do.',
+          'Tạo đề xuất vào hàng chờ, KHÔNG sửa lead trực tiếp — Trân duyệt trong app. type "field": sửa một trong các ô weddingDate (YYYY-MM-DD), package, revenueExpected (số nguyên VND), expectedCloseMonth (YYYY-MM), phone, facebook, schedule, persona, objection, venueId (id venue lấy từ list_venues — venue dự kiến tổ chức) — chỉ khi tin nhắn mâu thuẫn hoặc bổ sung giá trị hiện có. type "todo": tạo việc từ một lời hứa còn mở trong hồ sơ (huaId). Không đề xuất chuyển giai đoạn. Mỗi mục phải có trích dẫn. Trả về mục đã tạo và mục bị bỏ qua kèm lý do.',
         inputSchema: z.object({
           lead: z.string().describe('leadId hoặc tên khách'),
           items: z.array(z.union([
@@ -1595,7 +1756,8 @@ const mcpHandler = createMcpHandler(
         for (const item of args.items) {
           const loi = kiemTraBangChung(item.evidence, theoConv, 'evidence');
           if (item.type === 'field') {
-            const sai = kiemTraGiaTriO(item.field, item.newValue);
+            const sai = kiemTraGiaTriO(item.field, item.newValue) ||
+              (item.field === 'venueId' && !crm.venues[String(item.newValue)] ? `Không có venue id ${item.newValue} — gọi list_venues` : null);
             if (sai) { lo.boQua.push({ item, lyDo: sai }); continue; }
           } else {
             if (!/^h_[a-z0-9]{8}$/.test(item.huaId) || !Object.hasOwn(brief?.loiHua || {}, item.huaId)) {
@@ -1790,12 +1952,12 @@ const mcpHandler = createMcpHandler(
         if (p.type === 'field') {
           const field = p.field!;
           const v = args.giaTri !== undefined ? args.giaTri : p.newValue;
-          const loi = kiemTraGiaTriO(field, v);
+          const loi = kiemTraGiaTriO(field, v) || (field === 'venueId' && !crm.venues[String(v)] ? 'Venue này không còn trong kho' : null);
           if (loi) throw new Error(`Không duyệt được: ${loi}`);
           // Ghi giaTriDuyet TRƯỚC (như app) để đối soát nhận ra giá trị đã sửa
           if (args.giaTri !== undefined) await patchPath(`${aiRoot()}/proposals/${p.id}`, { giaTriDuyet: v });
           await patchPath(`${dataRoot()}/leads/${l.id}`, { [field]: v });
-          ketQua = `${NHAN_O[field] || field} → ${hienGiaTriO(field, v)}`;
+          ketQua = `${NHAN_O[field] || field} → ${hienGiaTriO(field, v, crm.venues)}`;
         } else {
           if (args.giaTri !== undefined) throw new Error('giaTri chỉ dùng cho đề xuất sửa ô, không dùng cho đề xuất việc.');
           if (!(l.todos || []).some((t) => (t as any).tuDeXuat === p.id)) {
