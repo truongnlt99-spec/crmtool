@@ -839,6 +839,7 @@
   .vn-tab:focus-visible, .vn-lk:focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
   .bang-toolbar .vn-tim{flex:0 1 300px; min-width:160px; min-height:36px; padding:6px 10px;}
   .bang-toolbar select.field-input{min-height:36px; padding:6px 28px 6px 10px; width:auto; max-width:220px;}
+  .bang-toolbar .vn-loc-venue{flex:0 1 220px; min-width:150px; min-height:36px; padding:6px 10px;}
   .vn-dem{font-size:13px; color:var(--text-3); font-variant-numeric:tabular-nums;}
   .vn-cach{flex:1;}
   table.bang.vn-bang{width:100%; table-layout:auto;}
@@ -866,7 +867,7 @@
   .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
   @media (max-width:760px){
     .bang-toolbar .vn-tim{max-width:none; flex-basis:100%;}
-    .bang-toolbar select.field-input{flex:1; max-width:none;}
+    .bang-toolbar select.field-input, .bang-toolbar .vn-loc-venue{flex:1; max-width:none;}
     .vn-lk{padding:8px 6px;}
     .vn-bang td.vn-c-ten{min-width:160px;}
   }
@@ -3676,8 +3677,7 @@ function renderVenue(){
     const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone ? [venueTone] : [], venueId: venueDangChon || null });
     toolbar = `<div class="vn-hang">${tabs}<span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`}</div>
       <div class="vn-hang">` + tim +
-      `<select class="field-input" aria-label="Lọc theo venue" onchange="venueDangChon=this.value; renderVenue()">
-        <option value="">Tất cả venue</option>${ds.map(v => `<option value="${esc(v.id)}" ${venueDangChon === v.id ? 'selected' : ''}>${esc(v.ten)}</option>`).join('')}</select>
+      `<input class="field-input vn-loc-venue" type="search" list="dsVenueTen" value="${esc(venueDangChon ? venues[venueDangChon].ten : '')}" placeholder="Tất cả venue" aria-label="Lọc theo venue" onchange="locTheoTenVenue(this)" oninput="if(!this.value && venueDangChon) locTheoTenVenue(this)">
        <select class="field-input" aria-label="Lọc theo tone" onchange="chonToneLoc(this)">
         <option value="">Tất cả tone</option>${tones.map(t => `<option value="${esc(t.id)}" ${venueTone === t.id ? 'selected' : ''}>${esc(t.ten)}</option>`).join('')}
         ${chiXem ? '' : '<option value="__them">+ Thêm tone mới…</option>'}</select>
@@ -3719,6 +3719,14 @@ function renderVenue(){
 
 function doiTabVenue(ma){ venueTab = ma; venueTim = ''; renderVenue(); }
 function xemSanPhamCuaVenue(id){ venueTab = 'sp'; venueDangChon = id; venueTim = ''; venueTone = ''; renderVenue(); }
+// Ô lọc venue: gõ/chọn tên trong danh sách gợi ý; xoá trắng = tất cả; tên không có thì giữ bộ lọc cũ
+function locTheoTenVenue(o){
+  const ten = o.value.trim();
+  const v = ten ? window.Venue.timVenueTheoTen(venues, ten) : null;
+  if (ten && !v){ o.value = venueDangChon ? venues[venueDangChon].ten : ''; return; }
+  venueDangChon = v ? v.id : '';
+  renderVenue();
+}
 function boLocVenue(){ venueTim = ''; venueTone = ''; venueDangChon = ''; renderVenue(); }
 function chonToneLoc(sel){
   if (sel.value === '__them'){ sel.value = venueTone; moThemTone(); return; }

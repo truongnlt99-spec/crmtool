@@ -24,6 +24,7 @@ export const TONE_MAC_DINH = [
 // Venue gợi ý, rút từ dữ liệu lead thật (lịch trình, ghi chú, báo giá) ngày 28/10/2026.
 // bietDanh viết KHÔNG dấu, chữ thường. `cha` = tên venue chung của cùng thương hiệu: lead khớp
 // chi nhánh thì bỏ venue chung (nhắc "White Palace" rồi "White Palace Phạm Văn Đồng" = một nơi).
+// `chiGoiY` = vẫn gợi ý tạo venue nhưng không tính khi gắn lead (tên hay xuất hiện vì lý do khác).
 export const VENUE_MAU = [
   { ten: 'White Palace', bietDanh: ['white palace', 'white palcae'] },
   { ten: 'White Palace Võ Văn Kiệt', cha: 'White Palace', bietDanh: ['white palace vo van kiet', 'white palace vvk'] },
@@ -61,7 +62,8 @@ export const VENUE_MAU = [
   { ten: 'Maxim', bietDanh: ['maxim'] },
   { ten: 'Hoa viên Tám Quỳnh', bietDanh: ['tam quynh'] },
   { ten: 'Sân Golf Sông Bé', bietDanh: ['golf song be'] },
-  { ten: 'Vũ Garden', bietDanh: ['vu garden'] },
+  { ten: 'Vũ Garden', bietDanh: ['vu garden'], chiGoiY: true },   // chỗ chụp Pre Wedding, Trân hay gửi mẫu ở đây -> không dùng để gắn lead
+  { ten: 'Merastic', bietDanh: ['merastic'] },
   { ten: 'Trống Đồng Long Biên', bietDanh: ['trong dong long bien'] },
   { ten: 'Mipec', bietDanh: ['mipec'] },
   { ten: 'An Lâm Retreats', bietDanh: ['an lam retreat'] },
@@ -168,13 +170,14 @@ export function khopVenueMau(leads, venues, mau = VENUE_MAU){
     const ten = venueTrongChu(chuCuaLead(l), mau);
     if (!ten.length) continue;
     const chuaGan = !l.venueId;
-    if (ten.length > 1 && chuaGan) canChonTay.push({ leadId: l.id, ten });
+    const tenGan = ten.filter(t => !mau.some(m => m.ten === t && m.chiGoiY));
+    if (tenGan.length > 1 && chuaGan) canChonTay.push({ leadId: l.id, ten: tenGan });
     for (const t of ten){
       if (timVenueTheoTen(venues, t)) continue;
       if (!goiY.has(t)) goiY.set(t, { ten: t, leadIds: [], nhacDen: 0 });
       const g = goiY.get(t);
       g.nhacDen++;
-      if (ten.length === 1 && chuaGan) g.leadIds.push(l.id);
+      if (tenGan.length === 1 && tenGan[0] === t && chuaGan) g.leadIds.push(l.id);
     }
   }
   return { goiY: [...goiY.values()].sort((a, b) => b.nhacDen - a.nhacDen || a.ten.localeCompare(b.ten)), canChonTay };

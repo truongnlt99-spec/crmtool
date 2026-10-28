@@ -77,6 +77,15 @@ eq('lead 2 venue khong tu gan', kq.goiY.find((g: any) => g.ten === 'Chloe Galler
 eq('dia diem bao gia', kq.goiY.find((g: any) => g.ten === 'Mipec')?.leadIds, ['L5']);
 eq('venue da co trong kho bo qua', kq.goiY.some((g: any) => g.ten === 'Nikko'), false);
 
+const kq2 = V.khopVenueMau([
+  { id: 'P1', schedule: 'Tiệc tối Gem Center', notesList: [{ text: 'Em gửi mẫu Pre tại Vũ Garden' }] },
+  { id: 'P2', schedule: 'Pre Wedding ở Vũ Garden' },
+  { id: 'P3', schedule: 'dự định Maxim hoặc Merastic' },
+], {});
+eq('chiGoiY: khong lam lead thanh 2 venue', kq2.goiY.find((g: any) => g.ten === 'Gem Center')?.leadIds, ['P1']);
+eq('chiGoiY: van goi y tao nhung khong gan', kq2.goiY.find((g: any) => g.ten === 'Vũ Garden')?.leadIds, []);
+eq('Merastic co trong mau -> chon tay', kq2.canChonTay, [{ leadId: 'P3', ten: ['Maxim', 'Merastic'] }]);
+
 console.log('\n>> soLeadTheoVenue');
 eq('dem', V.soLeadTheoVenue([{ venueId: 'a' }, { venueId: 'a' }, { venueId: null }, {}]), { a: 2 });
 
