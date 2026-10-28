@@ -171,12 +171,19 @@
   // Module riêng: nạp lỗi thì chỉ mất phần AI.
   import * as HoSoAI from './web/ho-so-ai.js';
   window.HoSoAI = HoSoAI;
+  HoSoAI.datVenue(id => (window.tenVenueTheoId ? window.tenVenueTheoId(id) : id), () => (window.dsVenueSapXep ? window.dsVenueSapXep() : []));
   if (window.veLaiPhanDeXuat) window.veLaiPhanDeXuat();
 </script>
 <script type="module">
   // Khối "Báo giá" trong chi tiết lead — test ở test/bao-gia.test.html. Nạp lỗi thì chỉ mất khối này.
   import * as BaoGia from './web/bao-gia.js';
   window.BaoGia = BaoGia;
+</script>
+<script type="module">
+  // Màn "Venue" (venue + sản phẩm theo tone) — test ở test/venue.test.ts và test/venue-ui.test.html. Nạp lỗi thì chỉ mất màn này.
+  import * as Venue from './web/venue.js';
+  window.Venue = Venue;
+  if (window.renderVenue) window.renderVenue();
 </script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
@@ -821,6 +828,45 @@
   /* Bảng có lọc theo cột riêng -> ẩn lọc gói/trạng thái của Pipeline; ô tìm vẫn dùng chung */
   body[data-view="list"] #filterPackage,
   body[data-view="list"] #filterStatus{display:none;}
+  body[data-view="venue"] .topbar-search,
+  body[data-view="venue"] #filterPackage,
+  body[data-view="venue"] #filterStatus{display:none;}
+  /* ---- Venue ---- */
+  .vn-wrap{display:flex; flex-direction:column; gap:12px;}
+  .vn-toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .vn-toolbar .field-input{flex:1 1 220px; min-width:0;}
+  .vn-tones{display:flex; gap:6px; flex-wrap:wrap;}
+  .vn-chip{display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:99px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font:inherit; font-size:12.5px; cursor:pointer;}
+  .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
+  .vn-chip i, .vn-tone i{display:inline-block; width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,.15);}
+  .vn-body{display:grid; grid-template-columns:240px 1fr; gap:14px; align-items:start;}
+  .vn-list{display:flex; flex-direction:column; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; max-height:70vh; overflow:auto;}
+  .vn-item{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; border:none; background:none; color:var(--text); font:inherit; font-size:13.5px; text-align:left; cursor:pointer;}
+  .vn-item:hover{background:var(--well);}
+  .vn-item.on{background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
+  .vn-item small{color:var(--text-3); font-size:11.5px; white-space:nowrap;}
+  .vn-main{display:flex; flex-direction:column; gap:10px; min-width:0;}
+  .vn-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;}
+  .vn-head h3{font-size:16px; font-weight:700; color:var(--text);}
+  .vn-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px;}
+  .vn-sp{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:6px; min-width:0;}
+  .vn-sp-ten{font-weight:600; font-size:14px; color:var(--text); overflow-wrap:anywhere;}
+  .vn-sp-ten a{color:inherit; text-decoration:none;} .vn-sp-ten a:hover{text-decoration:underline;}
+  .vn-sp-venue, .vn-sp-gia{font-size:12.5px; color:var(--text-2);}
+  .vn-sp-tones{display:flex; gap:6px; flex-wrap:wrap;}
+  .vn-tone{display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--text-2);}
+  .vn-sp-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:auto;}
+  .vn-nut{padding:5px 10px; font-size:12.5px;}
+  .vn-xoa:hover{color:var(--red); border-color:var(--red);}
+  .vn-trong{color:var(--text-3); font-size:13.5px; padding:20px 4px;}
+  .vn-tick{display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
+  .vn-tick small{color:var(--text-3);}
+  .vn-tone-chon{display:flex; gap:6px; flex-wrap:wrap;}
+  @media (max-width: 760px){
+    .vn-body{grid-template-columns:1fr;}
+    .vn-list{flex-direction:row; overflow-x:auto; max-height:none;}
+    .vn-item{white-space:nowrap;}
+  }
   .bang-wrap{display:flex; flex-direction:column; min-height:0; flex:1; padding:14px 22px 18px; gap:10px;}
   .bang-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .bang-loc-chip{display:inline-flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-2); background:var(--primary-soft); border-radius:999px; padding:4px 10px;}
@@ -2150,6 +2196,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>
         <span>Danh sách</span>
       </button>
+      <button class="nav-item" id="navVenue" onclick="setView('venue')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span>Venue</span>
+      </button>
       <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
         <span>Dashboard</span>
@@ -2294,6 +2344,24 @@
         <div class="bang-scroll" id="bangScroll"></div>
       </div>
       <div class="bang-menu" id="bangMenu" hidden></div>
+    </section>
+
+    <!-- ============ VENUE VIEW (venue + sản phẩm theo tone) ============ -->
+    <section class="view" id="viewVenue">
+      <div class="vn-wrap">
+        <div class="vn-toolbar">
+          <input class="field-input" id="vnTim" placeholder="Tìm venue, sản phẩm, giá…" oninput="venueTim=this.value; renderVenue()">
+          <button class="btn btn-primary vn-sua-only" onclick="moThemSanPham()">+ Sản phẩm</button>
+          <button class="btn btn-secondary vn-sua-only" onclick="moThemVenue()">+ Venue</button>
+          <button class="btn btn-secondary vn-sua-only" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>
+          <button class="btn btn-ghost vn-sua-only" onclick="moThemTone()">+ Tone</button>
+        </div>
+        <div class="vn-tones" id="vnTones"></div>
+        <div class="vn-body">
+          <div class="vn-list" id="vnList"></div>
+          <div class="vn-main" id="vnMain"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ============ HỘI THOẠI VIEW (tất cả hội thoại Zalo đã gắn lead) ============ -->
@@ -2467,6 +2535,16 @@
     </div>
   </div>
 </div>
+
+<!-- ============ MODAL: Venue (thêm/sửa sản phẩm, venue, tone, gợi ý từ lead) — nội dung vẽ bằng JS ============ -->
+<div class="modal-overlay" id="venueOverlay" onclick="if(event.target===this) dongVenueModal()">
+  <div class="modal wide">
+    <div class="modal-header"><h3 id="venueModalTitle"></h3><p id="venueModalSub"></p></div>
+    <div class="modal-body" id="venueModalBody"></div>
+    <div class="modal-footer" id="venueModalFooter"></div>
+  </div>
+</div>
+<datalist id="dsVenueTen"></datalist>
 
 <!-- ============ MODAL: Link kết nối Claude (MCP) ============ -->
 <div class="modal-overlay" id="mcpOverlay">
@@ -3519,6 +3597,7 @@ function toggleSidebar(){
 const VIEWS = {
   pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Pipeline',  sub:'Theo dõi lead theo từng giai đoạn' },
   list:          { el:'viewList',          nav:'navList',          title:'Danh sách', sub:'Tất cả lead dạng bảng' },
+  venue:         { el:'viewVenue',         nav:'navVenue',         title:'Venue',     sub:'Venue và sản phẩm đã làm, tra theo tone màu' },
   dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Dashboard', sub:'Báo cáo tổng quan theo tháng' },
   conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tất cả hội thoại Zalo đã gắn lead' },
 };
@@ -3533,6 +3612,282 @@ function setView(view){
   document.getElementById('pageTitle').textContent = VIEWS[view].title;
   document.getElementById('pageTitleSub').textContent = VIEWS[view].sub;
   renderAll();
+}
+
+/* ======================= RENDER: VENUE ======================= */
+// Venue + sản phẩm theo tone. Logic thuần ở web/venue.js (window.Venue). Dữ liệu ở <kho>/venues và
+// <kho>/toneMau. KHÁC lead: app ghi venue NGAY khi bấm, theo đường dẫn nhỏ nhất (venues/<id>/sanPham/<spId>),
+// không đi qua diff tinhThayDoiCucBo — để không đè sản phẩm Claude vừa thêm vào cùng venue.
+let venues = {}, toneMau = {};
+let venueDangChon = '';      // '' = tất cả venue
+let venueTim = '', venueTone = [];
+let venueGoiYDangMo = null;  // kết quả khopVenueMau đang hiện trong hộp gợi ý
+
+function tenVenueTheoId(id){ return venues[id] ? venues[id].ten : '(venue đã xoá)'; }
+function dsVenueSapXep(){
+  return Object.values(venues).filter(v => v && v.id).sort((a, b) => String(a.ten).localeCompare(String(b.ten), 'vi'));
+}
+window.tenVenueTheoId = tenVenueTheoId;
+window.dsVenueSapXep = dsVenueSapXep;
+
+// Ghi một lô đường dẫn (tương đối kho CRM) lên máy chủ + áp ngay vào bản trong máy.
+async function ghiVenue(patch){
+  if (window.__chiXem) return false;
+  if (!cloudLoaded || !window.__firebase){ alert('Chưa nạp xong dữ liệu, thử lại sau giây lát.'); return false; }
+  const goc = { venues, toneMau };
+  for (const [duong, gt] of Object.entries(patch)){
+    const phan = duong.split('/');
+    let o = goc;
+    for (let i = 0; i < phan.length - 1; i++){ o = o[phan[i]] = (o[phan[i]] && typeof o[phan[i]] === 'object') ? o[phan[i]] : {}; }
+    if (gt === null) delete o[phan[phan.length - 1]]; else o[phan[phan.length - 1]] = gt;
+  }
+  venues = goc.venues; toneMau = goc.toneMau;
+  renderAll();
+  try {
+    await window.__firebase.update(window.__firebase.userDataRef(), { ...patch, updatedAt: new Date().toISOString() });
+    return true;
+  } catch(e){
+    console.error('ghiVenue', e);
+    setSyncStatus('error');
+    alert('Không lưu được venue: ' + (e && e.message || e));
+    return false;
+  }
+}
+
+function renderVenueDatalist(){
+  const dl = document.getElementById('dsVenueTen');
+  if (dl) dl.innerHTML = dsVenueSapXep().map(v => `<option value="${esc(v.ten)}"></option>`).join('');
+}
+
+function renderVenue(){
+  renderVenueDatalist();
+  const V = window.Venue, main = document.getElementById('vnMain');
+  if (!V || !main) return;
+  const chiXem = !!window.__chiXem;
+  document.querySelectorAll('.vn-sua-only').forEach(el => { el.hidden = chiXem; });
+  const tones = V.danhSachTone(toneMau);
+  document.getElementById('vnTones').innerHTML = tones.map(t =>
+    `<button class="vn-chip ${venueTone.includes(t.id) ? 'on' : ''}" onclick="batTatToneLoc('${esc(t.id)}')"><i style="background:${esc(t.mau)}"></i>${esc(t.ten)}</button>`
+  ).join('') + (venueTone.length ? `<button class="vn-chip" onclick="venueTone=[]; renderVenue()">Bỏ lọc tone</button>` : '');
+
+  if (venueDangChon && !venues[venueDangChon]) venueDangChon = '';
+  const ds = dsVenueSapXep(), soLead = V.soLeadTheoVenue(leads);
+  const tongSp = ds.reduce((n, v) => n + Object.keys(v.sanPham || {}).length, 0);
+  document.getElementById('vnList').innerHTML =
+    `<button class="vn-item ${venueDangChon ? '' : 'on'}" onclick="chonVenueXem('')"><span>Tất cả venue</span><small>${tongSp} SP</small></button>` +
+    ds.map(v => `<button class="vn-item ${venueDangChon === v.id ? 'on' : ''}" onclick="chonVenueXem('${esc(v.id)}')"><span>${esc(v.ten)}</span><small>${Object.keys(v.sanPham || {}).length} SP · ${soLead[v.id] || 0} lead</small></button>`).join('');
+
+  const v = venueDangChon ? venues[venueDangChon] : null;
+  const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone, venueId: venueDangChon || null });
+  const head = v
+    ? `<div class="vn-head"><h3>${esc(v.ten)}</h3>${chiXem ? '' : `<div><button class="btn btn-ghost vn-nut" onclick="moDoiTenVenue('${esc(v.id)}')">Đổi tên</button> <button class="btn btn-ghost vn-nut vn-xoa" onclick="xoaVenue('${esc(v.id)}')">Xoá venue</button></div>`}</div>`
+    : `<div class="vn-head"><h3>Tất cả venue</h3></div>`;
+  const trong = !ds.length
+    ? 'Chưa có venue nào. Bấm "Gợi ý venue từ lead" để tạo nhanh từ dữ liệu lead hiện có, hoặc "+ Venue".'
+    : 'Không có sản phẩm nào khớp.';
+  main.innerHTML = head + (kq.length
+    ? `<div class="vn-grid">${kq.map(x => V.veSanPham(x.venue, x.sp, tones, { chiXem, hienVenue: !v })).join('')}</div>`
+    : `<div class="vn-trong">${trong}</div>`);
+}
+
+function batTatToneLoc(id){
+  venueTone = venueTone.includes(id) ? venueTone.filter(t => t !== id) : [...venueTone, id];
+  renderVenue();
+}
+function chonVenueXem(id){ venueDangChon = id; renderVenue(); }
+
+function copyLinkSanPham(btn){
+  const link = btn.dataset.link, cu = btn.textContent;
+  const xong = () => { btn.textContent = 'Đã copy ✓'; setTimeout(() => { btn.textContent = cu; }, 1500); };
+  if (navigator.clipboard) navigator.clipboard.writeText(link).then(xong, () => prompt('Copy link:', link));
+  else prompt('Copy link:', link);
+}
+
+function moVenueModal(tieuDe, phu, body, footer){
+  document.getElementById('venueModalTitle').textContent = tieuDe;
+  document.getElementById('venueModalSub').textContent = phu || '';
+  document.getElementById('venueModalBody').innerHTML = body;
+  document.getElementById('venueModalFooter').innerHTML = footer;
+  document.getElementById('venueOverlay').classList.add('show');
+}
+function dongVenueModal(){ document.getElementById('venueOverlay').classList.remove('show'); venueGoiYDangMo = null; }
+
+async function taoVenue(ten){
+  const V = window.Venue;
+  ten = String(ten || '').trim().slice(0, 120);
+  if (!ten) return null;
+  const co = V.timVenueTheoTen(venues, ten);
+  if (co) return co.id;
+  const id = V.taoId('vn_');
+  return (await ghiVenue({ ['venues/' + id]: { id, ten, taoLuc: new Date().toISOString() } })) ? id : null;
+}
+
+/* ---- Sản phẩm ---- */
+function moThemSanPham(){ moFormSanPham(venueDangChon || '', null); }
+function moSuaSanPham(vid, spId){ moFormSanPham(vid, spId); }
+function moFormSanPham(vid, spId){
+  if (window.__chiXem) return;
+  const V = window.Venue, sp = spId ? (venues[vid] && venues[vid].sanPham || {})[spId] : null;
+  if (spId && !sp) return;
+  const chon = sp ? (sp.tone || []) : venueTone.slice();
+  const tones = V.danhSachTone(toneMau);
+  moVenueModal(sp ? 'Sửa sản phẩm' : 'Thêm sản phẩm', 'Thường là link bài Facebook HayDay đã làm tại venue',
+    `<div class="field-group"><label class="field-label">Venue</label>
+       <input class="field-input" id="spVenue" list="dsVenueTen" value="${esc(vid ? tenVenueTheoId(vid) : '')}" placeholder="Chọn hoặc gõ tên venue mới" ${sp ? 'disabled' : ''}></div>
+     <div class="field-group"><label class="field-label">Tên / mô tả ngắn</label><input class="field-input" id="spTen" maxlength="200" value="${esc(sp ? sp.ten : '')}"></div>
+     <div class="field-group"><label class="field-label">Link</label><input class="field-input" id="spLink" type="url" placeholder="https://www.facebook.com/..." value="${esc(sp ? sp.link : '')}"></div>
+     <div class="field-group"><label class="field-label">Giá / gói (tuỳ chọn)</label><input class="field-input" id="spGia" maxlength="200" value="${esc(sp && sp.gia || '')}"></div>
+     <div class="field-group"><label class="field-label">Tone (chọn một hoặc nhiều)</label><div class="vn-tone-chon" id="spTone">${tones.map(t =>
+       `<button type="button" class="vn-chip ${chon.includes(t.id) ? 'on' : ''}" data-tone="${esc(t.id)}" onclick="this.classList.toggle('on')"><i style="background:${esc(t.mau)}"></i>${esc(t.ten)}</button>`).join('')}</div></div>`,
+    `<button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button>
+     <button class="btn btn-primary" onclick="luuSanPham('${esc(vid)}','${esc(spId || '')}')">Lưu</button>`);
+}
+async function luuSanPham(vidCu, spId){
+  const V = window.Venue;
+  const sp = {
+    ten: document.getElementById('spTen').value.trim(),
+    link: document.getElementById('spLink').value.trim(),
+    gia: document.getElementById('spGia').value.trim() || null,
+    tone: [...document.querySelectorAll('#spTone .vn-chip.on')].map(b => b.dataset.tone),
+  };
+  const loi = V.kiemTraSanPham(sp, V.danhSachTone(toneMau).map(t => t.id));
+  if (loi){ alert(loi); return; }
+  let vid = vidCu;
+  if (!spId){
+    const tenVenue = document.getElementById('spVenue').value.trim();
+    if (!tenVenue){ alert('Chọn venue cho sản phẩm'); return; }
+    const co = V.timVenueTheoTen(venues, tenVenue);
+    if (!co && !confirm(`Chưa có venue "${tenVenue}". Tạo venue mới?`)) return;
+    vid = co ? co.id : await taoVenue(tenVenue);
+    if (!vid) return;
+  }
+  const cu = spId ? ((venues[vid] && venues[vid].sanPham) || {})[spId] : null;
+  if (spId && !cu){ alert('Sản phẩm này vừa bị xoá ở nơi khác.'); dongVenueModal(); return; }
+  const id = spId || V.taoId('sp_');
+  if (await ghiVenue({ [`venues/${vid}/sanPham/${id}`]: { id, ...sp, taoLuc: cu ? cu.taoLuc : new Date().toISOString() } })) dongVenueModal();
+}
+async function xoaSanPham(vid, spId){
+  const sp = (venues[vid] && venues[vid].sanPham || {})[spId];
+  if (!sp || !confirm(`Xoá sản phẩm "${sp.ten}"?`)) return;
+  await ghiVenue({ [`venues/${vid}/sanPham/${spId}`]: null });
+}
+
+/* ---- Venue ---- */
+function moThemVenue(){
+  if (window.__chiXem) return;
+  moVenueModal('Thêm venue', 'Mỗi chi nhánh là một venue riêng (vd White Palace Võ Văn Kiệt)',
+    `<div class="field-group"><label class="field-label">Tên venue</label><input class="field-input" id="vnTenMoi" maxlength="120"></div>`,
+    `<button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button><button class="btn btn-primary" onclick="luuVenueMoi()">Tạo</button>`);
+}
+async function luuVenueMoi(){
+  const ten = document.getElementById('vnTenMoi').value.trim();
+  if (!ten) return;
+  if (window.Venue.timVenueTheoTen(venues, ten)){ alert('Đã có venue này'); return; }
+  const id = await taoVenue(ten);
+  if (id){ venueDangChon = id; dongVenueModal(); renderVenue(); }
+}
+function moDoiTenVenue(vid){
+  if (window.__chiXem || !venues[vid]) return;
+  moVenueModal('Đổi tên venue', '',
+    `<div class="field-group"><label class="field-label">Tên venue</label><input class="field-input" id="vnTenMoi" maxlength="120" value="${esc(venues[vid].ten)}"></div>`,
+    `<button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button><button class="btn btn-primary" onclick="luuDoiTenVenue('${esc(vid)}')">Lưu</button>`);
+}
+async function luuDoiTenVenue(vid){
+  const ten = document.getElementById('vnTenMoi').value.trim().slice(0, 120);
+  if (!ten || !venues[vid]) return;
+  const trung = window.Venue.timVenueTheoTen(venues, ten);
+  if (trung && trung.id !== vid){ alert('Đã có venue khác tên này'); return; }
+  if (await ghiVenue({ [`venues/${vid}/ten`]: ten })) dongVenueModal();
+}
+async function xoaVenue(vid){
+  const v = venues[vid];
+  if (!v) return;
+  const dangGan = leads.filter(l => l.venueId === vid);
+  const sp = Object.keys(v.sanPham || {}).length;
+  if (!confirm(`Xoá venue "${v.ten}" cùng ${sp} sản phẩm?` + (dangGan.length ? `\n${dangGan.length} lead đang gắn venue này sẽ về "chưa có venue".` : ''))) return;
+  if (!(await ghiVenue({ ['venues/' + vid]: null }))) return;
+  dangGan.forEach(l => { l.venueId = null; });
+  if (dangGan.length){ renderAll(); scheduleSave(); }
+}
+
+/* ---- Tone ---- */
+function moThemTone(){
+  if (window.__chiXem) return;
+  moVenueModal('Thêm tone', 'Tone mới lưu vào kho của tài khoản này',
+    `<div class="field-row"><div class="field-group"><label class="field-label">Tên tone</label><input class="field-input" id="toneTen" maxlength="40"></div>
+     <div class="field-group"><label class="field-label">Màu</label><input class="field-input" id="toneMauChon" type="color" value="#a0785a"></div></div>`,
+    `<button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button><button class="btn btn-primary" onclick="luuToneMoi()">Thêm</button>`);
+}
+async function luuToneMoi(){
+  const V = window.Venue, ten = document.getElementById('toneTen').value.trim().slice(0, 40);
+  const mau = document.getElementById('toneMauChon').value;
+  if (!ten) return;
+  const bd = x => window.BangLead ? window.BangLead.boDau(x) : String(x).toLowerCase();
+  if (V.danhSachTone(toneMau).some(t => bd(t.ten) === bd(ten))){ alert('Đã có tone này'); return; }
+  const id = V.taoId('tn_');
+  if (await ghiVenue({ ['toneMau/' + id]: { id, ten, mau: /^#[0-9a-f]{6}$/i.test(mau) ? mau : '#cccccc' } })) dongVenueModal();
+}
+
+/* ---- Gợi ý venue từ lead ---- */
+function moGoiYVenue(){
+  if (window.__chiXem) return;
+  const kq = window.Venue.khopVenueMau(leads, venues);
+  venueGoiYDangMo = kq;
+  const tenLead = id => { const l = leads.find(x => x.id === id); return l ? l.name : id; };
+  const dong = kq.goiY.map((g, i) => `<label class="vn-tick"><input type="checkbox" data-i="${i}">
+      <span><b>${esc(g.ten)}</b> — ${g.nhacDen} lead nhắc tới${g.leadIds.length ? `, sẽ gắn cho ${g.leadIds.length} lead` : ''}
+      ${g.leadIds.length ? `<br><small>${esc(g.leadIds.map(tenLead).join(', '))}</small>` : ''}</span></label>`).join('');
+  const chonTay = kq.canChonTay.length
+    ? `<h4 style="margin:16px 0 6px; font-size:14px">Lead nhắc từ 2 venue trở lên — tự chọn trong chi tiết lead</h4>` +
+      kq.canChonTay.map(c => `<div class="vn-tick"><span><a href="#" onclick="dongVenueModal(); openLead('${esc(c.leadId)}'); return false">${esc(tenLead(c.leadId))}</a> <small>${esc(c.ten.join(' / '))}</small></span></div>`).join('')
+    : '';
+  moVenueModal('Gợi ý venue từ lead', 'Dò tên venue trong lịch trình, ghi chú và báo giá. Tick venue muốn tạo; lead khớp đúng 1 venue và chưa có venue sẽ được gắn luôn.',
+    (dong || '<div class="vn-trong">Không còn venue nào để gợi ý.</div>') + chonTay,
+    `<button class="btn btn-ghost" onclick="document.querySelectorAll('#venueModalBody input[type=checkbox]').forEach(c => c.checked = true)">Chọn tất cả</button>
+     <button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button>
+     <button class="btn btn-primary" onclick="taoVenueTuGoiY()">Tạo venue đã chọn</button>`);
+}
+async function taoVenueTuGoiY(){
+  const kq = venueGoiYDangMo;
+  if (!kq) return;
+  const chon = [...document.querySelectorAll('#venueModalBody input[type=checkbox]:checked')].map(c => kq.goiY[Number(c.dataset.i)]);
+  if (!chon.length){ alert('Chưa tick venue nào'); return; }
+  const patch = {}, gan = [], now = new Date().toISOString();
+  for (const g of chon){
+    if (window.Venue.timVenueTheoTen(venues, g.ten)) continue;   // vừa được tạo ở nơi khác
+    const id = window.Venue.taoId('vn_');
+    patch['venues/' + id] = { id, ten: g.ten, taoLuc: now };
+    g.leadIds.forEach(lid => gan.push([lid, id]));
+  }
+  if (Object.keys(patch).length && !(await ghiVenue(patch))) return;
+  let soGan = 0;
+  for (const [lid, vid] of gan){
+    const l = leads.find(x => x.id === lid);
+    if (l && !l.venueId){ l.venueId = vid; soGan++; logActivity(l, `Gắn venue dự kiến: ${tenVenueTheoId(vid)} (gợi ý từ lịch trình)`); }
+  }
+  dongVenueModal();
+  renderAll();
+  if (soGan) scheduleSave();
+  alert(`Đã tạo ${Object.keys(patch).length} venue, gắn cho ${soGan} lead.`);
+}
+
+/* ---- Ô "Venue dự kiến" trong chi tiết lead ---- */
+async function chonVenueChoLead(leadId, input){
+  if (window.__chiXem) return;
+  const lead = leads.find(l => l.id === leadId);
+  if (!lead) return;
+  const ten = input.value.trim();
+  let vid = null;
+  if (ten){
+    const co = window.Venue.timVenueTheoTen(venues, ten);
+    if (co) vid = co.id;
+    else if (confirm(`Chưa có venue "${ten}". Tạo venue mới và gắn cho lead này?`)) vid = await taoVenue(ten);
+    if (!vid){ input.value = lead.venueId ? tenVenueTheoId(lead.venueId) : ''; return; }
+    input.value = tenVenueTheoId(vid);
+  }
+  if ((lead.venueId || null) === vid) return;
+  logActivity(lead, vid ? `Gắn venue dự kiến: ${tenVenueTheoId(vid)}` : 'Bỏ venue dự kiến');
+  onFieldChange(leadId, 'venueId', vid);
 }
 
 /* ======================= RENDER: DANH SÁCH ======================= */
@@ -3558,6 +3913,7 @@ function ctxBang(){
     leadStatus, leadTypeOf,
     stageName: id => (STAGE_MAP[id] || {}).name || id || '',
     coZalo: l => zaloConvsOf(l.id).length > 0,
+    tenVenue: l => (l.venueId ? tenVenueTheoId(l.venueId) : ''),
   };
 }
 function cotDangHien(){
@@ -4415,6 +4771,10 @@ function openLead(id){
             <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','schedule', this.value); autoGrowTextarea(this)">${esc(lead.schedule)}</textarea>
           </div>
           <div class="field-group">
+            <label class="field-label">Venue dự kiến</label>
+            <input class="field-input" list="dsVenueTen" value="${esc(lead.venueId ? tenVenueTheoId(lead.venueId) : '')}" placeholder="Chọn hoặc gõ tên venue mới" onchange="chonVenueChoLead('${id}', this)">
+          </div>
+          <div class="field-group">
             <label class="field-label">Chân dung khách hàng</label>
             <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','persona', this.value); autoGrowTextarea(this)">${esc(lead.persona)}</textarea>
           </div>
@@ -4829,7 +5189,7 @@ function apDungDeXuat(p, giaTri){
   const lead = leads.find(l => l.id === p.leadId);
   if (!lead) return false;
   if (p.type === 'field'){
-    const loi = HoSoAI.kiemTraGiaTriO(p.field, giaTri);
+    const loi = HoSoAI.kiemTraGiaTriO(p.field, giaTri) || (p.field === 'venueId' && !venues[giaTri] ? 'Venue này không còn trong kho' : null);
     if (loi){ alert(loi); return false; }
     logActivity(lead, `Duyệt đề xuất của Claude: ${HoSoAI.NHAN_O[p.field]} → ${HoSoAI.hienGiaTri(p.field, giaTri)}`);
     onFieldChange(lead.id, p.field, giaTri);    // tự renderPipeline + scheduleSave
@@ -6377,6 +6737,7 @@ function renderAll(){
   renderPipeline();
   // Lỗi trong bảng không được chặn Dashboard/thanh bên/Hội thoại vẽ tiếp
   try { renderBangLead(); } catch(e){ console.error('renderBangLead', e); }
+  try { renderVenue(); } catch(e){ console.error('renderVenue', e); }
   renderDashboard();
   renderSidebarStats();
   renderConversations();
@@ -6652,6 +7013,8 @@ function migrateLead(l){
 // (lệch khỏi bản gốc) thì giữ bản trong máy, còn lại lấy bản máy chủ. Bản gốc dời theo
 // máy chủ, nên phần giữ lại vẫn còn lệch và lần lưu kế tiếp sẽ ghi nó lên.
 function applyRemoteData(data){
+  venues = data.venues || {};
+  toneMau = data.toneMau || {};
   if (data.leads){
     const trongMay = leadsToObject();
     const dangSua = id => (trongMay[id] ? JSON.stringify(trongMay[id]) : undefined) !== banGoc.leads[id];

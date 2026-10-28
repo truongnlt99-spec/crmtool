@@ -22,6 +22,7 @@ const ctx = {
   leadTypeOf: (l: any) => l.leadType || 'Lead công ty',
   stageName: (id: string) => ({ leadin: 'Lead in', baogia: 'Báo giá', won: 'Won', lost: 'Lost' } as any)[id] || id || '',
   coZalo: (l: any) => l.id === 'A',
+  tenVenue: (l: any) => (l.venueId === 'v1' ? 'Gem Center' : ''),
 };
 
 const LEADS = [
@@ -43,7 +44,8 @@ check('null -> rong', B.boDau(null) === '' && B.boDau(undefined) === '');
 console.log('\n>> COT');
 check('cot dau la name', B.COT[0].khoa === 'name');
 check('khoa khong trung', new Set(B.COT.map((c: any) => c.khoa)).size === B.COT.length);
-check('du 20 cot', B.COT.length === 20, String(B.COT.length));
+check('cot venue lay ten qua ctx', B.layGiaTri('venue', { venueId: 'v1' }, ctx) === 'Gem Center' && B.layGiaTri('venue', {}, ctx) === '');
+check('du 21 cot', B.COT.length === 21, String(B.COT.length));
 
 console.log('\n>> layGiaTri');
 check('status tre', B.layGiaTri('status', LEADS[0], ctx) === 'Trễ hẹn');

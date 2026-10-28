@@ -78,7 +78,8 @@ export const ID_HOP_LE = /^[A-Za-z0-9_-]{1,80}$/;
 /** Tone mặc định + tone người dùng thêm (tone thêm trùng id mặc định thì bỏ). */
 export function danhSachTone(toneMau){
   const them = mang(toneMau).filter(t => t && ID_HOP_LE.test(t.id || '') && t.ten && !TONE_MAC_DINH.some(m => m.id === t.id));
-  return [...TONE_MAC_DINH, ...them];
+  // mau đi thẳng vào style="" -> chỉ nhận #rrggbb
+  return [...TONE_MAC_DINH, ...them.map(t => ({ id: t.id, ten: String(t.ten), mau: /^#[0-9a-f]{6}$/i.test(t.mau) ? t.mau : '#cccccc' }))];
 }
 
 export const linkHopLe = s => typeof s === 'string' && /^https?:\/\/\S+$/i.test(s.trim()) && s.length <= 1000;

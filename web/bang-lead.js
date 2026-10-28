@@ -1,7 +1,7 @@
 // Logic thuần cho view "Danh sách" (bảng lead kiểu Excel) trong index.html.
 // KHÔNG chạm DOM / Firebase để test được bằng Node (test/bang-lead.test.ts).
 // Những gì phụ thuộc app (trạng thái hẹn, tên giai đoạn, Zalo...) truyền vào qua `ctx`:
-//   { leadStatus(lead), leadTypeOf(lead), stageName(id), coZalo(lead) }
+//   { leadStatus(lead), leadTypeOf(lead), stageName(id), coZalo(lead), tenVenue(lead) }
 
 export const TRANG_THAI = ['Trễ hẹn', 'Hôm nay', 'Còn hạn', 'Chưa hẹn', 'Won', 'Lost'];
 
@@ -31,6 +31,7 @@ export const COT = [
   { khoa:'phone',              tieuDe:'SĐT',               kieu:'chu',   rong:120, sua:'chu',      lay: l => l.phone || '' },
   { khoa:'facebook',           tieuDe:'Facebook',          kieu:'chu',   rong:170, sua:'chu',      lay: l => l.facebook || '' },
   { khoa:'weddingDate',        tieuDe:'Ngày cưới',         kieu:'ngay',  rong:110, sua:'ngay',     lay: l => ngay(l.weddingDate) },
+  { khoa:'venue',              tieuDe:'Venue',             kieu:'chon',  rong:160,                 lay: (l, c) => (c.tenVenue ? c.tenVenue(l) : '') },
   { khoa:'package',            tieuDe:'Gói',               kieu:'chon',  rong:130, sua:'chon',     lay: l => l.package || '' },
   { khoa:'leadType',           tieuDe:'Loại lead',         kieu:'chon',  rong:130, sua:'chon',     lay: (l, c) => c.leadTypeOf(l) },
   { khoa:'stage',              tieuDe:'Giai đoạn',         kieu:'chon',  rong:140, sua:'giaidoan', lay: (l, c) => c.stageName(l.stage) },

@@ -29,6 +29,7 @@
     "test:mcp-ho-so": "node test/mcp-ho-so.test.ts",
     "test:ho-so-ui": "node test/zalo-dom.test.ts test/ho-so-ai.test.html",
     "test:venue": "node test/venue.test.ts",
+    "test:venue-ui": "node test/zalo-dom.test.ts test/venue-ui.test.html",
     "test:bao-gia": "node test/bao-gia.test.ts",
     "test:mcp-bao-gia": "node test/mcp-bao-gia.test.ts",
     "test:bao-gia-ui": "node test/zalo-dom.test.ts test/bao-gia.test.html",
