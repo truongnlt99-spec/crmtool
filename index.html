@@ -843,7 +843,7 @@
   .vn-dem{font-size:13px; color:var(--text-3); font-variant-numeric:tabular-nums;}
   .vn-cach{flex:1;}
   table.bang.vn-bang{width:100%; table-layout:auto;}
-  #vnToolbar{flex-direction:column; align-items:stretch; gap:10px;}
+  #vnToolbar{flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:10px;}   /* wrap + cột làm Chrome đo mỗi hàng như đã gãy dòng -> dư khoảng trống */
   .vn-hang{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
   .vn-bang td{vertical-align:middle;}
   .vn-bang th:first-child, .vn-bang td:first-child{position:static;}
