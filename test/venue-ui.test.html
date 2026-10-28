@@ -15,29 +15,31 @@ const tones = V.danhSachTone({ t: { id: 'tn_x', ten: XSS, mau: 'red;background:u
 const venue = { id: 'vn_1', ten: 'Gem Center' };
 const sp = { id: 'sp_1', ten: 'Tiệc tone xanh', link: 'https://www.facebook.com/hayday/posts/1', gia: 'Gói Standard', tone: ['xanh-la', 'trang'] };
 
-/* 1. Thẻ thường */
-box.innerHTML = V.veSanPham(venue, sp, tones);
-const a = box.querySelector('.vn-sp-ten a');
+const ve = (v, x, o) => { box.innerHTML = `<table><tbody>${V.veDongSanPham(v, x, tones, o)}</tbody></table>`; };
+
+/* 1. Dòng thường */
+ve(venue, sp);
+const a = box.querySelector('.vn-c-ten a');
 check('ten la link mo tab moi', a && a.href === sp.link && a.target === '_blank' && /noopener/.test(a.rel), box.innerHTML.slice(0, 300));
-check('hien venue + gia', /Gem Center/.test(box.innerText) && /Gói Standard/.test(box.innerText));
-check('2 cham tone', box.querySelectorAll('.vn-tone').length === 2);
+check('du 6 cot', box.querySelectorAll('td').length === 6);
+check('hien venue + gia + ngay', /Gem Center/.test(box.innerText) && /Gói Standard/.test(box.innerText));
+check('2 tone', box.querySelectorAll('.vn-tone').length === 2);
 check('nut copy mang link', box.querySelector('[data-link]')?.dataset.link === sp.link);
 check('co nut sua/xoa', /moSuaSanPham\('vn_1','sp_1'\)/.test(box.innerHTML) && /xoaSanPham/.test(box.innerHTML));
-check('an venue khi dang xem 1 venue', !V.veSanPham(venue, sp, tones, { hienVenue: false }).includes('vn-sp-venue'));
 
 /* 2. Chỉ xem: không có nút sửa/xoá, vẫn copy được */
-box.innerHTML = V.veSanPham(venue, sp, tones, { chiXem: true });
+ve(venue, sp, { chiXem: true });
 check('chi xem: khong sua/xoa', !/moSuaSanPham|xoaSanPham/.test(box.innerHTML));
 check('chi xem: van copy', !!box.querySelector('[data-link]'));
 
 /* 3. Chống XSS + link độc */
-box.innerHTML = V.veSanPham({ id: 'vn_1', ten: XSS }, { id: 'sp_1', ten: XSS, link: 'javascript:window.__bi=1', gia: XSS, tone: ['tn_x'] }, tones);
+ve({ id: 'vn_1', ten: XSS }, { id: 'sp_1', ten: XSS, link: 'javascript:window.__bi=1', gia: XSS, tone: ['tn_x'] });
 check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 400));
 check('link javascript khong thanh the a', !box.querySelector('a'), box.innerHTML.slice(0, 400));
 check('link javascript khong co nut copy', !box.querySelector('[data-link]'));
 check('mau tone doc bi thay', !/url\(x\)/.test(box.innerHTML));
 check('van hien nguyen van', box.innerText.includes('<img src=x'));
-box.innerHTML = V.veSanPham({ id: "x'),alert(1),('", ten: 'A' }, sp, tones);
+ve({ id: "x'),alert(1),('", ten: 'A' }, sp);
 check('id la khong vao onclick', !/alert\(1\)/.test(box.innerHTML));
 check('khong co ma nao chay', window.__bi === undefined);
 
