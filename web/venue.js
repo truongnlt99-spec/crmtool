@@ -180,24 +180,42 @@ export function khopVenueMau(leads, venues, mau = VENUE_MAU){
   return { goiY: [...goiY.values()].sort((a, b) => b.nhacDen - a.nhacDen || a.ten.localeCompare(b.ten)), canChonTay };
 }
 
-/** Thẻ một sản phẩm. Mọi chữ đã escape; link chỉ thành thẻ <a> khi là http(s). */
+const ICON = {
+  ghim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  gia: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>',
+  copy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  mo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></svg>',
+  sua: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  xoa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+};
+const mauAnToan = m => (/^#[0-9a-f]{6}$/i.test(m) ? m : '#cccccc');
+
+/** Thẻ một sản phẩm: dải màu tone ở đầu thẻ, tên (link), venue, giá, tone, nút Copy link + icon mở/sửa/xoá.
+ *  Mọi chữ đã escape; link chỉ thành thẻ <a> khi là http(s). */
 export function veSanPham(venue, sp, tones, { chiXem = false, hienVenue = true } = {}){
   const theoId = Object.fromEntries(tones.map(t => [t.id, t]));
-  const cham = mang(sp.tone).map(id => {
-    const t = theoId[id];
-    return t ? `<span class="vn-tone"><i style="background:${/^#[0-9a-f]{6}$/i.test(t.mau) ? t.mau : '#ccc'}"></i>${esc(t.ten)}</span>` : '';
-  }).join('');
-  const ok = linkHopLe(sp.link);
-  const sua = chiXem || !ID_HOP_LE.test(venue.id) || !ID_HOP_LE.test(sp.id) ? '' :
-    `<button class="btn-ghost vn-nut" onclick="moSuaSanPham('${venue.id}','${sp.id}')">Sửa</button>` +
-    `<button class="btn-ghost vn-nut vn-xoa" onclick="xoaSanPham('${venue.id}','${sp.id}')">Xoá</button>`;
-  return `<div class="vn-sp">
-    <div class="vn-sp-ten">${ok ? `<a href="${esc(sp.link.trim())}" target="_blank" rel="noopener noreferrer">${esc(sp.ten)}</a>` : esc(sp.ten)}</div>
-    ${hienVenue ? `<div class="vn-sp-venue">${esc(venue.ten)}</div>` : ''}
-    ${sp.gia ? `<div class="vn-sp-gia">${esc(sp.gia)}</div>` : ''}
-    <div class="vn-sp-tones">${cham}</div>
-    <div class="vn-sp-nut">${ok ? `<button class="btn-ghost vn-nut" data-link="${esc(sp.link.trim())}" onclick="copyLinkSanPham(this)">Copy link</button>` : ''}${sua}</div>
-  </div>`;
+  const ds = mang(sp.tone).map(id => theoId[id]).filter(Boolean);
+  const dai = ds.map(t => `<span style="background:${mauAnToan(t.mau)}"></span>`).join('');
+  const cham = ds.map(t => `<span class="vn-tone"><span class="vn-cham" style="background:${mauAnToan(t.mau)}"></span>${esc(t.ten)}</span>`).join('');
+  const ok = linkHopLe(sp.link), link = ok ? esc(sp.link.trim()) : '';
+  const idOk = ID_HOP_LE.test(venue.id) && ID_HOP_LE.test(sp.id);
+  const sua = chiXem || !idOk ? '' :
+    `<button class="vn-icon" onclick="moSuaSanPham('${venue.id}','${sp.id}')" title="Sửa" aria-label="Sửa sản phẩm">${ICON.sua}</button>` +
+    `<button class="vn-icon xoa" onclick="xoaSanPham('${venue.id}','${sp.id}')" title="Xoá" aria-label="Xoá sản phẩm">${ICON.xoa}</button>`;
+  return `<article class="vn-sp">
+    <div class="vn-sp-mau" aria-hidden="true">${dai}</div>
+    <div class="vn-sp-than">
+      <h4 class="vn-sp-ten">${ok ? `<a href="${link}" target="_blank" rel="noopener noreferrer">${esc(sp.ten)}</a>` : esc(sp.ten)}</h4>
+      ${hienVenue ? `<div class="vn-sp-venue">${ICON.ghim}${esc(venue.ten)}</div>` : ''}
+      ${sp.gia ? `<div class="vn-sp-gia">${ICON.gia}${esc(sp.gia)}</div>` : ''}
+      <div class="vn-sp-tones">${cham}</div>
+    </div>
+    <div class="vn-sp-nut">
+      ${ok ? `<button class="vn-copy" data-link="${link}" onclick="copyLinkSanPham(this)">${ICON.copy}<span>Copy link</span></button>
+      <a class="vn-icon" href="${link}" target="_blank" rel="noopener noreferrer" title="Mở bài viết" aria-label="Mở bài viết">${ICON.mo}</a>` : ''}
+      ${sua}
+    </div>
+  </article>`;
 }
 
 /** id mới theo kiểu app (tiền tố + thời gian + ngẫu nhiên). */

@@ -832,40 +832,90 @@
   body[data-view="venue"] #filterPackage,
   body[data-view="venue"] #filterStatus{display:none;}
   /* ---- Venue ---- */
-  .vn-wrap{display:flex; flex-direction:column; gap:12px;}
-  .vn-toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
-  .vn-toolbar .field-input{flex:1 1 220px; min-width:0;}
-  .vn-tones{display:flex; gap:6px; flex-wrap:wrap;}
-  .vn-chip{display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:99px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font:inherit; font-size:12.5px; cursor:pointer;}
-  .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
-  .vn-chip i, .vn-tone i{display:inline-block; width:10px; height:10px; border-radius:50%; border:1px solid rgba(0,0,0,.15);}
-  .vn-body{display:grid; grid-template-columns:240px 1fr; gap:14px; align-items:start;}
-  .vn-list{display:flex; flex-direction:column; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:8px; max-height:70vh; overflow:auto;}
-  .vn-item{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; border-radius:10px; border:none; background:none; color:var(--text); font:inherit; font-size:13.5px; text-align:left; cursor:pointer;}
+  .vn-wrap{display:grid; grid-template-columns:260px minmax(0,1fr); gap:16px; align-items:start; padding:18px 22px 28px;}
+  .vn-panel{position:sticky; top:12px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:10px; box-shadow:var(--shadow-card);}
+  .vn-panel-head{display:flex; align-items:center; justify-content:space-between; padding:4px 6px 8px;}
+  .vn-panel-head h3{font-size:13px; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--text-3);}
+  .vn-list{display:flex; flex-direction:column; gap:2px; max-height:calc(100vh - 220px); overflow:auto;}
+  .vn-item{position:relative; display:flex; flex-direction:column; align-items:flex-start; gap:1px; width:100%; min-height:44px; padding:8px 12px; border-radius:var(--radius-sm); border:none; background:none; color:var(--text); font:inherit; font-size:14px; font-weight:500; text-align:left; cursor:pointer; transition:background .15s ease;}
   .vn-item:hover{background:var(--well);}
+  .vn-item:focus-visible, .vn-chip:focus-visible, .vn-icon:focus-visible, .vn-copy:focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
   .vn-item.on{background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
-  .vn-item small{color:var(--text-3); font-size:11.5px; white-space:nowrap;}
-  .vn-main{display:flex; flex-direction:column; gap:10px; min-width:0;}
-  .vn-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;}
-  .vn-head h3{font-size:16px; font-weight:700; color:var(--text);}
-  .vn-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px;}
-  .vn-sp{background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:12px; display:flex; flex-direction:column; gap:6px; min-width:0;}
-  .vn-sp-ten{font-weight:600; font-size:14px; color:var(--text); overflow-wrap:anywhere;}
-  .vn-sp-ten a{color:inherit; text-decoration:none;} .vn-sp-ten a:hover{text-decoration:underline;}
-  .vn-sp-venue, .vn-sp-gia{font-size:12.5px; color:var(--text-2);}
-  .vn-sp-tones{display:flex; gap:6px; flex-wrap:wrap;}
-  .vn-tone{display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--text-2);}
-  .vn-sp-nut{display:flex; gap:6px; flex-wrap:wrap; margin-top:auto;}
-  .vn-nut{padding:5px 10px; font-size:12.5px;}
-  .vn-xoa:hover{color:var(--red); border-color:var(--red);}
-  .vn-trong{color:var(--text-3); font-size:13.5px; padding:20px 4px;}
-  .vn-tick{display:flex; gap:8px; align-items:flex-start; padding:7px 0; border-bottom:1px solid var(--border); font-size:13.5px;}
-  .vn-tick small{color:var(--text-3);}
+  .vn-item.on::before{content:''; position:absolute; left:3px; top:50%; width:4px; height:18px; margin-top:-9px; border-radius:99px; background:var(--primary);}
+  .vn-item small{font-size:12px; font-weight:400; color:var(--text-3);}
+  .vn-item.on small{color:var(--primary-ink); opacity:.8;}
+  .vn-main{display:flex; flex-direction:column; gap:14px; min-width:0;}
+  .vn-toolbar{display:flex; gap:8px; align-items:center;}
+  .vn-search{position:relative; flex:1; min-width:0;}
+  .vn-search svg{position:absolute; left:13px; top:50%; width:17px; height:17px; margin-top:-8.5px; color:var(--text-3); pointer-events:none;}
+  .vn-search .field-input{width:100%; padding-left:38px; min-height:44px;}
+  .vn-toolbar .btn{min-height:44px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap;}
+  .vn-toolbar .btn svg{width:16px; height:16px;}
+  .vn-loc{display:flex; gap:8px; align-items:flex-start;}
+  .vn-loc-nhan{flex:none; font-size:12.5px; font-weight:600; color:var(--text-3); padding-top:7px;}
+  .vn-tones{display:flex; gap:6px; flex-wrap:wrap;}
+  .vn-chip{display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px 4px 8px; border-radius:99px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer; transition:background .15s ease, border-color .15s ease;}
+  .vn-chip:hover{border-color:var(--border-strong); background:var(--surface-2);}
+  .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
+  .vn-chip.them{border-style:dashed; color:var(--text-3); padding-left:12px;}
+  .vn-chip.bo{border-color:transparent; background:none; color:var(--primary-ink); text-decoration:underline; padding-left:6px;}
+  .vn-cham{flex:none; display:inline-block; width:14px; height:14px; border-radius:50%; box-shadow:inset 0 0 0 1px rgba(0,0,0,.14);}
+  .vn-head{display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; padding-top:2px;}
+  .vn-head h2{font:700 19px/1.25 var(--font-head, inherit); color:var(--text);}
+  .vn-head p{font-size:13px; color:var(--text-3); margin-top:2px;}
+  .vn-head-nut{display:flex; gap:6px;}
+  .vn-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:12px;}
+  .vn-sp{display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); overflow:hidden; box-shadow:var(--shadow-card); transition:box-shadow .2s ease, transform .2s ease;}
+  .vn-sp:hover{box-shadow:var(--shadow-card-hover); transform:translateY(-1px);}
+  .vn-sp-mau{display:flex; height:10px;}
+  .vn-sp-mau span{flex:1;}
+  .vn-sp-than{display:flex; flex-direction:column; gap:7px; padding:12px 14px 10px; flex:1;}
+  .vn-head h2, .vn-head p, .vn-sp-ten, .vn-panel-head h3{margin:0;}
+  .vn-sp-ten{font-size:15px; font-weight:600; line-height:1.35; color:var(--text); overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+  .vn-sp-ten a{color:inherit; text-decoration:none;}
+  .vn-sp-ten a:hover{color:var(--primary-ink); text-decoration:underline;}
+  .vn-sp-venue, .vn-sp-gia{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-2);}
+  .vn-sp-venue svg, .vn-sp-gia svg{flex:none; width:14px; height:14px; color:var(--text-3);}
+  .vn-sp-tones{display:flex; gap:10px; flex-wrap:wrap; margin-top:2px;}
+  .vn-tone{display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--text-2);}
+  .vn-tone .vn-cham{width:10px; height:10px;}
+  .vn-sp-nut{display:flex; align-items:center; gap:4px; padding:8px 10px 10px 14px; border-top:1px solid var(--border);}
+  .vn-copy{display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; margin-right:auto; border-radius:var(--radius-sm); border:none; background:var(--primary-soft); color:var(--primary-ink); font:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s ease;}
+  .vn-copy:hover{background:var(--primary); color:var(--on-fill);}
+  .vn-copy.xong{background:var(--primary); color:var(--on-fill);}
+  .vn-copy svg{width:15px; height:15px;}
+  .vn-icon{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:var(--radius-sm); border:none; background:none; color:var(--text-3); cursor:pointer; transition:background .15s ease, color .15s ease;}
+  .vn-icon:hover{background:var(--well); color:var(--text);}
+  .vn-icon.xoa:hover{background:var(--red-soft); color:var(--red);}
+  .vn-icon svg{width:17px; height:17px;}
+  .vn-trong{display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:48px 20px; background:var(--surface); border:1px dashed var(--border-strong); border-radius:var(--radius-lg); color:var(--text-2); font-size:14px;}
+  .vn-trong svg{width:36px; height:36px; color:var(--text-3);}
+  .vn-trong b{font-size:16px; color:var(--text);}
+  .vn-tick{display:flex; gap:10px; align-items:flex-start; padding:10px 0; border-bottom:1px solid var(--border); font-size:14px; cursor:pointer;}
+  .vn-tick input{margin-top:3px; width:18px; height:18px; accent-color:var(--primary); flex:none;}
+  .vn-tick small{color:var(--text-3); font-size:12.5px;}
   .vn-tone-chon{display:flex; gap:6px; flex-wrap:wrap;}
-  @media (max-width: 760px){
-    .vn-body{grid-template-columns:1fr;}
-    .vn-list{flex-direction:row; overflow-x:auto; max-height:none;}
-    .vn-item{white-space:nowrap;}
+  @media (max-width: 1180px){
+    .vn-wrap{grid-template-columns:minmax(0,1fr);}
+    .vn-panel{position:static; padding:8px; min-width:0;}
+    .vn-panel-head{padding:2px 4px 6px;}
+    .vn-list{flex-direction:row; gap:6px; overflow-x:auto; max-height:none; padding-bottom:2px;}
+    .vn-item{width:auto; flex:none; white-space:nowrap; border:1px solid var(--border);}
+    .vn-item.on::before{display:none;}
+    .vn-loc{flex-direction:column; gap:6px;}
+    .vn-loc-nhan{padding-top:0;}
+  }
+  @media (max-width: 560px){
+    .vn-wrap{padding:14px 14px 22px;}
+    .vn-toolbar{flex-wrap:wrap;}
+    .vn-search{flex:1 1 100%;}
+    .vn-toolbar .btn{flex:1;}
+    .vn-grid{grid-template-columns:1fr;}
+    .vn-icon{width:44px; height:44px;}
+    .vn-copy{min-height:44px;}
+  }
+  @media (prefers-reduced-motion: reduce){
+    .vn-sp, .vn-sp:hover{transition:none; transform:none;}
   }
   .bang-wrap{display:flex; flex-direction:column; min-height:0; flex:1; padding:14px 22px 18px; gap:10px;}
   .bang-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
@@ -1626,6 +1676,7 @@
     body:has(.conv-wrap.has-active) .main{padding-bottom:0;}
     body[data-view="conversations"] .main{padding-bottom:78px;}
     body[data-view="conversations"] .topbar .btn-primary{display:none;}
+    body[data-view="venue"] .topbar .btn-primary{display:none;}   /* nút nổi "+ lead" che nút xoá của thẻ sản phẩm */
     .conv-avatar-lg{display:none;}
     .conv-chat-head .btn{min-height:40px; padding:0 13px;}
   }
@@ -2349,17 +2400,35 @@
     <!-- ============ VENUE VIEW (venue + sản phẩm theo tone) ============ -->
     <section class="view" id="viewVenue">
       <div class="vn-wrap">
-        <div class="vn-toolbar">
-          <input class="field-input" id="vnTim" placeholder="Tìm venue, sản phẩm, giá…" oninput="venueTim=this.value; renderVenue()">
-          <button class="btn btn-primary vn-sua-only" onclick="moThemSanPham()">+ Sản phẩm</button>
-          <button class="btn btn-secondary vn-sua-only" onclick="moThemVenue()">+ Venue</button>
-          <button class="btn btn-secondary vn-sua-only" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>
-          <button class="btn btn-ghost vn-sua-only" onclick="moThemTone()">+ Tone</button>
-        </div>
-        <div class="vn-tones" id="vnTones"></div>
-        <div class="vn-body">
+        <aside class="vn-panel" aria-label="Danh sách venue">
+          <div class="vn-panel-head">
+            <h3>Venue</h3>
+            <button class="vn-icon vn-sua-only" onclick="moThemVenue()" title="Thêm venue" aria-label="Thêm venue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+          </div>
           <div class="vn-list" id="vnList"></div>
-          <div class="vn-main" id="vnMain"></div>
+        </aside>
+        <div class="vn-main">
+          <div class="vn-toolbar">
+            <label class="vn-search">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+              <input class="field-input" id="vnTim" type="search" placeholder="Tìm venue, sản phẩm, giá…" aria-label="Tìm sản phẩm" oninput="venueTim=this.value; renderVenue()">
+            </label>
+            <button class="btn btn-secondary vn-sua-only" onclick="moGoiYVenue()" title="Tạo venue từ lịch trình / ghi chú của lead">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/></svg>
+              Gợi ý từ lead
+            </button>
+            <button class="btn btn-primary vn-sua-only" onclick="moThemSanPham()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+              Sản phẩm
+            </button>
+          </div>
+          <div class="vn-loc">
+            <span class="vn-loc-nhan">Lọc theo tone</span>
+            <div class="vn-tones" id="vnTones"></div>
+          </div>
+          <div id="vnMain"></div>
         </div>
       </div>
     </section>
@@ -3667,28 +3736,53 @@ function renderVenue(){
   document.querySelectorAll('.vn-sua-only').forEach(el => { el.hidden = chiXem; });
   const tones = V.danhSachTone(toneMau);
   document.getElementById('vnTones').innerHTML = tones.map(t =>
-    `<button class="vn-chip ${venueTone.includes(t.id) ? 'on' : ''}" onclick="batTatToneLoc('${esc(t.id)}')"><i style="background:${esc(t.mau)}"></i>${esc(t.ten)}</button>`
-  ).join('') + (venueTone.length ? `<button class="vn-chip" onclick="venueTone=[]; renderVenue()">Bỏ lọc tone</button>` : '');
+    `<button class="vn-chip ${venueTone.includes(t.id) ? 'on' : ''}" aria-pressed="${venueTone.includes(t.id)}" onclick="batTatToneLoc('${esc(t.id)}')"><span class="vn-cham" style="background:${esc(t.mau)}"></span>${esc(t.ten)}</button>`
+  ).join('')
+    + (chiXem ? '' : `<button class="vn-chip them" onclick="moThemTone()">+ Tone</button>`)
+    + (venueTone.length ? `<button class="vn-chip bo" onclick="venueTone=[]; renderVenue()">Bỏ lọc</button>` : '');
 
   if (venueDangChon && !venues[venueDangChon]) venueDangChon = '';
   const ds = dsVenueSapXep(), soLead = V.soLeadTheoVenue(leads);
-  const tongSp = ds.reduce((n, v) => n + Object.keys(v.sanPham || {}).length, 0);
+  const soSp = v => Object.keys(v.sanPham || {}).length;
+  const tongSp = ds.reduce((n, v) => n + soSp(v), 0);
   document.getElementById('vnList').innerHTML =
-    `<button class="vn-item ${venueDangChon ? '' : 'on'}" onclick="chonVenueXem('')"><span>Tất cả venue</span><small>${tongSp} SP</small></button>` +
-    ds.map(v => `<button class="vn-item ${venueDangChon === v.id ? 'on' : ''}" onclick="chonVenueXem('${esc(v.id)}')"><span>${esc(v.ten)}</span><small>${Object.keys(v.sanPham || {}).length} SP · ${soLead[v.id] || 0} lead</small></button>`).join('');
+    `<button class="vn-item ${venueDangChon ? '' : 'on'}" onclick="chonVenueXem('')"><span>Tất cả venue</span><small>${ds.length} venue · ${tongSp} sản phẩm</small></button>` +
+    ds.map(v => `<button class="vn-item ${venueDangChon === v.id ? 'on' : ''}" onclick="chonVenueXem('${esc(v.id)}')"><span>${esc(v.ten)}</span><small>${soSp(v)} sản phẩm · ${soLead[v.id] || 0} lead</small></button>`).join('');
 
   const v = venueDangChon ? venues[venueDangChon] : null;
   const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone, venueId: venueDangChon || null });
-  const head = v
-    ? `<div class="vn-head"><h3>${esc(v.ten)}</h3>${chiXem ? '' : `<div><button class="btn btn-ghost vn-nut" onclick="moDoiTenVenue('${esc(v.id)}')">Đổi tên</button> <button class="btn btn-ghost vn-nut vn-xoa" onclick="xoaVenue('${esc(v.id)}')">Xoá venue</button></div>`}</div>`
-    : `<div class="vn-head"><h3>Tất cả venue</h3></div>`;
-  const trong = !ds.length
-    ? 'Chưa có venue nào. Bấm "Gợi ý venue từ lead" để tạo nhanh từ dữ liệu lead hiện có, hoặc "+ Venue".'
-    : 'Không có sản phẩm nào khớp.';
-  main.innerHTML = head + (kq.length
-    ? `<div class="vn-grid">${kq.map(x => V.veSanPham(x.venue, x.sp, tones, { chiXem, hienVenue: !v })).join('')}</div>`
-    : `<div class="vn-trong">${trong}</div>`);
+  const dangLoc = venueTim.trim() || venueTone.length;
+  const moTa = v
+    ? `${kq.length}${dangLoc ? ` / ${soSp(v)}` : ''} sản phẩm · ${soLead[v.id] || 0} lead dự kiến tổ chức ở đây`
+    : `${kq.length}${dangLoc ? ` / ${tongSp}` : ''} sản phẩm ở ${ds.length} venue`;
+  const nutVenue = v && !chiXem
+    ? `<div class="vn-head-nut">
+        <button class="vn-icon" onclick="moDoiTenVenue('${esc(v.id)}')" title="Đổi tên venue" aria-label="Đổi tên venue">${VN_ICON.sua}</button>
+        <button class="vn-icon xoa" onclick="xoaVenue('${esc(v.id)}')" title="Xoá venue" aria-label="Xoá venue">${VN_ICON.xoa}</button>
+      </div>` : '';
+  const head = `<div class="vn-head"><div><h2>${v ? esc(v.ten) : 'Tất cả venue'}</h2><p>${moTa}</p></div>${nutVenue}</div>`;
+
+  let than;
+  if (kq.length) than = `<div class="vn-grid">${kq.map(x => V.veSanPham(x.venue, x.sp, tones, { chiXem, hienVenue: !v })).join('')}</div>`;
+  else if (!ds.length) than = `<div class="vn-trong">${VN_ICON.ghim}<b>Chưa có venue nào</b>
+      <span>Tạo nhanh từ lịch trình, ghi chú và báo giá của các lead hiện có.</span>
+      ${chiXem ? '' : `<button class="btn btn-primary" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>`}</div>`;
+  else if (dangLoc) than = `<div class="vn-trong">${VN_ICON.tim}<b>Không có sản phẩm nào khớp</b>
+      <span>Thử bỏ bớt tone hoặc đổi chữ tìm.</span>
+      <button class="btn btn-secondary" onclick="venueTone=[]; venueTim=''; document.getElementById('vnTim').value=''; renderVenue()">Bỏ hết bộ lọc</button></div>`;
+  else than = `<div class="vn-trong">${VN_ICON.link}<b>Chưa có sản phẩm</b>
+      <span>Thêm link bài Facebook HayDay đã làm${v ? ' tại venue này' : ''} để gửi khách xem.</span>
+      ${chiXem ? '' : `<button class="btn btn-primary" onclick="moThemSanPham()">+ Sản phẩm</button>`}</div>`;
+  main.innerHTML = head + than;
 }
+
+const VN_ICON = {
+  sua: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  xoa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>',
+  ghim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>',
+  tim: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>',
+};
 
 function batTatToneLoc(id){
   venueTone = venueTone.includes(id) ? venueTone.filter(t => t !== id) : [...venueTone, id];
@@ -3697,8 +3791,8 @@ function batTatToneLoc(id){
 function chonVenueXem(id){ venueDangChon = id; renderVenue(); }
 
 function copyLinkSanPham(btn){
-  const link = btn.dataset.link, cu = btn.textContent;
-  const xong = () => { btn.textContent = 'Đã copy ✓'; setTimeout(() => { btn.textContent = cu; }, 1500); };
+  const link = btn.dataset.link, nhan = btn.querySelector('span') || btn, cu = nhan.textContent;
+  const xong = () => { nhan.textContent = 'Đã copy'; btn.classList.add('xong'); setTimeout(() => { nhan.textContent = cu; btn.classList.remove('xong'); }, 1500); };
   if (navigator.clipboard) navigator.clipboard.writeText(link).then(xong, () => prompt('Copy link:', link));
   else prompt('Copy link:', link);
 }
@@ -3738,7 +3832,7 @@ function moFormSanPham(vid, spId){
      <div class="field-group"><label class="field-label">Link</label><input class="field-input" id="spLink" type="url" placeholder="https://www.facebook.com/..." value="${esc(sp ? sp.link : '')}"></div>
      <div class="field-group"><label class="field-label">Giá / gói (tuỳ chọn)</label><input class="field-input" id="spGia" maxlength="200" value="${esc(sp && sp.gia || '')}"></div>
      <div class="field-group"><label class="field-label">Tone (chọn một hoặc nhiều)</label><div class="vn-tone-chon" id="spTone">${tones.map(t =>
-       `<button type="button" class="vn-chip ${chon.includes(t.id) ? 'on' : ''}" data-tone="${esc(t.id)}" onclick="this.classList.toggle('on')"><i style="background:${esc(t.mau)}"></i>${esc(t.ten)}</button>`).join('')}</div></div>`,
+       `<button type="button" class="vn-chip ${chon.includes(t.id) ? 'on' : ''}" data-tone="${esc(t.id)}" onclick="this.classList.toggle('on')"><span class="vn-cham" style="background:${esc(t.mau)}"></span>${esc(t.ten)}</button>`).join('')}</div></div>`,
     `<button class="btn btn-secondary" onclick="dongVenueModal()">Huỷ</button>
      <button class="btn btn-primary" onclick="luuSanPham('${esc(vid)}','${esc(spId || '')}')">Lưu</button>`);
 }
