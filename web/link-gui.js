@@ -6,6 +6,7 @@
 
 import { boDau } from './bang-lead.js';
 import { esc } from './ho-so-ai.js';
+import { linkHopLe, ID_HOP_LE } from './venue.js';
 
 /** Số sản phẩm tối đa trong một lần tạo link. Khớp giới hạn của /api/link-gui và tool create_product_links. */
 export const MAX_SP = 10;
@@ -81,6 +82,34 @@ export function veDongLink(item, i){
   const ghiChu = item.daCo ? `<small>Link đã gửi trước đó · ${item.soLanMo ? `khách mở ${Number(item.soLanMo)} lần` : 'khách chưa mở'}</small>` : '';
   return `<div class="lg-link"><span class="lg-link-giua">${ten}<small class="lg-url">${esc(item.url)}</small>${ghiChu}</span>
     <button type="button" class="btn btn-ghost" data-url="${esc(item.url)}" onclick="copyLinkGui(this)">Copy</button></div>`;
+}
+
+/** Đưa mẫu thuộc venue của lead lên đầu, giữ nguyên thứ tự còn lại. */
+export function uuTienVenue(ds, venueId){
+  return venueId ? [...ds.filter(x => x.venue.id === venueId), ...ds.filter(x => x.venue.id !== venueId)] : ds;
+}
+
+/** Một mẫu trong hộp chọn sản phẩm cho khách. Mẫu link hỏng không chọn được nên không hiện. */
+export function veDongMau({ venue, sp }, chon){
+  if (!linkHopLe(sp.link) || !ID_HOP_LE.test(venue.id) || !ID_HOP_LE.test(sp.id)) return '';
+  return `<label class="vn-tick"><input type="checkbox" data-sp="${venue.id}/${sp.id}" ${chon ? 'checked' : ''} onchange="chonMauGui(this)">
+    <span>${esc(sp.ten)}<br><small>${esc(venue.ten)}</small></span></label>`;
+}
+
+const hhmmNgay = ms => {
+  const d = new Date(ms), hai = n => String(n).padStart(2, '0');
+  return `${hai(d.getHours())}:${hai(d.getMinutes())} ${hai(d.getDate())}/${hai(d.getMonth() + 1)}`;
+};
+
+/** Khối "Sản phẩm đã gửi" trong chi tiết lead. `ds` lấy từ dsTheoLead. */
+export function veKhoiDaGui(ds){
+  if (!ds.length) return '<p class="lg-trong">Chưa gửi sản phẩm nào.</p>';
+  return ds.map(d => {
+    const phu = d.lanCuoi ? `Xem gần nhất ${hhmmNgay(d.lanCuoi)}` : d.taoLuc ? `Tạo link ${hhmmNgay(d.taoLuc)}` : '';
+    const so = d.soLanMo ? `${Number(d.soLanMo)} lần mở · ${thoiLuong(d.tongGiay)}` : '';
+    return `<div class="lg-link"><span class="lg-link-giua"><b>${esc(d.tenSp)}</b><small>${[so, phu].filter(Boolean).join(' · ')}</small></span>
+      <span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span></div>`;
+  }).join('');
 }
 
 export const chuoiCopyTatCa = items => items.map(i => `${i.tenSp}\n${i.url}`).join('\n\n');

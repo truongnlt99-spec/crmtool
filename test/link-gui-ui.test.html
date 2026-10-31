@@ -8,6 +8,7 @@
 <div id="venueOverlay"><h3 id="venueModalTitle"></h3><p id="venueModalSub"></p><div id="venueModalBody"></div><div id="venueModalFooter"></div></div>
 <script type="module">
 import * as L from '../web/link-gui.js';
+import * as V from '../web/venue.js';
 
 const ket = [];
 const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
@@ -46,6 +47,34 @@ box.innerHTML = L.veDongLink({ tenSp: XSS, url: `${URL_T}"><img src=x>`, loi: ''
 check('dong link chong XSS', !box.querySelector('img'), box.innerHTML);
 box.innerHTML = L.veDongLink({ tenSp: 'A', loi: XSS }, 0);
 check('loi chong XSS', !box.querySelector('img'), box.innerHTML);
+
+/* 2b. Khối trong lead + danh sách chọn mẫu */
+const MOC = new Date(2026, 9, 30, 21, 40).getTime();
+box.innerHTML = L.veKhoiDaGui([
+  { token: 'a', tenSp: 'Pre Wedding', soLanMo: 4, tongGiay: 192, lanCuoi: MOC, nhan: 'quanTam' },
+  { token: 'b', tenSp: 'Mẫu đã xoá khỏi kho', nhan: 'chuaMo', taoLuc: MOC },
+]);
+check('khoi: so lan mo + thoi gian + gan nhat', /4 lần mở/.test(chu()) && /3p12s/.test(chu()) && /21:40 30\/10/.test(chu()), chu());
+check('khoi: hien nhan', /Quan tâm/.test(chu()) && /Chưa mở/.test(chu()), chu());
+check('khoi: san pham da xoa van hien ten', /Mẫu đã xoá khỏi kho/.test(chu()));
+box.innerHTML = L.veKhoiDaGui([]);
+check('khoi rong', /Chưa gửi sản phẩm nào/.test(chu()));
+box.innerHTML = L.veKhoiDaGui([{ token: 'x', tenSp: XSS, nhan: 'chuaMo' }]);
+check('khoi chong XSS', !box.querySelector('img'), box.innerHTML);
+
+const MAU = [
+  { venue: { id: 'v1', ten: 'A' }, sp: { id: 's1', ten: 'M1', link: 'https://a' } },
+  { venue: { id: 'v2', ten: 'B' }, sp: { id: 's2', ten: 'M2', link: 'https://b' } },
+];
+check('dua mau dung venue len dau', L.uuTienVenue(MAU, 'v2')[0].sp.id === 's2');
+check('khong co venue giu nguyen', L.uuTienVenue(MAU, null)[0].sp.id === 's1');
+box.innerHTML = L.veDongMau(MAU[0], true);
+check('dong mau co tick', box.querySelector('input').checked && box.querySelector('input').dataset.sp === 'v1/s1');
+box.innerHTML = L.veDongMau({ venue: { id: 'v1', ten: XSS }, sp: { id: 's1', ten: XSS, link: 'https://a' } }, false);
+check('dong mau chong XSS', !box.querySelector('img'));
+box.innerHTML = L.veDongMau({ venue: { id: 'v1', ten: 'A' }, sp: { id: 's1', ten: 'A', link: 'javascript:1' } }, false);
+check('link hong khong chon duoc', !box.querySelector('input'));
+box.innerHTML = '';
 
 /* 3. Cả luồng tạo link: chạy nguyên văn hàm trong index.html */
 const src = await (await fetch('../index.html')).text();
@@ -142,7 +171,31 @@ check('dong hop luc dang tao: khong mo lai', !$('venueOverlay').classList.contai
 window.__chiXem = true;
 moChonKhach(['v1/s1']);
 check('chi xem khong mo hop', !$('venueOverlay').classList.contains('show'));
+moChonMauChoKhach('L1');
+check('chi xem khong mo chon mau', !$('venueOverlay').classList.contains('show'));
 window.__chiXem = false;
+
+window.Venue = V;
+window.venues.v2 = { id: 'v2', ten: 'Gem', sanPham: { s9: { id: 's9', ten: 'Mẫu Gem', link: 'https://b', tone: [] } } };
+window.venues.v1.sanPham.s1.link = 'https://a';
+window.venues.v1.sanPham.s2.link = 'https://c';
+leads[0].venueId = 'v2';
+moChonMauChoKhach('L1');
+check('chon mau: tieu de dung khach', /Chị Mai Anh/.test(CHUA_DOI('venueModalTitle')), CHUA_DOI('venueModalTitle'));
+check('chon mau: mau dung venue len dau', document.querySelector('#lgDsMau input').dataset.sp === 'v2/s9');
+check('chon mau: chua chon thi nut tat', $('lgNutTaoLink').disabled);
+$('lgTimMau').value = 'mẫu một'; veDsMau();
+check('chon mau: tim duoc', document.querySelectorAll('#lgDsMau input').length === 1, $('lgDsMau').innerText);
+document.querySelector('#lgDsMau input').click();
+$('lgTimMau').value = ''; veDsMau();
+check('chon mau: giu tick khi doi tu khoa', document.querySelectorAll('#lgDsMau input:checked').length === 1);
+check('chon mau: chon xong nut bat', !$('lgNutTaoLink').disabled);
+traLoi = () => json({ ok: true, ketQua: [{ token: 't', url: 'https://x/xem/t', tenSp: 'Mẫu Một', venueId: 'v1', spId: 's1', daCo: false, soLanMo: 0 }] });
+$('lgNutTaoLink').click();
+await cho();
+check('chon mau: tao link dung khach', dem.goi.at(-1).body.leadId === 'L1' && dem.goi.at(-1).body.dsSp[0].spId === 's1', JSON.stringify(dem.goi.at(-1)));
+check('chon mau: sang man lay link', /Link cho Chị Mai Anh/.test(CHUA_DOI('venueModalTitle')));
+dongVenueModal();
 
 window.__ketQua = ket;
 </script>

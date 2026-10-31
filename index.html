@@ -884,6 +884,9 @@
   .lg-link:last-child{border-bottom:0;}
   .lg-link-giua .lg-url{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .lg-link-giua .lg-loi{color:var(--red);}
+  .lg-nhan{flex:none; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; background:var(--gray-tag-soft); color:var(--gray-tag);}
+  .lg-nhan.quanTam{background:var(--red-soft); color:var(--red);}
+  .lg-nhan.xemQua{background:var(--amber-soft); color:var(--amber);}
   .lg-link .btn.xong, .lg-link .btn-ghost.xong{background:var(--primary-soft); color:var(--primary-ink);}
   @media (max-width:760px){
     .bang-toolbar .vn-tim{max-width:none; flex-basis:100%;}
@@ -3776,9 +3779,13 @@ let guiDangMo = null;         // { spKeys, lead, items } của hộp tạo link 
 
 function initLinkGui(){
   const f = window.__firebase;
+  // Trang khách cùng tên miền đọc cờ này: máy nội bộ mở link không bị đếm là khách xem.
+  try { localStorage.setItem('crmNoiBo', '1'); } catch(e){}
   f.onValue(f.refAt(f.aiBase() + '/linkGui'), s => {
     linkGuiData = s.val() || {};
     if (!uiIsBusy()) renderVenue();
+    const khoi = document.getElementById('lgKhoiDaGui');
+    if (khoi) khoi.innerHTML = LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, khoi.dataset.lead));
   }, e => { console.warn('Không đọc được số liệu link:', e); linkGuiData = {}; });
 }
 
@@ -3811,6 +3818,34 @@ function moChonKhach(spKeys, lead){
     `<button type="button" class="btn btn-ghost" onclick="dongVenueModal()">Huỷ</button>`);
   veDsKhach();
   document.getElementById('lgTim').focus();
+}
+// Bắt đầu từ chi tiết lead: khách có sẵn, chỉ cần chọn mẫu rồi sang thẳng màn lấy link.
+function moChonMauChoKhach(leadId){
+  const lead = leads.find(l => l.id === leadId);
+  if (window.__chiXem || !lead) return;
+  guiDangMo = { spKeys: [], lead, items: [] };
+  document.getElementById('venueOverlay').classList.add('lg-sheet');
+  moVenueModal(`Gửi sản phẩm cho ${lead.name}`, `Chọn tối đa ${LinkGui.MAX_SP} mẫu`,
+    `<label class="field-label" for="lgTimMau">Tìm mẫu</label>
+     <input class="field-input" id="lgTimMau" type="search" placeholder="Tên, giá, venue…" autocomplete="off" oninput="veDsMau()">
+     <div id="lgDsMau"></div>`,
+    `<button type="button" class="btn btn-ghost" onclick="dongVenueModal()">Huỷ</button>
+     <button type="button" class="btn btn-primary" id="lgNutTaoLink" disabled onclick="taoLinkChoKhach(guiDangMo.lead)">Tạo link</button>`);
+  veDsMau();
+  document.getElementById('lgTimMau').focus();
+}
+function veDsMau(){
+  const { spKeys, lead } = guiDangMo;
+  const ds = LinkGui.uuTienVenue(Venue.locSanPham(venues, { q: document.getElementById('lgTimMau').value }), lead.venueId);
+  const html = ds.map(x => LinkGui.veDongMau(x, spKeys.includes(`${x.venue.id}/${x.sp.id}`))).join('');
+  document.getElementById('lgDsMau').innerHTML = html || '<p class="lg-trong">Không có mẫu nào khớp.</p>';
+}
+function chonMauGui(o){
+  const g = guiDangMo, i = g.spKeys.indexOf(o.dataset.sp);
+  if (!o.checked) g.spKeys.splice(i, 1);
+  else if (g.spKeys.length >= LinkGui.MAX_SP) o.checked = false;
+  else g.spKeys.push(o.dataset.sp);
+  document.getElementById('lgNutTaoLink').disabled = !g.spKeys.length;
 }
 function veDsKhach(){
   const q = document.getElementById('lgTim').value, { spKeys } = guiDangMo;
@@ -4850,6 +4885,13 @@ function openLead(id){
             <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
           </div>
           <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: !window.__chiXem }) : ''}</div>
+        </div>
+        <div class="detail-block block-link-gui" data-tab-of="thongtin">
+          <div class="block-head">
+            <h3 class="block-title">Sản phẩm đã gửi</h3>
+            ${window.__chiXem ? '' : `<button type="button" class="btn btn-ghost" onclick="moChonMauChoKhach('${lead.id}')">Gửi sản phẩm</button>`}
+          </div>
+          <div class="block-content" id="lgKhoiDaGui" data-lead="${esc(lead.id)}">${window.LinkGui ? LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, lead.id)) : ''}</div>
         </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
