@@ -125,8 +125,9 @@ Quy tắc nhãn **chép 2 nơi** (`web/link-gui.js` và `api/mcp.ts`), test ch�
 
 ### Trang khách
 
-- `<iframe src="https://www.facebook.com/plugins/post.php?href=...&show_text=true&width=500">`, rộng theo màn
-  hình, cao cố định theo chiều rộng. Đã thử thật với bài viết và album.
+- `<iframe src="https://www.facebook.com/plugins/post.php?href=...&show_text=false&width=750">` kích thước 750×1100 rồi
+  thu nhỏ bằng `transform` vừa cột tối đa 500px. Đã đo trên giả lập điện thoại: rộng dưới 750px thì Facebook cắt ảnh. Bỏ
+  chú thích vì thu nhỏ sẽ quá bé, ảnh là phần chính của sản phẩm.
 - Một thẻ `<a href="linkGoc">` trong suốt phủ kín iframe. Chạm vào là gửi `fb` rồi sang Facebook. Không dùng cách
   dò focus iframe vì không tin cậy trên điện thoại. Đánh đổi: không bấm Thích/Chia sẻ ngay trong bài nhúng.
 - YouTube: trình phát YouTube trên nền trắng, rộng theo màn hình, tỉ lệ 16:9 (Shorts 9:16), không lớp phủ nên khách xem

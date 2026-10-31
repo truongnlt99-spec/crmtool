@@ -12,6 +12,14 @@
     {
       "source": "/api/link-gui",
       "destination": "/api/mcp?mode=linkGui"
+    },
+    {
+      "source": "/api/xem-su-kien",
+      "destination": "/api/mcp?mode=xemSuKien"
+    },
+    {
+      "source": "/xem/:t",
+      "destination": "/api/mcp?mode=xem&t=:t"
     }
   ]
 }

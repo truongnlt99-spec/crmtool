@@ -3098,6 +3098,125 @@ async function xuLyLinkGui(request: Request): Promise<Response> {
   return traLoiJson({ ok: true, ketQua: await taoLinkGui(root, leadId, sach, new URL(request.url).origin) });
 }
 
+/** Sự kiện từ trang khách (không đăng nhập): chỉ nhận đúng dạng, `giay` 1..30 để không cộng thời gian khống quá nhanh. */
+export function kiemTraSuKien(b: any): { t: string; loai: 'mo' | 'giay' | 'tuongTac'; giay: number } | null {
+  if (!b || typeof b !== 'object' || typeof b.t !== 'string' || !TOKEN_XEM.test(b.t)) return null;
+  if (b.loai === 'mo' || b.loai === 'tuongTac') return { t: b.t, loai: b.loai, giay: 0 };
+  if (b.loai === 'giay' && Number.isInteger(b.giay) && b.giay >= 1 && b.giay <= 30) return { t: b.t, loai: 'giay', giay: b.giay };
+  return null;
+}
+
+/** JS chạy ở trang khách. `window.__xem` = { t, linkGoc, nenTang }. Lỗi đo đạc không được ảnh hưởng việc xem. */
+export const JS_THEO_DOI = `(function(){
+  var c = window.__xem, nhip = 0, daPhat = false, moc = Date.now(), noiBo = false;
+  try { noiBo = localStorage.getItem('crmNoiBo') === '1'; } catch (e) {}
+  function gui(loai, giay){
+    if (noiBo) return;
+    try { navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify({ t: c.t, loai: loai, giay: giay })], { type: 'text/plain' })); } catch (e) {}
+  }
+  function guiPhanLe(){
+    var d = Math.round((Date.now() - moc) / 1000);
+    moc = Date.now();
+    if (d >= 1 && d <= 30 && nhip < 120) gui('giay', d);
+  }
+  gui('mo');
+  if (c.nenTang === 'khac') { if (c.linkGoc) location.replace(c.linkGoc); return; }
+  var dem = setInterval(function(){
+    if (document.visibilityState !== 'visible') return;
+    if (++nhip > 120) { clearInterval(dem); return; }
+    moc = Date.now();
+    gui('giay', 15);
+  }, 15000);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') moc = Date.now(); else guiPhanLe();
+  });
+  addEventListener('pagehide', guiPhanLe);
+  if (c.nenTang === 'facebook') {
+    // Plugin Facebook trên điện thoại cắt mất ảnh nếu rộng dưới 750px (đã đo 440, 500, 600): dựng 750px rồi thu nhỏ.
+    var f = document.getElementById('fbp');
+    function vuaManHinh(){
+      var tiLe = Math.min(window.innerWidth || 500, 500) / 750;
+      f.style.transform = 'scale(' + tiLe + ')';
+      f.parentNode.style.height = Math.round(1100 * tiLe) + 'px';
+    }
+    vuaManHinh();
+    addEventListener('resize', vuaManHinh);
+    f.src = f.dataset.src + '&width=750';
+    document.getElementById('phu').addEventListener('click', function(){ gui('tuongTac'); });
+  }
+  window.onYouTubeIframeAPIReady = function(){
+    new YT.Player('ytp', { host: 'https://www.youtube-nocookie.com', events: {
+      onStateChange: function(e){ if (e.data === 1 && !daPhat) { daPhat = true; gui('tuongTac'); } },
+      onError: function(){ location.replace(c.linkGoc); }
+    } });
+  };
+})();`;
+
+const THOAT_HTML: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escTrang = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (k) => THOAT_HTML[k]);
+
+/** HTML trang khách. Chỉ có nội dung nền tảng trên nền trắng, không tên khách hay dữ liệu lead nào. */
+export function veTrangXem(d: { token: string; tieuDe: string; anh: string; linkGoc: string; nenTang: string; ytId: string | null; origin: string }): string {
+  const link = /^https?:\/\//i.test(d.linkGoc) ? d.linkGoc : '';
+  let than = '', sau = '';
+  if (d.nenTang === 'facebook') {
+    const src = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(link)}&show_text=false`;
+    than = `<div class="khung"><iframe id="fbp" data-src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" scrolling="no"></iframe>` +
+      `<a id="phu" href="${escTrang(link)}" rel="noreferrer" aria-label="Xem bài viết trên Facebook"></a></div>`;
+  } else if (d.nenTang === 'youtube') {
+    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(d.ytId || '')}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(d.origin)}`;
+    const tiLe = link.includes('/shorts/') ? '9 / 16' : '16 / 9';
+    than = `<div class="yt" style="aspect-ratio:${tiLe}"><iframe id="ytp" src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" ` +
+      `allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
+    sau = '<script src="https://www.youtube.com/iframe_api"></script>';
+  }
+  const cauHinh = JSON.stringify({ t: d.token, linkGoc: link, nenTang: d.nenTang }).replace(/[<>&\u2028\u2029]/g, (k) => `\\u${k.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="strict-origin">
+<title>${escTrang(d.tieuDe)}</title>
+<meta property="og:title" content="${escTrang(d.tieuDe)}"><meta property="og:type" content="website">${d.anh ? `
+<meta property="og:image" content="${escTrang(d.anh)}">` : ''}
+<style>html,body{margin:0;background:#fff}.khung{position:relative;max-width:500px;margin:0 auto;overflow:hidden}
+.khung iframe{display:block;width:750px;height:1100px;border:0;transform-origin:0 0}#phu{position:absolute;inset:0}
+.yt{max-width:900px;max-height:100vh;margin:0 auto}.yt iframe{display:block;width:100%;height:100%;border:0}</style>
+</head><body>${than}<script>window.__xem=${cauHinh}</script><script>${JS_THEO_DOI}</script>${sau}</body></html>`;
+}
+
+function traLoiHtml(html: string, status = 200): Response {
+  return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+async function xuLyXem(url: URL): Promise<Response> {
+  const t = url.searchParams.get('t') || '';
+  const d = TOKEN_XEM.test(t) ? await readPath<any>(`linkXem/${t}`) : null;
+  if (!d) {
+    return traLoiHtml('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+      '<title>Link không còn hiệu lực</title><body style="margin:0;background:#fff;font:16px system-ui,sans-serif;color:#555;text-align:center;padding:40vh 16px 0">Link không còn hiệu lực</body></html>', 404);
+  }
+  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc, nenTang: d.nenTang, ytId: d.ytId ?? null, origin: url.origin }));
+}
+
+async function xuLyXemSuKien(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+  const sk = kiemTraSuKien(await request.json().catch(() => null));
+  if (!sk) return traLoiJson({ loi: 'Sự kiện không hợp lệ.' }, 400);
+  const ai = await readPath<string | null>(`linkXem/${sk.t}/aiRoot`);
+  if (!ai) return traLoiJson({ loi: 'Không tìm thấy link.' }, 404);
+
+  const duongDan = `${ai}/linkGui/${sk.t}`;
+  const tang = (n: number) => ({ '.sv': { increment: n } });
+  const patch: Record<string, unknown> = { lanCuoi: { '.sv': 'timestamp' } };
+  if (sk.loai === 'giay') patch.tongGiay = tang(sk.giay);
+  if (sk.loai === 'tuongTac') patch.soLanTuongTac = tang(1);
+  if (sk.loai === 'mo') {
+    patch.soLanMo = tang(1);
+    if (!(await readPath(`${duongDan}/lanDau`))) patch.lanDau = { '.sv': 'timestamp' };
+  }
+  await patchPath(duongDan, patch);
+  return new Response(null, { status: 204 });
+}
+
 /* ===================== Vercel Function (framework: other) ===================== */
 
 export default {
@@ -3120,6 +3239,16 @@ export default {
         return await xuLyLinkGui(request);
       } catch (e) {
         console.error('Link gui error:', e);
+        return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
+      }
+    }
+
+    // Trang khách + sự kiện xem: công khai, chỉ cần token trong link.
+    if (url.searchParams.get('mode') === 'xem' || url.searchParams.get('mode') === 'xemSuKien') {
+      try {
+        return await (url.searchParams.get('mode') === 'xem' ? xuLyXem(url) : xuLyXemSuKien(request));
+      } catch (e) {
+        console.error('Xem link error:', e);
         return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
       }
     }

@@ -175,6 +175,37 @@ try {
 
   await db(`crmDataTest/venues/${VN}/sanPham/yt`, { method: 'DELETE' });
   check('san pham da xoa: link van con', (await dbJson(`linkXem/${kq.token}`)).tieuDe.includes('test'));
+
+  console.log('\n>> /xem + su kien');
+  const xem = async (t: string) => handler.fetch(new Request(`https://huyentran.vercel.app/api/mcp?mode=xem&t=${t}`));
+  const suKien = async (body: unknown) => (await handler.fetch(new Request('https://huyentran.vercel.app/api/mcp?mode=xemSuKien', {
+    method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body),
+  }))).status;
+
+  const trang = await xem(kq.token);
+  const html = await trang.text();
+  check('/xem 200 html', trang.status === 200 && (trang.headers.get('content-type') || '').includes('text/html'), trang.status);
+  check('/xem khong lo lead', !html.includes(LEAD) && !html.includes('Khach LG'));
+  check('/xem tieu de da escape', !html.includes('<b>"test"</b>') && html.includes('&lt;b&gt;'));
+  const la = await xem('aaaaaaaaaa');
+  check('token la -> 404 co thong bao', la.status === 404 && (await la.text()).includes('Link không còn hiệu lực'));
+  check('token sai dinh dang -> 404', (await xem('..%2F..%2Fx')).status === 404);
+
+  check('su kien token la -> 404', (await suKien({ t: 'aaaaaaaaaa', loai: 'mo' })) === 404);
+  check('su kien sai -> 400', (await suKien({ t: kq.token, loai: 'la' })) === 400);
+  const ketQuaMo = await Promise.all([suKien({ t: kq.token, loai: 'mo' }), suKien({ t: kq.token, loai: 'mo' })]);
+  check('2 luot mo cung luc deu nhan', ketQuaMo.every((s) => s === 204), ketQuaMo);
+  const sau2 = await dbJson(`aiDataTest/linkGui/${kq.token}`);
+  check('2 luot mo song song du 2', sau2.soLanMo === 2, sau2);
+  check('co lanDau, lanCuoi', sau2.lanDau > 0 && sau2.lanCuoi >= sau2.lanDau, sau2);
+  await new Promise((r) => setTimeout(r, 30));
+  await suKien({ t: kq.token, loai: 'giay', giay: 15 });
+  await suKien({ t: kq.token, loai: 'giay', giay: 9 });
+  await suKien({ t: kq.token, loai: 'tuongTac' });
+  const sau3 = await dbJson(`aiDataTest/linkGui/${kq.token}`);
+  check('giay cong don', sau3.tongGiay === 24, sau3);
+  check('tuongTac tang', sau3.soLanTuongTac === 1, sau3);
+  check('lanDau giu nguyen, lanCuoi moi hon', sau3.lanDau === sau2.lanDau && sau3.lanCuoi > sau2.lanCuoi, sau3);
 } finally {
   for (const t of tokens) { await db(`linkXem/${t}`, { method: 'DELETE' }); await db(`aiDataTest/linkGui/${t}`, { method: 'DELETE' }); }
   await db(`crmDataTest/leads/${LEAD}`, { method: 'DELETE' });
