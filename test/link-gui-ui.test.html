@@ -1,0 +1,149 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Test giao dien theo doi link</title>
+<!-- Chay bang: npm run test:link-gui-ui -->
+<body>
+<div id="box"></div>
+<div id="vnThanhChon"></div>
+<div id="venueOverlay"><h3 id="venueModalTitle"></h3><p id="venueModalSub"></p><div id="venueModalBody"></div><div id="venueModalFooter"></div></div>
+<script type="module">
+import * as L from '../web/link-gui.js';
+
+const ket = [];
+const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
+const box = document.getElementById('box');
+const XSS = '<img src=x onerror="window.__bi=1">';
+const chu = () => box.innerText;
+
+/* 1. Dòng khách */
+const lead = { id: 'L123', name: 'Chị Mai Anh', stage: 'baogia', weddingDate: '2026-12-14' };
+box.innerHTML = L.veDongKhach(lead, 1, 2, 'Báo giá');
+check('dong khach co ten + giai doan + ngay cuoi', /Chị Mai Anh/.test(chu()) && /Báo giá/.test(chu()) && /14\/12/.test(chu()), chu());
+check('nhan da gui 1/2', /Đã gửi 1\/2 mẫu/.test(chu()), chu());
+check('bam chon dung khach', /chonKhachGui\('L123'\)/.test(box.innerHTML), box.innerHTML);
+check('dong khach la button', box.querySelector('button.lg-khach'));
+box.innerHTML = L.veDongKhach(lead, 0, 2, 'Báo giá');
+check('chua gui thi khong co nhan', !/Đã gửi/.test(chu()));
+box.innerHTML = L.veDongKhach({ id: 'L1', name: XSS, stage: 'x' }, 0, 1, XSS);
+check('dong khach chong XSS', !box.querySelector('img') && !window.__bi, box.innerHTML);
+box.innerHTML = L.veDongKhach({ id: "L1'),alert(1)//", name: 'A', stage: 'x' }, 0, 1, '');
+check('id la khong thanh onclick', !/onclick/.test(box.innerHTML), box.innerHTML);
+
+/* 2. Dòng link */
+const URL_T = 'https://huyentran.vercel.app/xem/abcDEF1234';
+box.innerHTML = L.veDongLink({ tenSp: 'Pre Wedding', url: URL_T, daCo: false, soLanMo: 0 }, 0);
+check('dong link co nut copy mang url', box.querySelector('[data-url]')?.dataset.url === URL_T, box.innerHTML);
+check('link moi khong co ghi chu', !/trước đó/.test(chu()));
+box.innerHTML = L.veDongLink({ tenSp: 'A', url: URL_T, daCo: true, soLanMo: 3 }, 0);
+check('link cu hien so lan mo', /Link đã gửi trước đó · khách mở 3 lần/.test(chu()), chu());
+box.innerHTML = L.veDongLink({ tenSp: 'A', url: URL_T, daCo: true, soLanMo: 0 }, 0);
+check('link cu chua mo', /Link đã gửi trước đó · khách chưa mở/.test(chu()), chu());
+box.innerHTML = L.veDongLink({ tenSp: 'A', dangTao: true }, 0);
+check('dang tao', /Đang tạo/.test(chu()) && !box.querySelector('[data-url]'), chu());
+box.innerHTML = L.veDongLink({ tenSp: 'A', loi: 'Sản phẩm không còn tồn tại' }, 2);
+check('loi co thu lai dung dong', /Sản phẩm không còn tồn tại/.test(chu()) && /thuLaiLink\(2\)/.test(box.innerHTML), box.innerHTML);
+box.innerHTML = L.veDongLink({ tenSp: XSS, url: `${URL_T}"><img src=x>`, loi: '' }, 0);
+check('dong link chong XSS', !box.querySelector('img'), box.innerHTML);
+box.innerHTML = L.veDongLink({ tenSp: 'A', loi: XSS }, 0);
+check('loi chong XSS', !box.querySelector('img'), box.innerHTML);
+
+/* 3. Cả luồng tạo link: chạy nguyên văn hàm trong index.html */
+const src = await (await fetch('../index.html')).text();
+const giua = (dau, cuoi) => { const a = src.indexOf(dau), b = src.indexOf(cuoi, a); if (a < 0 || b < 0) throw new Error('khong tim thay ' + dau); return src.slice(a, b); };
+const ham = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf('\n}', a) + 2); };
+const NL = String.fromCharCode(10);
+const dongHam = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf(NL, a)); };
+window.LinkGui = L;
+window.esc = s => String(s ?? '').replace(/[&<>"']/g, k => `&#${k.charCodeAt(0)};`);
+window.STAGES = [{ id: 'baogia', name: 'Báo giá' }, { id: 'leadin', name: 'Lead in' }];
+window.leads = [
+  { id: 'L1', name: 'Chị Mai Anh', phone: '0901', stage: 'baogia', createdAt: '2026-10-01', weddingDate: '2026-12-14' },
+  { id: 'L2', name: 'Anh Hoàng', phone: '', stage: 'leadin', createdAt: '2026-10-05' },
+  { id: 'L3', name: 'Đã chốt', stage: 'won', createdAt: '2026-10-09' },
+];
+window.venues = { v1: { id: 'v1', ten: 'V', sanPham: { s1: { id: 's1', ten: 'Mẫu Một' }, s2: { id: 's2', ten: 'Mẫu Hai' } } } };
+window.venueGoiYDangMo = null;
+window.renderVenue = () => { window.__soLanVe = (window.__soLanVe || 0) + 1; };
+window.uiIsBusy = () => false;
+window.__firebase = { auth: { currentUser: { getIdToken: async () => 'tok' } }, khoUid: () => 'uidKho' };
+const nap = document.createElement('script');
+nap.textContent = [giua('async function goiApiAdmin(', '// Đọc toàn bộ taiKhoan'), giua('function copyChuoi(', 'function moVenueModal('), ham('moVenueModal'), dongHam('dongVenueModal')].join(NL);
+document.head.append(nap);
+
+const dem = { goi: [], clip: [] };
+Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { dem.clip.push(s); } }, configurable: true });
+let traLoi;
+window.fetch = async (u, o) => { dem.goi.push({ u, body: JSON.parse(o.body), auth: o.headers.Authorization }); return traLoi(JSON.parse(o.body)); };
+const json = (d, status = 200) => new Response(JSON.stringify(d), { status });
+const cho = () => new Promise(r => setTimeout(r, 30));
+const $ = id => document.getElementById(id);
+const CHUA_DOI = id => $(id).textContent;
+
+linkGuiDat({ a: { leadId: 'L1', venueId: 'v1', spId: 's1' } });
+function linkGuiDat(d){ window.eval(`linkGuiData = ${JSON.stringify(d)}`); }
+
+moChonKhach(['v1/s1', 'v1/s2']);
+check('mo hop chon khach', CHUA_DOI('venueModalTitle') === 'Gửi cho khách nào?' && /2 sản phẩm/.test(CHUA_DOI('venueModalSub')));
+check('o tim duoc focus', document.activeElement === $('lgTim'));
+const dsTen = () => $('lgDsKhach').innerText;
+check('bo khach da won khi chua go', /Mai Anh/.test(dsTen()) && /Anh Hoàng/.test(dsTen()) && !/Đã chốt/.test(dsTen()), dsTen());
+check('nhan da gui 1/2', /Đã gửi 1\/2 mẫu/.test(dsTen()), dsTen());
+check('nhan nhom la khach moi nhat', /Khách mới nhất/.test(dsTen()), dsTen());
+$('lgTim').value = 'khong co'; veDsKhach();
+check('khong thay khach', /Không tìm thấy khách "khong co"/.test(dsTen()) && /có trong CRM/.test(dsTen()), dsTen());
+$('lgTim').value = 'mai'; veDsKhach();
+
+traLoi = b => json({ ok: true, ketQua: [
+  { token: 't1', url: 'https://x/xem/t1', tenSp: 'Mẫu Một', venueId: 'v1', spId: 's1', daCo: true, soLanMo: 3 },
+  { venueId: 'v1', spId: 's2', loi: 'Sản phẩm không còn tồn tại' },
+] });
+$('lgTim').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+check('Enter chon khach dau tien', CHUA_DOI('venueModalTitle') === 'Link cho Chị Mai Anh', CHUA_DOI('venueModalTitle'));
+check('dang tao ca 2 dong', ($('venueModalBody').textContent.match(/Đang tạo/g) || []).length === 2);
+await cho();
+const g0 = dem.goi[0];
+check('goi dung API, kho, khach', g0.u === '/api/link-gui' && g0.body.khoUid === 'uidKho' && g0.body.leadId === 'L1' && g0.body.dsSp.length === 2 && g0.auth === 'Bearer tok', JSON.stringify(g0));
+check('dong tot + dong loi', /khách mở 3 lần/.test($('venueModalBody').textContent) && /không còn tồn tại/.test($('venueModalBody').textContent));
+document.querySelector('[data-url]').click();
+await cho();
+check('copy mot link', dem.clip.at(-1) === 'https://x/xem/t1', dem.clip);
+const nutTatCa = $('venueModalFooter').querySelector('.btn-primary');
+nutTatCa.click();
+await cho();
+check('copy tat ca bo dong loi', dem.clip.at(-1) === 'Mẫu Một\nhttps://x/xem/t1', dem.clip.at(-1));
+
+traLoi = () => json({ ok: true, ketQua: [{ token: 't2', url: 'https://x/xem/t2', tenSp: 'Mẫu Hai', venueId: 'v1', spId: 's2', daCo: false, soLanMo: 0 }] });
+thuLaiLink(1);
+await cho();
+check('thu lai chi gui dong loi', dem.goi.at(-1).body.dsSp.length === 1 && dem.goi.at(-1).body.dsSp[0].spId === 's2');
+check('thu lai xong co link', document.querySelectorAll('[data-url]').length === 2);
+
+dongVenueModal();
+check('dong hop', !$('venueOverlay').classList.contains('show'));
+
+window.__loiMang = true;
+traLoi = () => { throw new Error('mat mang'); };
+moChonKhach(['v1/s1']);
+chonKhachGui('L2');
+await cho();
+check('mat mang: dong co thu lai', /thuLaiLink\(0\)/.test($('venueModalBody').innerHTML), $('venueModalBody').innerHTML);
+check('mat mang: nut copy tat ca tat', $('venueModalFooter').querySelector('.btn-primary').disabled);
+dongVenueModal();
+
+let xa; traLoi = () => new Promise(r => { xa = r; });
+moChonKhach(['v1/s1']);
+chonKhachGui('L2');
+await cho();
+dongVenueModal();
+xa(json({ ok: true, ketQua: [{ token: 't', url: 'u', tenSp: 'x' }] }));
+await cho();
+check('dong hop luc dang tao: khong mo lai', !$('venueOverlay').classList.contains('show'));
+
+window.__chiXem = true;
+moChonKhach(['v1/s1']);
+check('chi xem khong mo hop', !$('venueOverlay').classList.contains('show'));
+window.__chiXem = false;
+
+window.__ketQua = ket;
+</script>
+</body>

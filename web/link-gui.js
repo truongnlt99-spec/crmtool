@@ -5,6 +5,7 @@
 //                                      soLanTuongTac, lanDau, lanCuoi }
 
 import { boDau } from './bang-lead.js';
+import { esc } from './ho-so-ai.js';
 
 /** Số sản phẩm tối đa trong một lần tạo link. Khớp giới hạn của /api/link-gui và tool create_product_links. */
 export const MAX_SP = 10;
@@ -47,14 +48,39 @@ export function daGuiChoLead(linkGui, leadId, spKeys){
   return spKeys.filter(k => co.has(k)).length;
 }
 
-/** Danh sách khách trong ô chọn: chưa gõ thì hiện khách đang chăm gần đây, gõ thì tìm cả khách đã đóng. */
+/** Danh sách khách trong ô chọn: chưa gõ thì hiện khách đang chăm mới nhất, gõ thì tìm cả khách đã đóng. */
 export function locKhach(leads, q, limit = 20){
-  const moiTruoc = (a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || ''));
+  // Lead không có mốc cập nhật; createdAt chỉ tới ngày nên cùng ngày xếp theo id (L + thời gian tạo).
+  const moiTruoc = (a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')) || String(b.id).localeCompare(String(a.id));
   const k = boDau(q).trim();
   const ds = k
     ? leads.filter(l => boDau(l.name).includes(k) || String(l.phone || '').includes(k))
     : leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
   return [...ds].sort(moiTruoc).slice(0, limit);
+}
+
+const ddmmyyyy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
+
+/** Một dòng khách trong ô chọn. Chỉ tạo nút bấm khi id an toàn để đưa vào onclick. */
+export function veDongKhach(lead, daGui, tongChon, tenGiaiDoan){
+  const ngay = ddmmyyyy(lead.weddingDate);
+  const phu = [tenGiaiDoan, ngay ? `Cưới ${ngay}` : ''].filter(Boolean).join(' · ');
+  const noiDung = `<span class="lg-khach-giua"><b>${esc(lead.name)}</b><small>${esc(phu)}</small></span>` +
+    (daGui ? `<span class="lg-tag">Đã gửi ${daGui}/${tongChon} mẫu</span>` : '');
+  return /^[A-Za-z0-9_-]+$/.test(String(lead.id))
+    ? `<button type="button" class="lg-khach" onclick="chonKhachGui('${lead.id}')">${noiDung}</button>`
+    : `<div class="lg-khach">${noiDung}</div>`;
+}
+
+/** Một dòng kết quả ở màn lấy link. `item`: { tenSp, url?, daCo?, soLanMo?, dangTao?, loi? }. */
+export function veDongLink(item, i){
+  const ten = `<b>${esc(item.tenSp)}</b>`;
+  if (item.dangTao) return `<div class="lg-link"><span class="lg-link-giua">${ten}<small>Đang tạo…</small></span></div>`;
+  if (!item.url) return `<div class="lg-link"><span class="lg-link-giua">${ten}<small class="lg-loi">${esc(item.loi || 'Chưa tạo được link.')}</small></span>
+    <button type="button" class="btn btn-ghost" onclick="thuLaiLink(${Number(i)})">Thử lại</button></div>`;
+  const ghiChu = item.daCo ? `<small>Link đã gửi trước đó · ${item.soLanMo ? `khách mở ${Number(item.soLanMo)} lần` : 'khách chưa mở'}</small>` : '';
+  return `<div class="lg-link"><span class="lg-link-giua">${ten}<small class="lg-url">${esc(item.url)}</small>${ghiChu}</span>
+    <button type="button" class="btn btn-ghost" data-url="${esc(item.url)}" onclick="copyLinkGui(this)">Copy</button></div>`;
 }
 
 export const chuoiCopyTatCa = items => items.map(i => `${i.tenSp}\n${i.url}`).join('\n\n');

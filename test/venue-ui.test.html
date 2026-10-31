@@ -21,7 +21,14 @@ const ve = (v, x, o) => { box.innerHTML = `<table><tbody>${V.veDongSanPham(v, x,
 ve(venue, sp);
 const a = box.querySelector('.vn-c-ten a');
 check('ten la link mo tab moi', a && a.href === sp.link && a.target === '_blank' && /noopener/.test(a.rel), box.innerHTML.slice(0, 300));
-check('du 6 cot', box.querySelectorAll('td').length === 6);
+check('du 10 cot', box.querySelectorAll('td').length === 10, box.querySelectorAll('td').length);
+check('o tick mang dung san pham', box.querySelector('input.vn-chon')?.dataset.sp === 'vn_1/sp_1');
+check('nut gui khach', /moChonKhach\(\['vn_1\/sp_1'\]\)/.test(box.innerHTML), box.innerHTML.slice(-500));
+ve(venue, sp, { chon: true, thongKe: { daGui: 12, khachMo: 9, tuongTac: 5 } });
+check('dang chon thi tick san', box.querySelector('input.vn-chon').checked);
+check('hien 3 cot so', [...box.querySelectorAll('td.so')].map(t => t.textContent).join() === '12,9,5', box.innerText);
+ve(venue, sp);
+check('chua gui thi hien 0', [...box.querySelectorAll('td.so')].map(t => t.textContent).join() === '0,0,0', box.innerText);
 check('hien venue + gia + ngay', /Gem Center/.test(box.innerText) && /Gói Standard/.test(box.innerText));
 check('2 tone', box.querySelectorAll('.vn-tone').length === 2);
 check('nut copy mang link', box.querySelector('[data-link]')?.dataset.link === sp.link);
@@ -31,12 +38,15 @@ check('co nut sua/xoa', /moSuaSanPham\('vn_1','sp_1'\)/.test(box.innerHTML) && /
 ve(venue, sp, { chiXem: true });
 check('chi xem: khong sua/xoa', !/moSuaSanPham|xoaSanPham/.test(box.innerHTML));
 check('chi xem: van copy', !!box.querySelector('[data-link]'));
+check('chi xem: khong tick, khong gui khach', !box.querySelector('input.vn-chon') && !/moChonKhach/.test(box.innerHTML));
+check('chi xem: bot cot tick', box.querySelectorAll('td').length === 9, box.querySelectorAll('td').length);
 
 /* 3. Chống XSS + link độc */
 ve({ id: 'vn_1', ten: XSS }, { id: 'sp_1', ten: XSS, link: 'javascript:window.__bi=1', gia: XSS, tone: ['tn_x'] });
 check('khong tao the img', !box.querySelector('img'), box.innerHTML.slice(0, 400));
 check('link javascript khong thanh the a', !box.querySelector('a'), box.innerHTML.slice(0, 400));
 check('link javascript khong co nut copy', !box.querySelector('[data-link]'));
+check('link hong khong tick duoc', !box.querySelector('input.vn-chon') && !/moChonKhach/.test(box.innerHTML));
 check('mau tone doc bi thay', !/url\(x\)/.test(box.innerHTML));
 check('van hien nguyen van', box.innerText.includes('<img src=x'));
 ve({ id: "x'),alert(1),('", ten: 'A' }, sp);

@@ -54,15 +54,16 @@ check('dem mau da gui trong nhom dang chon', web.daGuiChoLead(links, 'l1', ['v1/
 
 console.log('\n>> locKhach');
 const leads = [
-  { id: '1', name: 'Mai Anh', phone: '0901234567', stage: 'baogia', updatedAt: '2026-10-01' },
-  { id: '2', name: 'Hoàng Thu', phone: '', stage: 'leadin', updatedAt: '2026-10-05' },
-  { id: '3', name: 'Đã chốt', stage: 'won', updatedAt: '2026-10-09' },
-  { id: '4', name: 'Mất', stage: 'lost', updatedAt: '2026-10-10' },
+  { id: 'L100', name: 'Mai Anh', phone: '0901234567', stage: 'baogia', createdAt: '2026-10-01' },
+  { id: 'L200', name: 'Hoàng Thu', phone: '', stage: 'leadin', createdAt: '2026-10-05' },
+  { id: 'L300', name: 'Đã chốt', stage: 'won', createdAt: '2026-10-09' },
+  { id: 'L400', name: 'Mất', stage: 'lost', createdAt: '2026-10-10' },
+  { id: 'L201', name: 'Cùng ngày', stage: 'leadin', createdAt: '2026-10-05' },
 ];
-check('rong: bo won/lost, moi truoc', bang(web.locKhach(leads, '').map((l: any) => l.id), ['2', '1']));
-check('khong dau', web.locKhach(leads, 'hoang')[0]?.id === '2');
-check('so dien thoai', web.locKhach(leads, '0901')[0]?.id === '1');
-check('tim co ca khach da won', web.locKhach(leads, 'da chot')[0]?.id === '3');
+check('rong: bo won/lost, moi truoc, cung ngay theo id', bang(web.locKhach(leads, '').map((l: any) => l.id), ['L201', 'L200', 'L100']), web.locKhach(leads, '').map((l: any) => l.id));
+check('khong dau', web.locKhach(leads, 'hoang')[0]?.id === 'L200');
+check('so dien thoai', web.locKhach(leads, '0901')[0]?.id === 'L100');
+check('tim co ca khach da won', web.locKhach(leads, 'da chot')[0]?.id === 'L300');
 check('limit', web.locKhach(leads, '', 1).length === 1);
 
 console.log('\n>> chuoiCopyTatCa / thoiLuong');
