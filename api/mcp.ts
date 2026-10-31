@@ -458,9 +458,9 @@ const ORIGIN_APP = 'https://huyentran.vercel.app';
 const MAX_SP_MOT_LAN = 10;
 
 /** Mức quan tâm của khách với một link. CHÉP Ở 2 NƠI: đây và web/link-gui.js — sửa một chỗ thì sửa cả hai. */
-export function nhanLink(s: { soLanMo?: number; tongGiay?: number; soLanTuongTac?: number } | null): 'quanTam' | 'xemQua' | 'chuaMo' {
+export function nhanLink(s: { soLanMo?: number } | null): 'quanTam' | 'xemQua' | 'chuaMo' {
   if (!s || !s.soLanMo) return 'chuaMo';
-  return (s.soLanTuongTac ?? 0) > 0 || s.soLanMo >= 2 || (s.tongGiay ?? 0) >= 60 ? 'quanTam' : 'xemQua';
+  return s.soLanMo >= 2 ? 'quanTam' : 'xemQua';
 }
 
 export const TOI_DA_TIN = 400;
@@ -972,7 +972,7 @@ function gioVN(ms: number): string {
 }
 
 /** 'YYYY-MM-DD' theo ngày Việt Nam — để lọc from/to. */
-function ngayVN(ms: number): string {
+export function ngayVN(ms: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
 }
 
@@ -1521,7 +1521,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Xem số liệu link sản phẩm đã gửi',
         description:
-          'Xem khách có mở link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Trả số lần mở, thời gian xem (giây), số lần tương tác (bấm sang Facebook hoặc bấm phát YouTube), lần xem gần nhất và nhãn quanTam / xemQua / chuaMo. Thời gian xem không gồm phần khách xem trên app Facebook, nên chỉ dùng để so sánh tương đối và không so trực tiếp giữa Facebook với YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
+          'Xem khách có bấm link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Trả số lần mở, lần mở gần nhất và nhãn quanTam (mở từ 2 lần) / xemQua (mở 1 lần) / chuaMo. Chỉ đếm được lượt bấm link, không biết khách xem bao lâu trên Facebook hay YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
         inputSchema: z.object({
           lead: z.string().optional().describe('leadId hoặc tên khách'),
           venueId: z.string().optional(),
@@ -1537,7 +1537,7 @@ const mcpHandler = createMcpHandler(
           .filter((d) => d && (!lead || d.leadId === lead.id) && (!args.venueId || d.venueId === args.venueId) && (!args.id || d.spId === args.id))
           .map((d) => ({
             khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
-            soLanGui: d.soLanGui, soLanMo: d.soLanMo, tongGiay: d.tongGiay, tuongTac: d.soLanTuongTac,
+            soLanGui: d.soLanGui, soLanMo: d.soLanMo,
             lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
           }))
           .sort((a, b) => thuTu[a.nhan] - thuTu[b.nhan] || String(b.lanCuoi).localeCompare(String(a.lanCuoi)));
@@ -3043,7 +3043,7 @@ type KetQuaLink =
   | { venueId: string; spId: string; loi: string };
 interface LinkGui {
   leadId: string; venueId: string; spId: string; tenSp: string; nenTang: string; linkNguon: string;
-  taoLuc: number; soLanGui: number; soLanMo: number; tongGiay: number; soLanTuongTac: number;
+  taoLuc: number; guiLuc: number; soLanGui: number; soLanMo: number;
   lanDau?: number; lanCuoi?: number;
 }
 
@@ -3066,7 +3066,7 @@ export function layYoutubeId(link: string): string | null {
 const laFacebook = (u: URL) => /(^|\.)(facebook\.com|fb\.com|fb\.watch)$/.test(u.hostname);
 
 /**
- * Nhận dạng nền tảng, đổi link share của Facebook về link bài gốc (link share không nhúng được) và lấy ảnh bìa.
+ * Nhận dạng nền tảng, đổi link share của Facebook về link bài gốc (để chuyển thẳng tới bài và lấy đúng ảnh) và lấy ảnh bìa.
  * Không bao giờ ném lỗi: Facebook chặn hoặc treo thì vẫn dùng link vào, thẻ Zalo chỉ thiếu ảnh.
  * shortcut: giả UA crawler của Facebook vì UA trình duyệt bị 400, Facebook đổi cách chặn thì mất ảnh và link share không nhúng được.
  */
@@ -3121,7 +3121,7 @@ export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ ven
     const cu = Object.entries(daCo).find(([, d]) => d?.leadId === leadId && d.venueId === venueId && d.spId === spId);
     const token = cu ? cu[0] : taoTokenXem();
     const patch: Record<string, unknown> = {};
-    if (cu) patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } };
+    if (cu) { patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } }; patch[`${ai}/linkGui/${token}/guiLuc`] = { '.sv': 'timestamp' }; }
     // Trân sửa link sản phẩm rồi gửi lại thì link đã gửi phải trỏ sang link mới
     const doiLink = !cu || cu[1].linkNguon !== link;
     // Lần trước Facebook lỗi tạm thời (chưa có ảnh): gửi lại là dịp thử chuẩn hoá lần nữa
@@ -3129,12 +3129,12 @@ export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ ven
     if (doiLink || thieuAnh) {
       const c = await chuanHoaLink(link, f);
       if (doiLink || c.anh || c.linkGoc !== link) {
-        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang, ytId: c.ytId };
+        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang };
       }
       if (cu && doiLink) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
       if (!cu) patch[`${ai}/linkGui/${token}`] = {
         leadId, venueId, spId, tenSp: sp.ten, nenTang: c.nenTang, linkNguon: link,
-        taoLuc: Date.now(), soLanGui: 1, soLanMo: 0, tongGiay: 0, soLanTuongTac: 0,
+        taoLuc: Date.now(), guiLuc: Date.now(), soLanGui: 1, soLanMo: 0,
       };
     }
     await patchPath('', patch);
@@ -3165,88 +3165,38 @@ async function xuLyLinkGui(request: Request): Promise<Response> {
   return traLoiJson({ ok: true, ketQua: await taoLinkGui(root, leadId, sach, new URL(request.url).origin) });
 }
 
-/** Sự kiện từ trang khách (không đăng nhập): chỉ nhận đúng dạng, `giay` 1..30 để không cộng thời gian khống quá nhanh. */
-export function kiemTraSuKien(b: any): { t: string; loai: 'mo' | 'giay' | 'tuongTac'; giay: number } | null {
-  if (!b || typeof b !== 'object' || typeof b.t !== 'string' || !TOKEN_XEM.test(b.t)) return null;
-  if (b.loai === 'mo' || b.loai === 'tuongTac') return { t: b.t, loai: b.loai, giay: 0 };
-  if (b.loai === 'giay' && Number.isInteger(b.giay) && b.giay >= 1 && b.giay <= 30) return { t: b.t, loai: 'giay', giay: b.giay };
-  return null;
+/** Sự kiện từ trang khách (không đăng nhập): chỉ nhận lượt mở đúng dạng. Trả token, sai dạng trả null. */
+export function kiemTraSuKien(b: any): string | null {
+  return b && typeof b === 'object' && b.loai === 'mo' && typeof b.t === 'string' && TOKEN_XEM.test(b.t) ? b.t : null;
 }
 
-/** JS chạy ở trang khách. `window.__xem` = { t, linkGoc, nenTang }. Lỗi đo đạc không được ảnh hưởng việc xem. */
+/**
+ * JS chạy ở trang khách. `window.__xem` = { t, linkGoc }.
+ * Đếm bằng JS chứ không đếm khi server nhận GET, vì bot tạo thẻ xem trước của Zalo cũng GET nhưng không chạy JS.
+ */
 export const JS_THEO_DOI = `(function(){
-  var c = window.__xem, nhip = 0, daPhat = false, moc = Date.now(), noiBo = false;
+  var c = window.__xem, noiBo = false;
   try { noiBo = localStorage.getItem('crmNoiBo') === '1'; } catch (e) {}
-  function gui(loai, giay){
-    if (noiBo) return;
-    try { navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify({ t: c.t, loai: loai, giay: giay })], { type: 'text/plain' })); } catch (e) {}
-  }
-  function guiPhanLe(){
-    var d = Math.round((Date.now() - moc) / 1000);
-    moc = Date.now();
-    if (d >= 1 && d <= 30 && nhip <= 120) gui('giay', d);
-  }
-  gui('mo');
-  if (c.nenTang === 'khac') { if (c.linkGoc) location.replace(c.linkGoc); return; }
-  var dem = setInterval(function(){
-    if (document.visibilityState !== 'visible') return;
-    if (++nhip > 120) { clearInterval(dem); return; }
-    guiPhanLe();
-  }, 15000);
-  document.addEventListener('visibilitychange', function(){
-    if (document.visibilityState === 'visible') moc = Date.now(); else guiPhanLe();
-  });
-  addEventListener('pagehide', guiPhanLe);
-  if (c.nenTang === 'facebook') {
-    // Plugin Facebook trên điện thoại cắt mất ảnh nếu rộng dưới 750px (đã đo 440, 500, 600): dựng 750px rồi thu nhỏ.
-    var f = document.getElementById('fbp');
-    function vuaManHinh(){
-      var tiLe = Math.min(window.innerWidth || 500, 500) / 750;
-      f.style.transform = 'scale(' + tiLe + ')';
-      f.parentNode.style.height = Math.round(1100 * tiLe) + 'px';
-    }
-    vuaManHinh();
-    addEventListener('resize', vuaManHinh);
-    f.src = f.dataset.src + '&width=750';
-    document.getElementById('phu').addEventListener('click', function(){ gui('tuongTac'); });
-  }
-  window.onYouTubeIframeAPIReady = function(){
-    new YT.Player('ytp', { host: 'https://www.youtube-nocookie.com', events: {
-      onStateChange: function(e){ if (e.data === 1 && !daPhat) { daPhat = true; gui('tuongTac'); } },
-      onError: function(){ location.replace(c.linkGoc); }
-    } });
-  };
+  try {
+    if (!noiBo) navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify({ t: c.t, loai: 'mo' })], { type: 'text/plain' }));
+  } catch (e) {}
+  if (c.linkGoc) location.replace(c.linkGoc);
 })();`;
 
 const THOAT_HTML: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 const escTrang = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (k) => THOAT_HTML[k]);
 
-/** HTML trang khách. Chỉ có nội dung nền tảng trên nền trắng, không tên khách hay dữ liệu lead nào. */
-export function veTrangXem(d: { token: string; tieuDe: string; anh: string; linkGoc: string; nenTang: string; ytId: string | null; origin: string }): string {
+/** Trang trung gian: giữ thẻ xem trước cho Zalo, đếm một lượt mở rồi chuyển thẳng tới link gốc. Không có dữ liệu lead nào. */
+export function veTrangXem(d: { token: string; tieuDe: string; anh: string; linkGoc: string }): string {
   const link = /^https?:\/\//i.test(d.linkGoc) ? d.linkGoc : '';
-  let than = '', sau = '';
-  if (d.nenTang === 'facebook') {
-    const src = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(link)}&show_text=false`;
-    than = `<div class="khung"><iframe id="fbp" data-src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" scrolling="no"></iframe>` +
-      `<a id="phu" href="${escTrang(link)}" rel="noreferrer" aria-label="Xem bài viết trên Facebook"></a></div>`;
-  } else if (d.nenTang === 'youtube') {
-    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(d.ytId || '')}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(d.origin)}`;
-    const tiLe = link.includes('/shorts/') ? '9 / 16' : '16 / 9';
-    than = `<div class="yt" style="aspect-ratio:${tiLe}"><iframe id="ytp" src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" ` +
-      `allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
-    sau = '<script src="https://www.youtube.com/iframe_api"></script>';
-  }
-  const cauHinh = JSON.stringify({ t: d.token, linkGoc: link, nenTang: d.nenTang }).replace(/[<>&\u2028\u2029]/g, (k) => `\\u${k.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  const cauHinh = JSON.stringify({ t: d.token, linkGoc: link }).replace(/[<>&\u2028\u2029]/g, (k) => `\\u${k.charCodeAt(0).toString(16).padStart(4, '0')}`);
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex"><meta name="referrer" content="strict-origin">
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
 <title>${escTrang(d.tieuDe)}</title>
 <meta property="og:title" content="${escTrang(d.tieuDe)}"><meta property="og:type" content="website">${d.anh ? `
 <meta property="og:image" content="${escTrang(d.anh)}">` : ''}
-<style>html,body{margin:0;background:#fff}.khung{position:relative;max-width:500px;margin:0 auto;overflow:hidden}
-.khung iframe{display:block;width:750px;height:1100px;border:0;transform-origin:0 0}#phu{position:absolute;inset:0}
-.yt{max-width:900px;max-height:100vh;margin:0 auto}.yt iframe{display:block;width:100%;height:100%;border:0}</style>
-</head><body>${than}<script>window.__xem=${cauHinh}</script><script>${JS_THEO_DOI}</script>${sau}</body></html>`;
+</head><body style="margin:0;background:#fff">${link ? `<noscript><a href="${escTrang(link)}">${escTrang(d.tieuDe)}</a></noscript>` : ''}<script>window.__xem=${cauHinh}</script><script>${JS_THEO_DOI}</script></body></html>`;
 }
 
 function traLoiHtml(html: string, status = 200): Response {
@@ -3260,26 +3210,25 @@ async function xuLyXem(url: URL): Promise<Response> {
   const t = url.searchParams.get('t') || '';
   const d = TOKEN_XEM.test(t) ? await readPath<any>(`linkXem/${t}`) : null;
   if (!d) return trangThongBao('Link không còn hiệu lực', 404);
-  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc, nenTang: d.nenTang, ytId: d.ytId ?? null, origin: url.origin }));
+  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc }));
 }
 
 async function xuLyXemSuKien(request: Request): Promise<Response> {
   if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
-  const sk = kiemTraSuKien(await request.json().catch(() => null));
-  if (!sk) return traLoiJson({ loi: 'Sự kiện không hợp lệ.' }, 400);
-  const ai = await readPath<string | null>(`linkXem/${sk.t}/aiRoot`);
+  const t = kiemTraSuKien(await request.json().catch(() => null));
+  if (!t) return traLoiJson({ loi: 'Sự kiện không hợp lệ.' }, 400);
+  const ai = await readPath<string | null>(`linkXem/${t}/aiRoot`);
   if (!ai) return traLoiJson({ loi: 'Không tìm thấy link.' }, 404);
 
-  const duongDan = `${ai}/linkGui/${sk.t}`;
-  const tang = (n: number) => ({ '.sv': { increment: n } });
-  const patch: Record<string, unknown> = { lanCuoi: { '.sv': 'timestamp' } };
-  if (sk.loai === 'giay') patch.tongGiay = tang(sk.giay);
-  if (sk.loai === 'tuongTac') patch.soLanTuongTac = tang(1);
-  if (sk.loai === 'mo') {
-    patch.soLanMo = tang(1);
-    if (!(await readPath(`${duongDan}/lanDau`))) patch.lanDau = { '.sv': 'timestamp' };
-  }
-  await patchPath(duongDan, patch);
+  const banGhi = `${ai}/linkGui/${t}`;
+  const tangMot = { '.sv': { increment: 1 } }, bayGio = { '.sv': 'timestamp' };
+  const patch: Record<string, unknown> = {
+    [`${banGhi}/soLanMo`]: tangMot,
+    [`${banGhi}/lanCuoi`]: bayGio,
+    [`${ai}/linkGuiNgay/${ngayVN(Date.now())}/mo`]: tangMot,
+  };
+  if (!(await readPath(`${banGhi}/lanDau`))) patch[`${banGhi}/lanDau`] = bayGio;
+  await patchPath('', patch);
   return new Response(null, { status: 204 });
 }
 

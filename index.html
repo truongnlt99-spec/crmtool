@@ -885,6 +885,31 @@
   .lg-link:last-child{border-bottom:0;}
   .lg-link-giua .lg-url{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .lg-link-giua .lg-loi{color:var(--red);}
+  #lgToast{position:fixed; left:50%; bottom:calc(24px + env(safe-area-inset-bottom)); z-index:90; max-width:min(440px, calc(100vw - 32px)); padding:10px 16px; border-radius:12px; background:var(--ink); color:#fff; font-size:13.5px; box-shadow:var(--sh-md); transform:translate(-50%, 8px); opacity:0; pointer-events:none; transition:opacity .15s ease, transform .15s ease;}
+  #lgToast.show{opacity:1; transform:translate(-50%, 0);}
+  .lg-tk{display:grid; gap:14px; padding:14px;}
+  .lg-o-luoi{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;}
+  .lg-o, .lg-the{min-width:0; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--surface);}
+  .lg-o{display:flex; flex-direction:column; gap:2px;}
+  .lg-o span{font-size:12.5px; color:var(--text-2);}
+  .lg-o b{font-size:26px; font-weight:700; color:var(--text); font-variant-numeric:tabular-nums;}
+  .lg-o small{font-size:12px; color:var(--text-3);}
+  .lg-the-dau{display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:8px;}
+  .lg-the-dau h3{margin:0; font-size:14px; font-weight:600; color:var(--text);}
+  .lg-the-dau span{font-size:12.5px; color:var(--text-3); font-variant-numeric:tabular-nums;}
+  .lg-bieu-do{display:flex; align-items:flex-end; gap:4px; height:140px; margin-top:22px; border-bottom:1px solid var(--border);}
+  .lg-cot{position:relative; flex:1; min-width:0; height:100%; display:flex; align-items:flex-end; justify-content:center; border-radius:4px;}
+  .lg-cot span{display:block; width:100%; max-width:22px; height:var(--h); background:var(--primary); border-radius:4px 4px 0 0;}
+  .lg-cot b{position:absolute; bottom:calc(var(--h) + 2px); font-size:11.5px; font-weight:600; color:var(--text-2); font-variant-numeric:tabular-nums;}
+  .lg-cot::after{content:attr(data-tip); position:absolute; bottom:100%; left:50%; z-index:5; transform:translateX(-50%); padding:4px 8px; border-radius:6px; background:var(--ink); color:#fff; font-size:12px; white-space:nowrap; opacity:0; pointer-events:none;}
+  .lg-cot:hover::after, .lg-cot:focus-visible::after{opacity:1;}
+  .lg-cot:first-child::after{left:0; transform:none;}
+  .lg-cot:last-child::after{left:auto; right:0; transform:none;}
+  .lg-cot:focus-visible{outline:2px solid var(--primary); outline-offset:1px;}
+  .lg-truc{display:flex; justify-content:space-between; margin-top:6px; font-size:12px; color:var(--text-3);}
+  .lg-tk-hai{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px;}
+  .lg-tk-hai table.bang.vn-bang td.vn-c-ten{min-width:0;}
+  .lg-khi{flex:none; font-size:12.5px; color:var(--text-3); font-variant-numeric:tabular-nums;}
   .lg-nhan{flex:none; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; background:var(--gray-tag-soft); color:var(--gray-tag);}
   .lg-nhan.quanTam{background:var(--red-soft); color:var(--red);}
   .lg-nhan.xemQua{background:var(--amber-soft); color:var(--amber);}
@@ -3697,11 +3722,15 @@ function renderVenue(){
   const dangGo = document.activeElement && document.activeElement.id === 'vnTim';
 
   const tab = (ma, ten, so) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}<b>${so}</b></button>`;
-  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm', tongSp)}${tab('venue', 'Venue', ds.length)}</div>`;
+  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm', tongSp)}${tab('venue', 'Venue', ds.length)}${tab('thongke', 'Thống kê', '')}</div>`;
   const tim = `<input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="${venueTab === 'sp' ? 'Tìm tên, giá, venue…' : 'Tìm venue…'}" aria-label="Tìm" oninput="venueTim=this.value; renderVenue()">`;
 
   let toolbar, than;
-  if (venueTab === 'sp'){
+  if (venueTab === 'thongke'){
+    toolbar = `<div class="vn-hang">${tabs}</div>`;
+    const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
+    than = LinkGui.veThongKe({ linkGui: linkGuiData, linkGuiNgay, homNay: todayISO(), tenKhach, chiXem });
+  } else if (venueTab === 'sp'){
     const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone ? [venueTone] : [], venueId: venueDangChon || null });
     toolbar = `<div class="vn-hang">${tabs}<span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`}</div>
       <div class="vn-hang">` + tim +
@@ -3713,7 +3742,7 @@ function renderVenue(){
     if (kq.length){
       const thongKe = window.LinkGui ? LinkGui.thongKeSanPham(linkGuiData) : {};
       const dong = x => { const k = `${x.venue.id}/${x.sp.id}`; return V.veDongSanPham(x.venue, x.sp, tones, { chiXem, chon: venueChon.has(k), thongKe: thongKe[k] }); };
-      than = `<table class="bang vn-bang"><thead><tr>${chiXem ? '' : '<th class="vn-c-chon"><span class="sr-only">Chọn</span></th>'}<th>Sản phẩm</th><th>Venue</th><th>Tone</th><th>Giá / gói</th><th>Ngày thêm</th><th class="so">Đã gửi</th><th class="so">Khách mở</th><th class="so">Tương tác</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
+      than = `<table class="bang vn-bang"><thead><tr>${chiXem ? '' : '<th class="vn-c-chon"><span class="sr-only">Chọn</span></th>'}<th>Sản phẩm</th><th>Venue</th><th>Tone</th><th>Giá / gói</th><th>Ngày thêm</th><th class="so">Đã gửi</th><th class="so">Khách mở</th><th class="so">Lượt click</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
         <tbody>${kq.map(dong).join('')}</tbody></table><div id="vnThanhChon"></div>`;
     } else if (!tongSp){
       than = `<div class="bang-trong">${ds.length ? 'Chưa có sản phẩm nào.' : 'Chưa có venue và sản phẩm nào.'}
@@ -3773,8 +3802,8 @@ function copyChuoi(chuoi, btn){
 function copyLinkSanPham(btn){ copyChuoi(btn.dataset.link, btn); }
 
 // Link theo dõi gửi khách. Logic thuần ở web/link-gui.js (window.LinkGui). Số liệu ở <kho AI>/linkGui do server ghi,
-// app chỉ đọc; nghe riêng để nhịp đếm giờ xem của khách không đụng luồng đồng bộ CRM.
-let linkGuiData = {};
+// app chỉ đọc; nghe riêng để lượt click của khách không đụng luồng đồng bộ CRM.
+let linkGuiData = {}, linkGuiNgay = {};
 const venueChon = new Set();  // 'venueId/spId' đang tick trong bảng Sản phẩm
 let guiDangMo = null;         // { spKeys, lead, items } của hộp tạo link đang mở
 
@@ -3788,6 +3817,10 @@ function initLinkGui(){
     const khoi = document.getElementById('lgKhoiDaGui');
     if (khoi) khoi.innerHTML = LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, khoi.dataset.lead));
   }, e => { console.warn('Không đọc được số liệu link:', e); linkGuiData = {}; });
+  f.onValue(f.refAt(f.aiBase() + '/linkGuiNgay'), s => {
+    linkGuiNgay = s.val() || {};
+    if (venueTab === 'thongke' && !uiIsBusy()) renderVenue();
+  }, e => { console.warn('Không đọc được lượt click theo ngày:', e); linkGuiNgay = {}; });
 }
 
 function chonSanPham(o){
@@ -3849,13 +3882,16 @@ function chonMauGui(o){
   document.getElementById('lgNutTaoLink').disabled = !g.spKeys.length;
 }
 function veDsKhach(){
-  const q = document.getElementById('lgTim').value, { spKeys } = guiDangMo;
+  const q = document.getElementById('lgTim').value, { spKeys } = guiDangMo, dangTim = !!q.trim();
   const tenGiaiDoan = id => (STAGES.find(s => s.id === id) || {}).name || '';
-  const ds = LinkGui.locKhach(leads, q);
-  document.getElementById('lgDsKhach').innerHTML = ds.length
-    ? (q.trim() ? '' : '<div class="lg-nhom">Khách mới nhất</div>') +
-      ds.map(l => LinkGui.veDongKhach(l, LinkGui.daGuiChoLead(linkGuiData, l.id, spKeys), spKeys.length, tenGiaiDoan(l.stage))).join('')
-    : `<p class="lg-trong">${q.trim() ? `Không tìm thấy khách "${esc(q)}". Khách phải có trong CRM thì mới tạo được link theo dõi.` : 'Chưa có khách nào đang chăm.'}</p>`;
+  const dong = l => LinkGui.veDongKhach(l, LinkGui.daGuiChoLead(linkGuiData, l.id, spKeys), spKeys.length, tenGiaiDoan(l.stage));
+  const nhom = (ten, ds) => (ds.length ? `<div class="lg-nhom">${ten}</div>${ds.map(dong).join('')}` : '');
+  // Khách vừa gửi lên đầu: Trân hay gửi tiếp cho đúng khách đó, Enter là chọn luôn.
+  const vuaGui = dangTim ? [] : LinkGui.khachVuaGui(linkGuiData).map(id => leads.find(l => l.id === id)).filter(Boolean);
+  const conLai = LinkGui.locKhach(leads, q).filter(l => !vuaGui.includes(l));
+  document.getElementById('lgDsKhach').innerHTML = vuaGui.length || conLai.length
+    ? nhom('Vừa gửi', vuaGui) + (dangTim ? conLai.map(dong).join('') : nhom('Khách mới nhất', conLai))
+    : `<p class="lg-trong">${dangTim ? `Không tìm thấy khách "${esc(q)}". Khách phải có trong CRM thì mới tạo được link theo dõi.` : 'Chưa có khách nào đang chăm.'}</p>`;
 }
 function chonKhachGui(id){
   const lead = leads.find(l => l.id === id);
@@ -3868,10 +3904,36 @@ function taoLinkChoKhach(lead){
     const [venueId, spId] = k.split('/'), sp = venues[venueId] && venues[venueId].sanPham && venues[venueId].sanPham[spId];
     return { venueId, spId, tenSp: sp ? sp.ten : '(sản phẩm đã xoá)', dangTao: true };
   });
-  venueChon.clear();
-  renderVenue();
+  if (g.spKeys.length === venueChon.size && g.spKeys.every(k => venueChon.has(k))) venueChon.clear();
   veKetQuaLink();
-  goiTaoLink(g.items);
+  // Clipboard phải được xin ngay trong lúc bấm, nên đưa Promise vào ClipboardItem thay vì đợi có link rồi mới copy.
+  // Lỗi hoặc trình duyệt không cho copy thì giữ hộp kết quả để Trân copy tay.
+  const noiDung = goiTaoLink(g.items).then(() => {
+    if (!g.items.every(i => i.url)) throw new Error('Có mẫu chưa tạo được link');
+    return new Blob([LinkGui.chuoiCopyTatCa(g.items)], { type: 'text/plain' });
+  });
+  noiDung.catch(() => {});
+  let copy;
+  try { copy = navigator.clipboard.write([new ClipboardItem({ 'text/plain': noiDung })]); } catch(e){ copy = Promise.reject(e); }
+  copy.then(() => {
+    if (guiDangMo !== g) return;
+    dongVenueModal();
+    const [dau] = g.items, cu = g.items.length === 1 && dau.daCo && dau.soLanMo ? ` Khách đã mở ${dau.soLanMo} lần.` : '';
+    hienThongBaoLink(`Đã copy ${g.items.length > 1 ? `${g.items.length} link` : 'link'} cho ${lead.name}, dán vào Zalo là xong.${cu}`);
+  }, () => {});
+}
+function hienThongBaoLink(chu){
+  let o = document.getElementById('lgToast');
+  if (!o){
+    o = document.createElement('div');
+    o.id = 'lgToast';
+    o.setAttribute('role', 'status');
+    document.body.append(o);
+  }
+  o.textContent = chu;
+  o.classList.add('show');
+  clearTimeout(o.hen);
+  o.hen = setTimeout(() => o.classList.remove('show'), 4000);
 }
 async function goiTaoLink(items){
   const g = guiDangMo;
@@ -3903,7 +3965,13 @@ function moVenueModal(tieuDe, phu, body, footer){
   document.getElementById('venueModalFooter').innerHTML = footer;
   document.getElementById('venueOverlay').classList.add('show');
 }
-function dongVenueModal(){ document.getElementById('venueOverlay').classList.remove('show', 'lg-sheet'); venueGoiYDangMo = null; guiDangMo = null; }
+function dongVenueModal(){
+  const vuaGui = !!guiDangMo;
+  document.getElementById('venueOverlay').classList.remove('show', 'lg-sheet');
+  venueGoiYDangMo = null;
+  guiDangMo = null;
+  if (vuaGui) renderVenue();   // số liệu bị hoãn vẽ trong lúc hộp đang mở
+}
 
 async function taoVenue(ten){
   const V = window.Venue;
