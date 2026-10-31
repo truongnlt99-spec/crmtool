@@ -454,6 +454,12 @@ function aiRoot(): string {
   return aiRootFromDataRoot(dataRoot());
 }
 
+/** Mức quan tâm của khách với một link. CHÉP Ở 2 NƠI: đây và web/link-gui.js — sửa một chỗ thì sửa cả hai. */
+export function nhanLink(s: { soLanMo?: number; tongGiay?: number; soLanTuongTac?: number } | null): 'quanTam' | 'xemQua' | 'chuaMo' {
+  if (!s || !s.soLanMo) return 'chuaMo';
+  return (s.soLanTuongTac ?? 0) > 0 || s.soLanMo >= 2 || (s.tongGiay ?? 0) >= 60 ? 'quanTam' : 'xemQua';
+}
+
 export const TOI_DA_TIN = 400;
 /** Tin thiếu nội dung cũ hơn mốc này coi như không bao giờ có chữ (chỉ đọc trên điện thoại). */
 export const KET_TIN_THIEU_MS = 3 * 24 * 3600_000;

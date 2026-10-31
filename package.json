@@ -34,6 +34,9 @@
     "test:bao-gia": "node test/bao-gia.test.ts",
     "test:mcp-bao-gia": "node test/mcp-bao-gia.test.ts",
     "test:bao-gia-ui": "node test/zalo-dom.test.ts test/bao-gia.test.html",
+    "test:link-gui": "node test/link-gui.test.ts",
+    "test:mcp-link-gui": "node test/mcp-link-gui.test.ts",
+    "test:link-gui-ui": "node test/zalo-dom.test.ts test/link-gui-ui.test.html",
     "test:crm-chat": "node test/zalo-dom.test.ts test/crm-bong-bong.test.html",
     "dong-goi": "node scripts/dong-goi-extension.mjs"
   },

@@ -183,6 +183,8 @@
   // Màn "Venue" (venue + sản phẩm theo tone) — test ở test/venue.test.ts và test/venue-ui.test.html. Nạp lỗi thì chỉ mất màn này.
   import * as Venue from './web/venue.js';
   window.Venue = Venue;
+  import * as LinkGui from './web/link-gui.js';
+  window.LinkGui = LinkGui;
   if (window.renderVenue) window.renderVenue();
 </script>
 <script>
