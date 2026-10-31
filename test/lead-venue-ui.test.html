@@ -10,6 +10,7 @@
 <script type="module">
 import * as Venue from '../web/venue.js';
 import * as LinkGui from '../web/link-gui.js';
+import * as BangLead from '../web/bang-lead.js';
 
 const ket = [];
 const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
@@ -27,7 +28,7 @@ for (const m of src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
 document.body.insertAdjacentHTML('beforeend', `<section class="view active" id="viewVenue">${giua('<div class="bang-wrap">\n        <div class="bang-toolbar" id="vnToolbar">', '</section>').replace('</section>', '')}</section>
   <div class="overlay" id="overlay"></div>${giua('<aside class="drawer" id="drawer">', '</aside>')}<div id="viewDashboard"></div><datalist id="dsVenueTen"></datalist>`);
 
-Object.assign(window, { Venue, LinkGui, __chiXem: false, __ghi: 0 });
+Object.assign(window, { Venue, LinkGui, BangLead, __chiXem: false, __ghi: 0 });
 const XSS = '<img src=x onerror="window.__bi=1">';
 const nap = document.createElement('script');
 nap.textContent = [
@@ -37,7 +38,7 @@ nap.textContent = [
   giua('const PIPELINE_SEQUENCE = [', '\n'),
   giua('const COT_THONG_TIN =', '\n'), giua('[COT_THONG_TIN, COT_HOI_THOAI]', '\n'),
   `let currentLeadId = null, editingNoteId = null, tabChiTiet = 'viec', linkGuiData = {}, linkGuiNgay = {};
-   let venues = {}, toneMau = {}, venueTab = 'sp', venueDangChon = '', venueTim = '', venueTone = '';
+   ${giua("let venueTab = ", '\n')}${giua('let venueLocMo = ', '\n')}let venues = {}, toneMau = {}, venueDangChon = '', venueTim = '', venueTone = '';
    const venueChon = new Set();
    let leads = [];
    window.napDuLieu = (l, v) => { leads = l; venues = v; };
@@ -47,11 +48,12 @@ nap.textContent = [
    const moHoSo = () => {}, zaloChipHtml = () => '', khoCoNhom = n => !window.__anNhom || window.__anNhom !== n;
    const closeZaloChat = () => {}, dongHoSo = () => {};`,
   ...['todayISO', 'congNgayISO', 'formatDate', 'daysDiff', 'esc', 'linkify', 'formatMoney', 'moneyDisplay',
-    'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
+    'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veDsLocVenue', 'moLocVenue', 'dongLocVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
     'openLead', 'veChipDauChiTiet', 'chonTabChiTiet', 'datHanNhanh', 'toggleKhoiChiTiet', 'renderDrawerTodos', 'khoaONhapChiXem',
     'autoGrowTextarea', 'initAutoGrowTextareas', 'onFieldChange', 'renderNotesStream', 'closeDrawer'].map(ham),
   ...['leadTypeOf', 'tenVenueTheoId', 'doiTabVenue', 'xemSanPhamCuaVenue', 'boLocVenue', 'chonToneChip'].map(hamMotDong),
-  ...['openLead', 'closeDrawer', 'renderVenue', 'chonTabChiTiet', 'datHanNhanh', 'xemSanPhamCuaVenue', 'chonToneChip', 'doiTabVenue', 'onFieldChange']
+  giua("document.addEventListener('click', e => { if (venueLocMo", '\n'),
+  ...['openLead', 'closeDrawer', 'renderVenue', 'moLocVenue', 'chonTabChiTiet', 'datHanNhanh', 'xemSanPhamCuaVenue', 'chonToneChip', 'doiTabVenue', 'onFieldChange']
     .map(t => `window.${t} = ${t};`),
 ].join('\n');
 document.head.append(nap);
@@ -120,25 +122,42 @@ closeDrawer();
 
 /* 6. Venue */
 renderVenue();
-check('khong con tab Venue', $$('.vn-tab').map(b => b.textContent).join() === 'Sản phẩm,Thống kê');
-check('danh sach venue day du', $$('.vn-rail-muc').length === 4 && $$('.vn-rail-muc')[0].textContent.includes('3'), $('#vnRail').innerText);
-check('so lead du kien', /1 lead dự kiến/.test($('#vnRail').textContent));
+check('mo man la tab Thong ke, dung truoc tab San pham', trangThai().venueTab === 'thongke' && $$('.vn-tab').map(b => b.textContent).join() === 'Thống kê,Sản phẩm');
+doiTabVenue('sp');
 check('chua chon venue: thay ca 3 san pham', $$('.vn-sp tbody tr').length === 3 && !$('.vn-dau'));
-$$('.vn-rail-muc')[1].click();
-check('chon venue: loc + tieu de + an cot venue', $$('.vn-sp tbody tr').length === 2 && /Gem Center/.test($('.vn-dau').textContent) && !hien($('.vn-sp td.vn-c-venue')) && /moDoiTenVenue/.test($('.vn-dau').innerHTML));
-$$('.vn-chip')[1].click();
+check('hop loc dong san', $('#vnLocNut').getAttribute('aria-expanded') === 'false' && !$('.vn-loc-pop'));
+$('#vnLocNut').click();
+check('mo hop: focus o tim', document.activeElement.id === 'vnLocTim');
+const tenMuc = () => $$('.vn-loc-muc span').map(x => x.textContent);
+check('venue nhieu san pham len truoc, venue trong xuong cuoi', tenMuc()[1] === 'Gem Center' && tenMuc().at(-1) === 'Venue trống' && /Chưa có sản phẩm/.test($('#vnLocDs').textContent), tenMuc());
+check('hop loc khong hien so lead', !/lead dự kiến/.test($('#vnLocDs').textContent));
+const oTim = $('#vnLocTim'); oTim.value = 'REX'; oTim.dispatchEvent(new Event('input'));
+check('tim venue khong phan biet hoa thuong', tenMuc().length === 1 && /^Rex/.test(tenMuc()[0]), tenMuc());
+oTim.value = 'khong co'; oTim.dispatchEvent(new Event('input'));
+check('khong khop co thong bao', /Không có venue khớp/.test($('#vnLocDs').textContent));
+document.body.click();
+check('bam ra ngoai dong hop', !$('.vn-loc-pop'));
+$('#vnLocNut').click();
+$('#vnLocTim').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+check('Esc dong hop va tra focus', !$('.vn-loc-pop') && document.activeElement.id === 'vnLocNut');
+$('#vnLocNut').click();
+$('.vn-loc-muc[data-vn="vn_1"]').click();
+check('chon venue: loc + tieu de + an cot venue', !$('.vn-loc-pop') && $$('.vn-sp tbody tr').length === 2 && /Gem Center/.test($('#vnLocNut').textContent) && /1 lead dự kiến/.test($('.vn-dau').textContent) && !hien($('.vn-sp td.vn-c-venue')) && /moDoiTenVenue/.test($('.vn-dau').innerHTML));
+$$('.vn-chips .vn-chip')[1].click();
 const tone1 = trangThai().venueTone;
-check('chip tone loc mot lan bam', tone1 && $$('.vn-chip.on').length === 1);
+check('chip tone loc mot lan bam', tone1 && $$('.vn-chips .vn-chip.on').length === 1);
 $(`.vn-chip[data-tone="${tone1}"]`).click();
 check('bam lai chip bo loc', trangThai().venueTone === '');
 xemSanPhamCuaVenue('vn_3');
 check('venue trong co thong bao', /chưa có sản phẩm/.test($('#vnBang').textContent) && $('.vn-dau'));
 xemSanPhamCuaVenue('');
 doiTabVenue('thongke');
-check('tab Thong ke khong co danh sach venue', !hien($('#vnRail')));
+check('tab Thong ke khong co bo loc venue', !$('.vn-loc'));
 doiTabVenue('sp');
 window.__chiXem = true; renderVenue();
-check('chi xem: khong them/doi ten', !$('.vn-rail-cuoi') && !$('.vn-chip.them') && !/moThemSanPham/.test($('#vnToolbar').innerHTML));
+moLocVenue();
+check('chi xem: khong them/doi ten', !$('.vn-loc-cuoi') && !$('.vn-chip.them') && !/moThemSanPham/.test($('#vnToolbar').innerHTML));
+moLocVenue();
 window.__chiXem = false; renderVenue();
 
 /* 7. Chống XSS */
