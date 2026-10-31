@@ -841,7 +841,6 @@
   .vn-tab:focus-visible, .vn-lk:focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
   .bang-toolbar .vn-tim{flex:0 1 300px; min-width:160px; min-height:36px; padding:6px 10px;}
   .bang-toolbar select.field-input{min-height:36px; padding:6px 28px 6px 10px; width:auto; max-width:220px;}
-  .bang-toolbar .vn-loc-venue{flex:0 1 220px; min-width:150px; min-height:36px; padding:6px 10px;}
   .vn-dem{font-size:13px; color:var(--text-3); font-variant-numeric:tabular-nums;}
   .vn-cach{flex:1;}
   table.bang.vn-bang{width:100%; table-layout:auto;}
@@ -867,6 +866,38 @@
   .vn-tone-chon{display:flex; gap:6px; flex-wrap:wrap;}
   .vn-chip{display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px 4px 9px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer;}
   .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
+  .vn-chip:focus-visible{outline:2px solid var(--primary); outline-offset:1px;}
+  .vn-chip.them{border-style:dashed; padding-left:12px; color:var(--text-3);}
+  .vn-chips{display:flex; flex-wrap:wrap; gap:6px;}
+
+  /* Danh sách venue bên trái thay cho tab Venue; tab Thống kê không có danh sách */
+  .vn-khung{flex:1; min-height:0; display:grid; grid-template-columns:232px minmax(0,1fr); gap:12px;}
+  .vn-khung:has(.vn-rail:empty){grid-template-columns:minmax(0,1fr);}
+  .vn-rail{display:flex; flex-direction:column; gap:2px; min-height:0; overflow-y:auto;}
+  .vn-rail:empty{display:none;}
+  .vn-rail-muc{
+    flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-height:44px; padding:7px 10px;
+    border:0; border-radius:var(--r-md); background:none; font:inherit; font-size:14px; text-align:left; color:var(--text-2); cursor:pointer;
+  }
+  .vn-rail-muc:hover{background:var(--well); color:var(--text);}
+  .vn-rail-muc:focus-visible{outline:2px solid var(--primary); outline-offset:-2px;}
+  .vn-rail-muc.on{background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
+  .vn-rail-muc b{font-weight:500; font-size:13px; font-variant-numeric:tabular-nums;}
+  .vn-rail-ten{min-width:0; overflow-wrap:anywhere;}
+  .vn-rail-ten small{display:block; font-size:12px; font-weight:400; color:var(--text-3);}
+  .vn-rail-cuoi{margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:6px;}
+  .vn-rail-cuoi .btn{justify-content:center; padding:8px 10px;}
+  .vn-dau{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:10px 14px; border-bottom:1px solid var(--border);}
+  .vn-dau h2{margin:0; font:600 17px/1.25 var(--font-head); color:var(--text);}
+  .vn-sp.mot-venue .vn-c-venue{display:none;}
+  .vn-bang .vn-lk.chinh{margin-left:0; padding:4px 10px; border-radius:8px; background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
+  .vn-bang .vn-lk.chinh:hover{text-decoration:none; background:var(--primary); color:var(--on-fill);}
+  .vn-bang td.vn-c-thao{white-space:nowrap;}
+  @media (hover:hover){
+    .vn-sp .vn-lk.phu{opacity:0;}
+    .vn-sp tr:hover .vn-lk.phu, .vn-sp tr:focus-within .vn-lk.phu{opacity:1;}
+  }
+  @media (max-width:1180px){ .vn-c-ngay{display:none;} }
   .vn-bang .vn-c-chon{width:1%; padding-right:0;}
   .vn-chon{width:18px; height:18px; accent-color:var(--primary); cursor:pointer; vertical-align:middle;}
   .vn-bang tr:has(.vn-chon:checked) td{background:var(--primary-soft);}
@@ -916,13 +947,38 @@
   .lg-link .btn.xong, .lg-link .btn-ghost.xong{background:var(--primary-soft); color:var(--primary-ink);}
   @media (max-width:760px){
     .bang-toolbar .vn-tim{max-width:none; flex-basis:100%;}
-    .bang-toolbar select.field-input, .bang-toolbar .vn-loc-venue{flex:1; max-width:none;}
     .vn-lk{padding:8px 6px;}
     #venueOverlay.lg-sheet{align-items:flex-end; padding:0;}
     #venueOverlay.lg-sheet .modal{width:100%; max-width:none; max-height:85vh; border-radius:18px 18px 0 0;}
     #venueOverlay.lg-sheet .btn{min-height:44px;}
     .lg-thanh{flex-wrap:wrap;}
     .vn-bang td.vn-c-ten{min-width:160px;}
+
+    /* Điện thoại: danh sách venue cuộn ngang, sản phẩm thành thẻ */
+    .vn-khung{grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); gap:8px;}
+    .vn-khung:has(.vn-rail:empty){grid-template-rows:minmax(0,1fr);}
+    .vn-rail{flex-direction:row; overflow:auto hidden; gap:6px; scrollbar-width:none;}
+    .vn-rail-muc{width:auto; max-width:220px; border:1px solid var(--border); background:var(--surface);}
+    .vn-rail-ten small{display:none;}
+    .vn-rail-cuoi{flex-direction:row; flex:none; margin:0; padding:0;}
+    .vn-rail-cuoi .btn{white-space:nowrap;}
+    .vn-chips{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;}
+    .vn-chip{flex:none; min-height:40px;}
+    table.bang.vn-sp, .vn-sp tbody{display:block;}
+    .vn-sp thead, .vn-sp .vn-c-ngay{display:none;}
+    .vn-sp tr{display:grid; grid-template-columns:28px repeat(3, minmax(0,1fr)); gap:5px 8px; padding:12px; border-bottom:1px solid var(--border);}
+    table.bang.vn-sp td, .vn-bang.vn-sp td.vn-c-ten, .vn-bang.vn-sp td.vn-c-thao{
+      display:block; grid-column:2 / -1; width:auto; min-width:0; max-width:none; height:auto; padding:0; border:0; background:none;
+      white-space:normal; overflow:visible; text-align:left; font-size:14px;
+    }
+    table.bang.vn-sp td.vn-c-chon{grid-column:1; grid-row:1; padding:0;}
+    table.bang.vn-sp td.vn-c-thao{margin-top:4px;}
+    table.bang.vn-sp td.so{grid-column:auto; font-size:13px; color:var(--text-2); white-space:nowrap;}
+    table.bang.vn-sp td.so[data-nhan="Đã gửi"]{grid-column:2;}
+    table.bang.vn-sp td.so::before{content:attr(data-nhan) ": ";}
+    table.bang.vn-sp.mot-venue td.vn-c-venue, table.bang.vn-sp td.vn-c-ngay{display:none;}
+    .vn-sp tr{grid-template-columns:28px repeat(3, auto); justify-content:start;}
+    .vn-sp .vn-lk{margin-left:0; margin-right:6px;}
   }
   .bang-wrap{display:flex; flex-direction:column; min-height:0; flex:1; padding:14px 22px 18px; gap:10px;}
   .bang-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
@@ -1219,16 +1275,6 @@
   input,select,textarea{border-radius:12px;}
   .chip,.tag,.pill,.badge{border-radius:999px;}
 
-  /* ===== Cột hội thoại Zalo luôn hiện bên phải chi tiết lead ===== */
-  .detail-grid{grid-template-columns:1.42fr 1fr 1.05fr; max-width:1400px; align-items:start;}
-  .detail-col-zalo{position:sticky; top:0;}
-  .detail-col-zalo .block-zalo{margin-bottom:0; max-height:calc(100vh - 200px); display:flex; flex-direction:column; overflow:hidden;}
-  .detail-col-zalo .block-zalo > *:last-child{min-height:0; overflow-y:auto;}
-  @media (max-width:1180px){
-    .detail-grid{grid-template-columns:1.4fr 1fr;}
-    .detail-col-zalo{grid-column:1 / -1; position:static;}
-    .detail-col-zalo .block-zalo{max-height:none;}
-  }
 
   /* ===== Màn đăng nhập: ảnh tulip thật, tự luân phiên ===== */
   .lock-bg-deco{display:none;}
@@ -1500,18 +1546,43 @@
   .btn-lost-action:hover{background:var(--well); border-color:var(--border-strong);}
   .btn-danger{background:var(--surface); color:var(--danger-ink); border:1px solid var(--danger-border);}
   .btn-danger:hover{background:var(--danger-soft);}
-  .drawer-body{padding:18px 22px 40px;}
+  .drawer-body{padding:14px 22px 16px; overflow:hidden;}
 
-  .detail-tabs{display:none;}
   /* Hoa lá vẽ SVG ở góc màn: bản vẽ mới chỉ dùng tulip ảnh thật (đăng nhập, trống, Won) */
   .main-deco, .drawer-deco{display:none;}
-  .detail-grid{grid-template-columns:minmax(0,1fr) 468px; gap:18px; max-width:1400px; align-items:start;}
-  .detail-col-main{gap:14px;}
+  /* Bàn làm việc: phần đầu đứng yên, mỗi cột tự cuộn. Tab chỉ đổi cột giữa; dưới 1280 Hội thoại thành tab. */
+  .detail-grid{
+    height:100%; max-width:1680px; align-items:stretch; gap:12px 16px;
+    grid-template-columns:320px minmax(0,1fr) 420px; grid-template-rows:auto minmax(0,1fr);
+    grid-template-areas:"info tabs zalo" "info main zalo";
+  }
+  body.an-zalo .detail-grid{grid-template-columns:320px minmax(0,1fr); grid-template-areas:"info tabs" "info main";}
+  .detail-col-info{grid-area:info;}
+  .detail-col-main{grid-area:main;}
+  .detail-col-info, .detail-col-main{gap:14px; min-height:0; overflow-y:auto; padding:1px 2px 8px;}
+  .detail-tabs{grid-area:tabs; display:flex; gap:2px; padding:3px; background:var(--well); border-radius:var(--r-md);}
+  .detail-tab{
+    flex:1 1 auto; min-height:40px; padding:0 12px; border:none; border-radius:10px; background:none; cursor:pointer;
+    font-family:inherit; font-size:13.5px; font-weight:500; color:var(--text-2); white-space:nowrap;
+  }
+  .detail-tab:hover{color:var(--text);}
+  .detail-tab:focus-visible{outline:2px solid var(--primary); outline-offset:1px;}
+  .detail-tab[aria-selected="true"]{background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm);}
+  .tab-dem{
+    display:inline-block; min-width:18px; margin-left:5px; padding:2px 5px; border-radius:999px;
+    background:var(--accent-soft); color:var(--accent-ink); font-size:11.5px; font-weight:700; line-height:1.2;
+  }
+  .tab-dem:empty{display:none;}
+  #drawerBody[data-tab="viec"] .detail-col-main > :not([data-tab-of="viec"]),
+  #drawerBody[data-tab="hoso"] .detail-col-main > :not([data-tab-of="hoso"]),
+  #drawerBody[data-tab="baogia"] .detail-col-main > :not([data-tab-of="baogia"]){display:none;}
+  @media (min-width:761px){ .detail-tab[data-tab="thongtin"]{display:none;} }
+  @media (min-width:1280px){ .detail-tab[data-tab="hoithoai"]{display:none;} }
   .detail-block{
     background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:14px 16px; margin-bottom:0;
     box-shadow:var(--sh-sm);
   }
-  .block-customer, .block-package, .block-todo, .block-log, .block-notes, .block-zalo{background:var(--surface); border-color:var(--border);}
+  .block-customer, .block-package, .block-boi-canh, .block-todo, .block-log, .block-notes, .block-zalo{background:var(--surface); border-color:var(--border);}
   .detail-block .field-input{background:var(--surface-2);}
   .block-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:11px;}
   .block-title{margin:0; font:700 16px/1.2 var(--font-head); color:var(--text);}
@@ -1527,9 +1598,27 @@
   .block-zalo .drawer-section-title{color:var(--text);}
 
   /* Khối gói & giai đoạn: các ô xếp lưới như dải "số liệu nhanh" của bản vẽ */
-  .block-package{display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); column-gap:12px;}
-  .block-package .block-head{grid-column:1 / -1;}
+  .block-package{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); column-gap:10px;}
+  .block-package > *{grid-column:1 / -1;}
+  .block-package > .o-nua{grid-column:auto;}
   .block-package .field-group{margin-bottom:10px;}
+  .detail-col-info .field-group:last-child{margin-bottom:0;}
+  .field-label-hang{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+  .field-lk{font-size:12px; font-weight:600; color:var(--primary); text-decoration:none;}
+  .field-lk:hover{text-decoration:underline;}
+  .block-customer .block-head .tag-toggle{margin:0; flex:none;}
+  .btn-delete-lead{flex:none; min-height:40px; width:100%; justify-content:center;}
+
+  /* Hạn liên hệ tiếp theo */
+  .han-hang{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}
+  .han-hang .field-input{flex:0 1 180px; width:auto;}
+  .han-nut{
+    min-height:40px; padding:0 12px; border:1px solid var(--border); border-radius:var(--r-md); background:var(--surface);
+    font-family:inherit; font-size:13px; font-weight:500; color:var(--text-2); cursor:pointer;
+  }
+  .han-nut:hover{border-color:var(--primary); color:var(--primary-ink);}
+  .han-nut:focus-visible{outline:2px solid var(--primary); outline-offset:1px;}
+  body.chi-xem .han-nut{display:none;}
   .field-label{font-size:12px; font-weight:600; color:var(--text-3); letter-spacing:.02em;}
   .field-input{border-color:var(--border); border-radius:var(--r-md); min-height:40px; padding:9px 11px; font-size:14px; color:var(--text);}
   .field-input:hover{border-color:var(--border-strong);}
@@ -1542,14 +1631,17 @@
   .note-item:hover{border-color:var(--border-strong);}
 
   /* Stepper giai đoạn → hàng chip (đã xong / đang ở đây / chưa tới) */
-  .stepper-wrap{max-width:1400px; margin:0 auto 16px;}
+  .detail-stepper{flex:none; padding:0 22px 10px; background:var(--surface); border-bottom:1px solid var(--border);}
+  .detail-stepper:empty{display:none;}
+  .detail-stepper .closed-banner{margin:8px auto 0; padding:8px 12px; font-size:13px;}
+  .stepper-wrap{max-width:1680px; margin:0 auto;}
   .stepper{flex-wrap:wrap; gap:6px; align-items:center;}
   .step{flex:none; flex-direction:row;}
   .step-line{display:none;}
   .step-circle{display:none;}
   .step-label{
     margin:0; max-width:none; font-size:12px; font-weight:500; line-height:1; color:var(--text-2);
-    padding:9px 12px; border-radius:999px; border:1px solid var(--border); background:var(--surface);
+    padding:7px 11px; border-radius:999px; border:1px solid var(--border); background:var(--surface);
   }
   .step.completed .step-label{background:var(--primary-soft); border-color:transparent; color:var(--primary-ink); font-weight:600;}
   .step.completed .step-label::before{content:'✓ ';}
@@ -1557,13 +1649,14 @@
   .step.current .step-label::after{content:' · đang ở đây';}
   .step.clickable:hover .step-label{border-color:var(--primary); color:var(--primary-ink);}
   .step.clickable:hover .step-circle{transform:none;}
-  .closed-banner{max-width:1400px;}
+  .closed-banner{max-width:1680px;}
   .closed-banner.won{background:var(--ok-soft); color:var(--ok-ink); border:1px solid var(--ok-border);}
   .closed-banner.lost{background:var(--danger-soft); color:var(--danger-ink); border:1px solid var(--danger-border);}
 
   /* Cột hội thoại Zalo: dính khi cuộn, cao gần bằng màn hình */
-  .detail-col-zalo{position:sticky; top:0;}
-  .detail-col-zalo .block-zalo{max-height:calc(100vh - 150px); display:flex; flex-direction:column; overflow:hidden; padding:0;}
+  .detail-col-zalo{grid-area:zalo; min-height:0;}
+  .detail-col-zalo .block-zalo{height:100%; margin:0; display:flex; flex-direction:column; overflow:hidden; padding:0;}
+  .detail-col-zalo .block-zalo > *:last-child{min-height:0; overflow-y:auto;}
   .detail-col-zalo .block-zalo > *{padding-left:14px; padding-right:14px;}
   .detail-col-zalo .block-zalo > *:first-child{padding-top:13px;}
   .detail-col-zalo .block-zalo > *:last-child{padding-bottom:13px;}
@@ -1571,10 +1664,10 @@
   .zalo-tab{font-size:12px; font-weight:500; padding:7px 11px; border-color:var(--border); background:var(--surface); color:var(--text-2);}
   .zalo-tab.on{background:var(--text); color:var(--bg); border-color:var(--text); font-weight:600;}
 
-  @media (max-width:1180px){
-    .detail-grid{grid-template-columns:minmax(0,1fr);}
-    .detail-col-zalo{position:static;}
-    .detail-col-zalo .block-zalo{max-height:none;}
+  @media (max-width:1279px){
+    .detail-grid, body.an-zalo .detail-grid{grid-template-columns:300px minmax(0,1fr); grid-template-areas:"info tabs" "info main";}
+    .detail-col-zalo{grid-area:main;}
+    #drawerBody:not([data-tab="hoithoai"]) .detail-col-zalo, #drawerBody[data-tab="hoithoai"] .detail-col-main{display:none;}
   }
 
   /* Điện thoại: 3 tab thay vì chồng khối; Won/Lost neo ở đáy */
@@ -1583,21 +1676,16 @@
     .drawer-header-title{font-size:17px;}
     .detail-back-btn{font-size:0; gap:0; width:40px; height:40px; padding:0; justify-content:center; border-radius:var(--r-md);}
     .detail-back-btn svg{width:18px; height:18px;}
-    .detail-tabs{
-      display:flex; gap:4px; padding:3px; background:var(--well); border-radius:var(--r-md); margin:0 0 14px;
-      position:sticky; top:-16px; z-index:3;
-    }
-    .detail-tab{
-      flex:1; min-height:44px; border:none; border-radius:10px; background:none; cursor:pointer;
-      font:500 13px/1 inherit; font-family:inherit; color:var(--text-2);
-    }
-    .detail-tab[aria-selected="true"]{background:var(--surface); color:var(--text); font-weight:600; box-shadow:var(--sh-sm);}
-    #drawerBody[data-tab="viec"] [data-tab-of]:not([data-tab-of="viec"]),
-    #drawerBody[data-tab="hoithoai"] [data-tab-of]:not([data-tab-of="hoithoai"]),
-    #drawerBody[data-tab="thongtin"] [data-tab-of]:not([data-tab-of="thongtin"]),
-    #drawerBody[data-tab="hoso"] [data-tab-of]:not([data-tab-of="hoso"]){display:none;}
+    .drawer-body{overflow:auto;}
+    .detail-grid, body.an-zalo .detail-grid{display:block; height:auto;}
+    .detail-tabs{margin:0 0 14px; overflow-x:auto; position:sticky; top:-16px; z-index:3; scrollbar-width:none;}
+    .detail-tabs::-webkit-scrollbar{display:none;}
+    .detail-tab{flex:1 0 auto; min-height:44px; padding:0 6px; font-size:13px;}
+    .tab-dai{display:none;}
+    .detail-col-info, .detail-col-main{overflow:visible; padding:0;}
+    #drawerBody:not([data-tab="thongtin"]) .detail-col-info, #drawerBody[data-tab="thongtin"] .detail-col-main{display:none;}
     .detail-col-main{gap:12px;}
-    .block-package{grid-template-columns:minmax(0,1fr);}
+    .detail-stepper{padding:0 14px 8px;}
     .stepper{flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px;}
     .stepper::-webkit-scrollbar{display:none;}
     .drawer-body{padding:16px 14px 100px;}
@@ -1608,11 +1696,10 @@
     }
     .drawer-header-actions .btn{flex:1 1 0; min-width:0; min-height:48px; justify-content:center; font-size:14px; padding:0 8px; white-space:nowrap;}
     .drawer-header-actions .btn svg{display:none;}
-    .drawer-header-actions .btn-delete-lead{flex:0 0 auto; padding:0 12px; font-size:13px;}
     .add-todo-row{flex-wrap:wrap;}
     .add-todo-row #newTodoInput{flex:1 1 100%;}
     .add-todo-row .todo-due{flex:1 1 auto;}
-    .detail-col-zalo .block-zalo{max-height:none;}
+    .detail-col-zalo .block-zalo{height:auto;}
   }
 
   /* ----- Hội thoại (CRM-03) ----- */
@@ -1920,7 +2007,6 @@
 
   /* ===== Hồ sơ khách AI + đề xuất ===== */
   #navDeXuat[hidden], #menuKhacDeXuat[hidden]{display:none;}
-  .block-hoso .block-collapse{white-space:nowrap; flex:none;}
   .card-dx{color:var(--purple); font-size:13px;}
   /* Đề xuất: mỗi đề xuất một dòng gọn, bấm để mở chi tiết */
   .dx-dem{display:inline-block; min-width:18px; margin-left:4px; padding:0 6px; border-radius:999px; background:var(--blush); color:#fff; font-size:12px; line-height:18px; text-align:center; vertical-align:middle;}
@@ -2408,7 +2494,10 @@
     <section class="view" id="viewVenue">
       <div class="bang-wrap">
         <div class="bang-toolbar" id="vnToolbar"></div>
-        <div class="bang-scroll" id="vnBang"></div>
+        <div class="vn-khung">
+          <nav class="vn-rail" id="vnRail" aria-label="Danh sách venue"></nav>
+          <div class="bang-scroll" id="vnBang"></div>
+        </div>
       </div>
     </section>
 
@@ -2486,7 +2575,7 @@
     <div class="detail-back-row">
       <button class="detail-back-btn" onclick="closeDrawer()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-        Quay lại Pipeline
+        Quay lại
       </button>
       <div class="detail-title-wrap">
         <div class="drawer-header-title" id="drawerTitle">—</div>
@@ -2496,6 +2585,7 @@
     </div>
     <div class="drawer-header-actions" id="drawerHeaderActions"></div>
   </div>
+  <div class="detail-stepper" id="drawerStepper"></div>
   <div class="drawer-content-wrap">
     <div class="drawer-deco" aria-hidden="true">
       <svg viewBox="0 0 200 200">
@@ -3667,7 +3757,7 @@ function setView(view){
 // <kho>/toneMau. KHÁC lead: app ghi venue NGAY khi bấm, theo đường dẫn nhỏ nhất (venues/<id>/sanPham/<spId>),
 // không đi qua diff tinhThayDoiCucBo — để không đè sản phẩm Claude vừa thêm vào cùng venue.
 let venues = {}, toneMau = {};
-let venueTab = 'sp';         // 'sp' = bảng sản phẩm, 'venue' = bảng venue
+let venueTab = 'sp';         // 'sp' = venue + bảng sản phẩm, 'thongke' = thống kê link gửi
 let venueDangChon = '';      // lọc sản phẩm theo venue ('' = tất cả)
 let venueTim = '', venueTone = '';   // venueTone: id một tone ('' = tất cả)
 let venueGoiYDangMo = null;  // kết quả khopVenueMau đang hiện trong hộp gợi ý
@@ -3721,77 +3811,61 @@ function renderVenue(){
   if (venueTone && !tones.some(t => t.id === venueTone)) venueTone = '';
   const dangGo = document.activeElement && document.activeElement.id === 'vnTim';
 
-  const tab = (ma, ten, so) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}<b>${so}</b></button>`;
-  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm', tongSp)}${tab('venue', 'Venue', ds.length)}${tab('thongke', 'Thống kê', '')}</div>`;
-  const tim = `<input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="${venueTab === 'sp' ? 'Tìm tên, giá, venue…' : 'Tìm venue…'}" aria-label="Tìm" oninput="venueTim=this.value; renderVenue()">`;
+  const tab = (ma, ten) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}</button>`;
+  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm')}${tab('thongke', 'Thống kê')}</div>`;
 
-  let toolbar, than;
+  let toolbar, than, rail = '';
   if (venueTab === 'thongke'){
     toolbar = `<div class="vn-hang">${tabs}</div>`;
     const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
     than = LinkGui.veThongKe({ linkGui: linkGuiData, linkGuiNgay, homNay: todayISO(), tenKhach, chiXem });
-  } else if (venueTab === 'sp'){
+  } else {
+    const vDangChon = venueDangChon ? venues[venueDangChon] : null;
     const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone ? [venueTone] : [], venueId: venueDangChon || null });
-    toolbar = `<div class="vn-hang">${tabs}<span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`}</div>
-      <div class="vn-hang">` + tim +
-      `<input class="field-input vn-loc-venue" type="search" list="dsVenueTen" value="${esc(venueDangChon ? venues[venueDangChon].ten : '')}" placeholder="Tất cả venue" aria-label="Lọc theo venue" onchange="locTheoTenVenue(this)" oninput="if(!this.value && venueDangChon) locTheoTenVenue(this)">
-       <select class="field-input" aria-label="Lọc theo tone" onchange="chonToneLoc(this)">
-        <option value="">Tất cả tone</option>${tones.map(t => `<option value="${esc(t.id)}" ${venueTone === t.id ? 'selected' : ''}>${esc(t.ten)}</option>`).join('')}
-        ${chiXem ? '' : '<option value="__them">+ Thêm tone mới…</option>'}</select>
-       <span class="vn-dem">${kq.length === tongSp ? `${tongSp} sản phẩm` : `${kq.length} / ${tongSp} sản phẩm`}</span></div>`;
+    const tongLoc = vDangChon ? soSp(vDangChon) : tongSp;
+    const chip = (id, ten, cham) => `<button type="button" class="vn-chip ${venueTone === id ? 'on' : ''}" aria-pressed="${venueTone === id}" data-tone="${esc(id)}" onclick="chonToneChip(this.dataset.tone)">${cham}${esc(ten)}</button>`;
+    toolbar = `<div class="vn-hang">${tabs}
+        <input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="Tìm tên, giá, venue…" aria-label="Tìm sản phẩm" oninput="venueTim=this.value; renderVenue()">
+        <span class="vn-dem">${kq.length === tongLoc ? `${tongLoc} sản phẩm` : `${kq.length} / ${tongLoc} sản phẩm`}</span>
+        <span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`}</div>
+      <div class="vn-chips" role="group" aria-label="Lọc theo tone">${chip('', 'Tất cả tone', '')}${tones.map(t => chip(t.id, t.ten, `<span class="vn-cham" style="background:${V.mauAnToan(t.mau)}"></span>`)).join('')}
+        ${chiXem ? '' : '<button type="button" class="vn-chip them" onclick="moThemTone()">+ Tone</button>'}</div>`;
+
+    const mucRail = (id, ten, so, phu) => `<button type="button" class="vn-rail-muc ${venueDangChon === id ? 'on' : ''}" ${venueDangChon === id ? 'aria-current="true"' : ''} data-vn="${esc(id)}" onclick="xemSanPhamCuaVenue(this.dataset.vn)">
+      <span class="vn-rail-ten">${esc(ten)}${phu ? `<small>${phu}</small>` : ''}</span><b>${so}</b></button>`;
+    rail = mucRail('', 'Tất cả', tongSp, '') +
+      ds.map(v => mucRail(v.id, v.ten, soSp(v), soLead[v.id] ? `${soLead[v.id]} lead dự kiến` : '')).join('') +
+      (chiXem ? '' : `<div class="vn-rail-cuoi"><button type="button" class="btn btn-ghost" onclick="moThemVenue()">+ Thêm venue</button>
+        <button type="button" class="btn btn-ghost" onclick="moGoiYVenue()">Gợi ý từ lead</button></div>`);
+
+    const dau = vDangChon ? `<div class="vn-dau"><h2>${esc(vDangChon.ten)}</h2>
+      <span class="vn-dem">${soSp(vDangChon)} sản phẩm · ${soLead[venueDangChon] || 0} lead dự kiến</span><span class="vn-cach"></span>
+      ${chiXem ? '' : `<button type="button" class="vn-lk" data-vn="${esc(venueDangChon)}" onclick="moDoiTenVenue(this.dataset.vn)">Đổi tên</button>
+        <button type="button" class="vn-lk xoa" data-vn="${esc(venueDangChon)}" onclick="xoaVenue(this.dataset.vn)">Xoá</button>`}</div>` : '';
     if (kq.length){
       const thongKe = window.LinkGui ? LinkGui.thongKeSanPham(linkGuiData) : {};
       const dong = x => { const k = `${x.venue.id}/${x.sp.id}`; return V.veDongSanPham(x.venue, x.sp, tones, { chiXem, chon: venueChon.has(k), thongKe: thongKe[k] }); };
-      than = `<table class="bang vn-bang"><thead><tr>${chiXem ? '' : '<th class="vn-c-chon"><span class="sr-only">Chọn</span></th>'}<th>Sản phẩm</th><th>Venue</th><th>Tone</th><th>Giá / gói</th><th>Ngày thêm</th><th class="so">Đã gửi</th><th class="so">Khách mở</th><th class="so">Lượt click</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
+      than = `${dau}<table class="bang vn-bang vn-sp ${vDangChon ? 'mot-venue' : ''}"><thead><tr>${chiXem ? '' : '<th class="vn-c-chon"><span class="sr-only">Chọn</span></th>'}<th>Sản phẩm</th><th class="vn-c-venue">Venue</th><th>Tone</th><th>Giá / gói</th><th class="vn-c-ngay">Ngày thêm</th><th class="so">Đã gửi</th><th class="so">Khách mở</th><th class="so">Lượt click</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
         <tbody>${kq.map(dong).join('')}</tbody></table><div id="vnThanhChon"></div>`;
-    } else if (!tongSp){
-      than = `<div class="bang-trong">${ds.length ? 'Chưa có sản phẩm nào.' : 'Chưa có venue và sản phẩm nào.'}
+    } else if (!tongLoc){
+      than = `${dau}<div class="bang-trong">${vDangChon ? 'Venue này chưa có sản phẩm.' : ds.length ? 'Chưa có sản phẩm nào.' : 'Chưa có venue và sản phẩm nào.'}
         ${chiXem ? '' : ds.length ? `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`
-          : `<span>Tạo nhanh danh sách venue từ lịch trình và ghi chú của lead.</span><button type="button" class="btn btn-primary" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>`}</div>`;
+          : `<span>Tạo nhanh danh sách venue từ lịch trình, ghi chú và báo giá của lead hiện có.</span><button type="button" class="btn btn-primary" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>`}</div>`;
     } else {
-      than = `<div class="bang-trong">Không có sản phẩm khớp bộ lọc.<button type="button" class="btn btn-ghost" onclick="boLocVenue()">Xoá lọc</button></div>`;
-    }
-  } else {
-    const q = window.BangLead ? window.BangLead.boDau(venueTim) : venueTim.toLowerCase();
-    const loc = ds.filter(v => !q || (window.BangLead ? window.BangLead.boDau(v.ten) : v.ten.toLowerCase()).includes(q));
-    toolbar = `<div class="vn-hang">${tabs}<span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-ghost" onclick="moGoiYVenue()">Gợi ý từ lead</button>
-       <button type="button" class="btn btn-primary" onclick="moThemVenue()">+ Thêm venue</button>`}</div>
-      <div class="vn-hang">${tim}<span class="vn-dem">${loc.length === ds.length ? `${ds.length} venue` : `${loc.length} / ${ds.length} venue`}</span></div>`;
-    if (loc.length){
-      than = `<table class="bang vn-bang"><thead><tr><th>Venue</th><th class="so">Sản phẩm</th><th class="so">Lead dự kiến</th><th>Ngày tạo</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead><tbody>${
-        loc.map(v => `<tr><td class="vn-c-ten"><b>${esc(v.ten)}</b></td>
-          <td class="so"><button type="button" class="vn-lk" onclick="xemSanPhamCuaVenue('${esc(v.id)}')" title="Xem sản phẩm của venue này">${soSp(v)}</button></td>
-          <td class="so">${soLead[v.id] || 0}</td>
-          <td>${v.taoLuc ? esc(formatDate(String(v.taoLuc).slice(0, 10))) : '—'}</td>
-          <td class="vn-c-thao">${chiXem ? '' : `<button type="button" class="vn-lk" onclick="moDoiTenVenue('${esc(v.id)}')">Đổi tên</button><button type="button" class="vn-lk xoa" onclick="xoaVenue('${esc(v.id)}')">Xoá</button>`}</td></tr>`).join('')
-      }</tbody></table>`;
-    } else if (!ds.length){
-      than = `<div class="bang-trong">Chưa có venue nào.${chiXem ? '' : `<span>Tạo nhanh từ lịch trình, ghi chú và báo giá của lead hiện có.</span><button type="button" class="btn btn-primary" onclick="moGoiYVenue()">Gợi ý venue từ lead</button>`}</div>`;
-    } else {
-      than = `<div class="bang-trong">Không có venue khớp.<button type="button" class="btn btn-ghost" onclick="boLocVenue()">Xoá lọc</button></div>`;
+      than = `${dau}<div class="bang-trong">Không có sản phẩm khớp bộ lọc.<button type="button" class="btn btn-ghost" onclick="boLocVenue()">Xoá lọc</button></div>`;
     }
   }
   document.getElementById('vnToolbar').innerHTML = toolbar;
+  document.getElementById('vnRail').innerHTML = rail;
   bang.innerHTML = than;
   veThanhChon();
-  if (dangGo){ const o = document.getElementById('vnTim'); o.focus(); o.setSelectionRange(o.value.length, o.value.length); }
+  if (dangGo){ const o = document.getElementById('vnTim'); if (o){ o.focus(); o.setSelectionRange(o.value.length, o.value.length); } }
 }
 
 function doiTabVenue(ma){ venueTab = ma; venueTim = ''; renderVenue(); }
-function xemSanPhamCuaVenue(id){ venueTab = 'sp'; venueDangChon = id; venueTim = ''; venueTone = ''; renderVenue(); }
-// Ô lọc venue: gõ/chọn tên trong danh sách gợi ý; xoá trắng = tất cả; tên không có thì giữ bộ lọc cũ
-function locTheoTenVenue(o){
-  const ten = o.value.trim();
-  const v = ten ? window.Venue.timVenueTheoTen(venues, ten) : null;
-  if (ten && !v){ o.value = venueDangChon ? venues[venueDangChon].ten : ''; return; }
-  venueDangChon = v ? v.id : '';
-  renderVenue();
-}
+function xemSanPhamCuaVenue(id){ venueDangChon = id; renderVenue(); }
 function boLocVenue(){ venueTim = ''; venueTone = ''; venueDangChon = ''; renderVenue(); }
-function chonToneLoc(sel){
-  if (sel.value === '__them'){ sel.value = venueTone; moThemTone(); return; }
-  venueTone = sel.value; renderVenue();
-}
+function chonToneChip(id){ venueTone = venueTone === id ? '' : id; renderVenue(); }
 
 function copyChuoi(chuoi, btn){
   const cu = btn.textContent;
@@ -4721,7 +4795,9 @@ ganNutDongModal();
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const dangMo = [...document.querySelectorAll('.modal-overlay.show')].pop();
-  if (dangMo && DONG_MODAL[dangMo.id]){ DONG_MODAL[dangMo.id](); e.preventDefault(); }
+  if (dangMo && DONG_MODAL[dangMo.id]){ DONG_MODAL[dangMo.id](); e.preventDefault(); return; }
+  // Đang gõ trong ô thì Esc không đóng màn, tránh mất chỗ đang làm
+  if (!dangMo && currentLeadId && !e.target.closest('input, textarea, select')) closeDrawer();
 });
 
 /* ======================= TẤM TRƯỢT "Khác" (điện thoại) ======================= */
@@ -4891,10 +4967,9 @@ function openLead(id){
     ` : ''}
     ${lead.stage === 'won' ? `<button class="btn btn-lost-action" onclick="undoWon('${id}')">↶ Hoàn tác Won</button>` : ''}
     ${lead.stage === 'lost' ? `<button class="btn btn-won-action" onclick="reopenLost('${id}')">↶ Mở lại lead</button>` : ''}
-    <button class="btn btn-danger btn-delete-lead" onclick="deleteCurrentLead()">Xóa lead</button>
   `;
+  document.getElementById('drawerStepper').innerHTML = renderStageStepper(lead);
 
-  const stageOptions = STAGES.map(s => `<option value="${s.id}" ${s.id===lead.stage?'selected':''}>${esc(s.name)}</option>`).join('');
   const pkgOptions = PACKAGES.map(p => `<option value="${p}" ${p===lead.package?'selected':''}>${esc(p)}</option>`).join('');
   const leadTypeOptions = LEAD_TYPES.map(t => `<option value="${t}" ${t===leadTypeOf(lead)?'selected':''}>${esc(t)}</option>`).join('');
 
@@ -4916,63 +4991,66 @@ function openLead(id){
       </div>
       <div class="field-group"><label class="field-label">Ngày đóng</label><input class="field-input" value="${formatDate(lead.lostAt)}" disabled></div>
     `;
-  } else {
-    extra = `
-      <div class="field-group">
-        <label class="field-label">Deadline hành động tiếp theo</label>
-        <input class="field-input" type="date" value="${lead.deadline||''}" oninput="onFieldChange('${id}','deadline', this.value)">
-      </div>
-    `;
   }
 
+  const hanNhanh = [['Hôm nay', 0], ['Ngày mai', 1], ['3 ngày', 3], ['1 tuần', 7]];
+  const khoiHan = isOpenDeal ? `
+    <div class="detail-block block-han" data-tab-of="viec">
+      <div class="block-head"><h3 class="block-title">Hạn liên hệ tiếp theo</h3></div>
+      <div class="han-hang">
+        <input class="field-input" id="leadDeadline" type="date" aria-label="Hạn liên hệ tiếp theo" value="${lead.deadline||''}" oninput="onFieldChange('${id}','deadline', this.value)">
+        ${hanNhanh.map(([ten, n]) => `<button type="button" class="han-nut" onclick="datHanNhanh('${id}', ${n})">${ten}</button>`).join('')}
+      </div>
+    </div>` : '';
+  const linkFb = /^https?:\/\//i.test(lead.facebook || '') ? `<a class="field-lk" href="${esc(lead.facebook)}" target="_blank" rel="noopener noreferrer">Mở</a>` : '';
+  const soGoi = String(lead.phone || '').replace(/[^\d+]/g, '');
+  const linkGoi = soGoi ? `<a class="field-lk" href="tel:${soGoi}">Gọi</a>` : '';
+
   document.getElementById('drawerBody').innerHTML = `
-    <div class="detail-stepper" data-tab-of="viec">${renderStageStepper(lead)}</div>
-
-    <div class="detail-tabs" role="tablist" aria-label="Phần của chi tiết lead">
-      <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')">Việc &amp; ghi chú</button>
-      <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại</button>
-      <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
-      <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ</button>
-    </div>
-
     <div class="detail-grid">
-      <div class="detail-col detail-col-main">
-        <div class="detail-block block-dexuat" data-tab-of="hoso" id="khoiDeXuat" style="display:none">
-          <div class="block-head"><h3 class="block-title">✦ Claude đề xuất <span class="dx-dem" id="dxDem"></span></h3></div>
-          <div id="hoSoDeXuat" class="dx-ds"></div>
-        </div>
-        <div class="detail-block block-hoso ${hoSoThuGon() ? 'collapsed' : ''}" data-tab-of="hoso">
+      <div class="detail-tabs" role="tablist" aria-label="Phần của chi tiết lead">
+        <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')">Việc<span class="tab-dai"> &amp; ghi chú</span></button>
+        <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại</button>
+        <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ<span class="tab-dai"> AI</span><span class="tab-dem" id="tabDxDem"></span></button>
+        <button type="button" role="tab" class="detail-tab" data-tab="baogia" onclick="chonTabChiTiet('baogia')">Báo giá<span class="tab-dai"> &amp; sản phẩm</span></button>
+        <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
+      </div>
+
+      <div class="detail-col detail-col-info">
+        <div class="detail-block block-customer">
           <div class="block-head">
-            <h3 class="block-title">✦ Hồ sơ khách <span class="hs-tom-tat" id="hsTomTat"></span></h3>
-            <button type="button" class="block-collapse" aria-expanded="${hoSoThuGon() ? 'false' : 'true'}" onclick="thuGonHoSo(this)">${hoSoThuGon() ? 'Mở ▾' : 'Thu gọn ▴'}</button>
-          </div>
-          <div class="block-content"><div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div></div>
-        </div>
-        <div class="detail-block block-bao-gia" data-tab-of="thongtin" ${window.BaoGia && BaoGia.baoGiaMoiNhat(lead) ? '' : 'style="display:none"'}>
-          <div class="block-head">
-            <h3 class="block-title">Báo giá</h3>
-            <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
-          </div>
-          <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: !window.__chiXem }) : ''}</div>
-        </div>
-        <div class="detail-block block-link-gui" data-tab-of="thongtin">
-          <div class="block-head">
-            <h3 class="block-title">Sản phẩm đã gửi</h3>
-            ${window.__chiXem ? '' : `<button type="button" class="btn btn-ghost" onclick="moChonMauChoKhach('${lead.id}')">Gửi sản phẩm</button>`}
-          </div>
-          <div class="block-content" id="lgKhoiDaGui" data-lead="${esc(lead.id)}">${window.LinkGui ? LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, lead.id)) : ''}</div>
-        </div>
-        <div class="detail-block block-package" data-tab-of="thongtin">
-          <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
-          <div class="field-group">
-            <label class="field-label">Giai đoạn hiện tại</label>
-            <select class="field-input" onchange="changeStageFromDrawer('${id}', this.value)">${stageOptions}</select>
+            <h3 class="block-title">Thông tin khách</h3>
+            <button class="tag-toggle ${(lead.tags||[]).includes('Tiềm năng') ? 'active' : ''}" id="tagToggleBtn" onclick="toggleTag('${id}', 'Tiềm năng')">🔥 Tiềm năng</button>
           </div>
           <div class="field-group">
+            <label class="field-label">Tên khách hàng</label>
+            <input class="field-input" value="${esc(lead.name)}" oninput="onFieldChange('${id}','name', this.value)">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Ngày cưới</label>
+            <input class="field-input" type="date" value="${lead.weddingDate||''}" oninput="onFieldChange('${id}','weddingDate', this.value)">
+          </div>
+          <div class="field-group">
+            <div class="field-label-hang"><label class="field-label">Số điện thoại</label>${linkGoi}</div>
+            <input class="field-input" type="tel" value="${esc(lead.phone)}" placeholder="09xx xxx xxx" oninput="onFieldChange('${id}','phone', this.value)">
+          </div>
+          <div class="field-group">
+            <div class="field-label-hang"><label class="field-label">Facebook</label>${linkFb}</div>
+            <input class="field-input" value="${esc(lead.facebook)}" oninput="onFieldChange('${id}','facebook', this.value)">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Venue dự kiến</label>
+            <input class="field-input" list="dsVenueTen" value="${esc(lead.venueId ? tenVenueTheoId(lead.venueId) : '')}" placeholder="Chọn hoặc gõ tên venue mới" onchange="chonVenueChoLead('${id}', this)">
+          </div>
+        </div>
+
+        <div class="detail-block block-package">
+          <div class="block-head"><h3 class="block-title">Gói &amp; doanh thu</h3></div>
+          <div class="field-group o-nua">
             <label class="field-label">Loại lead</label>
             <select class="field-input" onchange="onFieldChange('${id}','leadType', this.value)">${leadTypeOptions}</select>
           </div>
-          <div class="field-group">
+          <div class="field-group o-nua">
             <label class="field-label">Gói dịch vụ</label>
             <select class="field-input" onchange="onFieldChange('${id}','package', this.value)">${pkgOptions}</select>
           </div>
@@ -4987,6 +5065,28 @@ function openLead(id){
           ${extra}
         </div>
 
+        <div class="detail-block block-boi-canh">
+          <div class="block-head"><h3 class="block-title">Lịch trình &amp; chân dung</h3></div>
+          <div class="field-group">
+            <label class="field-label">Lịch trình</label>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','schedule', this.value); autoGrowTextarea(this)">${esc(lead.schedule)}</textarea>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Chân dung khách hàng</label>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','persona', this.value); autoGrowTextarea(this)">${esc(lead.persona)}</textarea>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Objection khách đang gặp</label>
+            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','objection', this.value); autoGrowTextarea(this)">${esc(lead.objection)}</textarea>
+          </div>
+        </div>
+
+        ${window.__chiXem ? '' : `<button class="btn btn-danger btn-delete-lead" onclick="deleteCurrentLead()">Xóa lead</button>`}
+      </div>
+
+      <div class="detail-col detail-col-main">
+        ${khoiHan}
+
         <div class="detail-block block-todo" data-tab-of="viec">
           <div class="block-head"><h3 class="block-title">Việc cần làm <span class="block-meta" id="drawerTodoMeta"></span></h3></div>
           <div id="drawerTodos"></div>
@@ -4999,7 +5099,7 @@ function openLead(id){
 
         <div class="detail-block block-notes" data-tab-of="viec">
           <div class="block-head"><h3 class="block-title">Ghi chú</h3></div>
-          <textarea class="field-input" id="noteInput" style="min-height:64px" placeholder="Viết ghi chú mới..."></textarea>
+          <textarea class="field-input" id="noteInput" style="min-height:64px" placeholder="Viết ghi chú mới... (Ctrl+Enter để lưu)" onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey)) saveNote('${id}')"></textarea>
           <div class="note-actions">
             <button class="btn btn-secondary" id="noteCancelBtn" style="display:none" onclick="cancelNoteEdit('${id}')">Hủy</button>
             <button class="btn btn-primary" id="noteSaveBtn" onclick="saveNote('${id}')">Lưu ghi chú</button>
@@ -5007,53 +5107,7 @@ function openLead(id){
           <div id="notesStreamBox">${renderNotesStream(lead)}</div>
         </div>
 
-        <div class="detail-block block-customer" data-tab-of="thongtin">
-          <div class="block-head">
-            <h3 class="block-title">Thông tin khách</h3>
-            <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
-          </div>
-          <div class="block-content">
-          <button class="tag-toggle ${(lead.tags||[]).includes('Tiềm năng') ? 'active' : ''}" id="tagToggleBtn" onclick="toggleTag('${id}', 'Tiềm năng')">
-            🔥 Lead tiềm năng
-          </button>
-          <div class="field-group" style="margin-top:12px">
-            <label class="field-label">Tên khách hàng</label>
-            <input class="field-input" value="${esc(lead.name)}" oninput="onFieldChange('${id}','name', this.value)">
-          </div>
-          <div class="field-group">
-            <label class="field-label">Ngày cưới</label>
-            <input class="field-input" type="date" value="${lead.weddingDate||''}" oninput="onFieldChange('${id}','weddingDate', this.value)">
-          </div>
-          <div class="field-row">
-            <div class="field-group">
-              <label class="field-label">Facebook</label>
-              <input class="field-input" value="${esc(lead.facebook)}" oninput="onFieldChange('${id}','facebook', this.value)">
-            </div>
-            <div class="field-group">
-              <label class="field-label">Số điện thoại</label>
-              <input class="field-input" type="tel" value="${esc(lead.phone)}" placeholder="09xx xxx xxx" oninput="onFieldChange('${id}','phone', this.value)">
-            </div>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Lịch trình</label>
-            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','schedule', this.value); autoGrowTextarea(this)">${esc(lead.schedule)}</textarea>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Venue dự kiến</label>
-            <input class="field-input" list="dsVenueTen" value="${esc(lead.venueId ? tenVenueTheoId(lead.venueId) : '')}" placeholder="Chọn hoặc gõ tên venue mới" onchange="chonVenueChoLead('${id}', this)">
-          </div>
-          <div class="field-group">
-            <label class="field-label">Chân dung khách hàng</label>
-            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','persona', this.value); autoGrowTextarea(this)">${esc(lead.persona)}</textarea>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Objection khách đang gặp</label>
-            <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','objection', this.value); autoGrowTextarea(this)">${esc(lead.objection)}</textarea>
-          </div>
-          </div>
-        </div>
-
-        <div class="detail-block block-log collapsed" data-tab-of="thongtin">
+        <div class="detail-block block-log collapsed" data-tab-of="viec">
           <div class="block-head">
             <h3 class="block-title">Log hoạt động <span class="block-meta">· ${(lead.activityLog || []).length} mục</span></h3>
             <button type="button" class="block-collapse" aria-expanded="false" onclick="toggleKhoiChiTiet(this)">Mở ▾</button>
@@ -5062,9 +5116,30 @@ function openLead(id){
           <div id="activityLogBox">${renderActivityLog(lead)}</div>
           </div>
         </div>
+
+        <div class="detail-block block-dexuat" data-tab-of="hoso" id="khoiDeXuat" style="display:none">
+          <div class="block-head"><h3 class="block-title">✦ Claude đề xuất <span class="dx-dem" id="dxDem"></span></h3></div>
+          <div id="hoSoDeXuat" class="dx-ds"></div>
+        </div>
+        <div class="detail-block block-hoso" data-tab-of="hoso">
+          <div class="block-head"><h3 class="block-title">✦ Hồ sơ khách <span class="hs-tom-tat" id="hsTomTat"></span></h3></div>
+          <div class="block-content"><div id="hoSoBlock"><div class="list-empty">Đang tải…</div></div></div>
+        </div>
+
+        <div class="detail-block block-bao-gia" data-tab-of="baogia" ${window.BaoGia && BaoGia.baoGiaMoiNhat(lead) ? '' : 'style="display:none"'}>
+          <div class="block-head"><h3 class="block-title">Báo giá</h3></div>
+          <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: !window.__chiXem }) : ''}</div>
+        </div>
+        <div class="detail-block block-link-gui" data-tab-of="baogia">
+          <div class="block-head">
+            <h3 class="block-title">Sản phẩm đã gửi</h3>
+            ${window.__chiXem ? '' : `<button type="button" class="btn btn-ghost" onclick="moChonMauChoKhach('${lead.id}')">Gửi sản phẩm</button>`}
+          </div>
+          <div class="block-content" id="lgKhoiDaGui" data-lead="${esc(lead.id)}">${window.LinkGui ? LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, lead.id)) : ''}</div>
+        </div>
       </div>
 
-      <div class="detail-col detail-col-zalo" data-tab-of="hoithoai">
+      <div class="detail-col detail-col-zalo">
         <div class="detail-block block-zalo" id="zaloBlock"></div>
       </div>
     </div>
@@ -5091,9 +5166,12 @@ function veChipDauChiTiet(lead){
   el.innerHTML = tiemNang + han + zaloChipHtml(lead);
 }
 
-/* Điện thoại: chi tiết lead chia 3 tab thay vì chồng khối. Máy tính bỏ qua (CSS hiện hết). */
+/* Tab đổi cột giữa. Thông tin (từ 761px) và Hội thoại (từ 1280px) đã là cột luôn thấy nên không có tab. */
 let tabChiTiet = 'viec';
+const COT_THONG_TIN = matchMedia('(min-width:761px)'), COT_HOI_THOAI = matchMedia('(min-width:1280px)');
+[COT_THONG_TIN, COT_HOI_THOAI].forEach(m => m.addEventListener('change', () => chonTabChiTiet(tabChiTiet)));
 function chonTabChiTiet(tab){
+  if ((tab === 'thongtin' && COT_THONG_TIN.matches) || (tab === 'hoithoai' && COT_HOI_THOAI.matches)) tab = 'viec';
   // Tab bị ẩn theo quyền (Hội thoại / Hồ sơ) thì về tab Việc, không để màn trống
   if ((tab === 'hoithoai' && !khoCoNhom('zalo')) || (tab === 'hoso' && !khoCoNhom('ai'))) tab = 'viec';
   tabChiTiet = tab;
@@ -5101,8 +5179,14 @@ function chonTabChiTiet(tab){
   if (!body) return;
   body.dataset.tab = tab;
   body.querySelectorAll('.detail-tab').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  initAutoGrowTextareas();   // điện thoại: ô trong tab vừa mở lúc vẽ còn ẩn nên chưa đo được chiều cao
 }
-// Thu gọn / mở một khối (Thông tin khách, Log hoạt động)
+function datHanNhanh(id, soNgay){
+  const iso = congNgayISO(todayISO(), soNgay);
+  document.getElementById('leadDeadline').value = iso;
+  onFieldChange(id, 'deadline', iso);
+}
+// Thu gọn / mở một khối (Log hoạt động)
 function toggleKhoiChiTiet(btn){
   const khoi = btn.closest('.detail-block');
   const gon = khoi.classList.toggle('collapsed');
@@ -5587,15 +5671,6 @@ function dongHoSo(){
   hoSoUnsub = null; hoSoBrief = undefined;
 }
 
-/* Thu gọn khối Hồ sơ: nhớ theo trình duyệt (cùng kiểu localStorage như nhóm Pipeline thu gọn) */
-const HO_SO_GON_KEY = 'hoSoThuGon';
-function hoSoThuGon(){ try { return localStorage.getItem(HO_SO_GON_KEY) === '1'; } catch(e){ return false; } }
-function thuGonHoSo(btn){
-  toggleKhoiChiTiet(btn);
-  const gon = btn.closest('.detail-block').classList.contains('collapsed');
-  try { localStorage.setItem(HO_SO_GON_KEY, gon ? '1' : '0'); } catch(e){}
-}
-
 /* Dòng đề xuất đang mở (giữ qua các lần vẽ lại) */
 const dxDangMo = new Set();
 function moDongDeXuat(id){
@@ -5617,6 +5692,7 @@ function veKhoiHoSo(leadId, ep){
   if (khoiDx){
     khoiDx.style.display = dsDx.length ? '' : 'none';
     document.getElementById('dxDem').textContent = dsDx.length || '';
+    document.getElementById('tabDxDem').textContent = dsDx.length || '';
   }
   if (ep || !dangSuaDeXuat(dx)) dx.innerHTML = dsDx.map(p => HoSoAI.veTheDeXuat(p, lead, dxDangMo.has(p.id))).join('');
   if (tomTat) tomTat.innerHTML = hoSoBrief ? HoSoAI.veTomTatHoSo(hoSoBrief, {}) : '';

@@ -109,6 +109,7 @@ npm run test:rules-tinh  # test/rules-tinh.test.ts — kiểm tra tĩnh firebase
 npm run test:admin       # test/admin-api.test.ts — /api/admin (tạo/khoá/mở khoá) + MCP chặn khoá của tài khoản bị khoá
 npm run test:rules-that  # test/rules-that.test.ts — rules THẬT trên Firebase: chỉ chạy SAU KHI đã dán firebase-rules-deploy.json
 npm run test:phan-quyen-ui # test/phan-quyen-ui.test.html — bộ chuyển kho, chỉ xem, màn Quản trị, chống XSS (Chrome ngầm)
+npm run test:lead-venue-ui # test/lead-venue-ui.test.html — màn chi tiết lead + Venue: chạy hàm, CSS, markup thật trích từ index.html với dữ liệu giả, không nạp Firebase; mở thẳng trên localhost để xem giao diện (Chrome ngầm)
 npm run test:html-tinh   # test/html-tinh.test.ts — node --check mọi <script> nội tuyến của index.html (bắt lỗi cú pháp), KHÔNG chạm mạng
 ```
 

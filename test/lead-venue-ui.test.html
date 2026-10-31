@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="vi">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test man chi tiet lead va Venue</title>
+<!-- Chay bang: npm run test:lead-venue-ui
+  Chay HAM + CSS + MARKUP THAT trich tu index.html voi du lieu gia, KHONG nap module Firebase nen khong
+  ghi duoc gi len kho that. Mo truc tiep trang nay tren localhost de xem giao dien. -->
+<body>
+<script type="module">
+import * as Venue from '../web/venue.js';
+import * as LinkGui from '../web/link-gui.js';
+
+const ket = [];
+const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
+addEventListener('error', e => { if (e.message) check('khong co loi script', false, `${e.message} (dong ${e.lineno})`); });
+
+try {
+const src = (await (await fetch('../index.html')).text()).replace(/\r\n/g, '\n');
+const giua = (dau, cuoi) => { const a = src.indexOf(dau), b = src.indexOf(cuoi, a); if (a < 0 || b < 0) throw new Error('khong tim thay ' + dau); return src.slice(a, b + cuoi.length); };
+const ham = ten => giua(`function ${ten}(`, '\n}');
+const hamMotDong = ten => giua(`function ${ten}(`, '\n');
+
+for (const m of src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+  const st = document.createElement('style'); st.textContent = m[1]; document.head.append(st);
+}
+document.body.insertAdjacentHTML('beforeend', `<section class="view active" id="viewVenue">${giua('<div class="bang-wrap">\n        <div class="bang-toolbar" id="vnToolbar">', '</section>').replace('</section>', '')}</section>
+  <div class="overlay" id="overlay"></div>${giua('<aside class="drawer" id="drawer">', '</aside>')}<div id="viewDashboard"></div><datalist id="dsVenueTen"></datalist>`);
+
+Object.assign(window, { Venue, LinkGui, __chiXem: false, __ghi: 0 });
+const XSS = '<img src=x onerror="window.__bi=1">';
+const nap = document.createElement('script');
+nap.textContent = [
+  'const TODAY = new Date(); TODAY.setHours(0, 0, 0, 0);',
+  giua('const STAGES = [', '\n];'), 'const STAGE_MAP = Object.fromEntries(STAGES.map(s => [s.id, s]));',
+  giua('const PACKAGES = [', '\n'), giua('const LEAD_TYPES = [', '\n'), giua('const LOST_REASONS = [', '\n];'),
+  giua('const PIPELINE_SEQUENCE = [', '\n'),
+  giua('const COT_THONG_TIN =', '\n'), giua('[COT_THONG_TIN, COT_HOI_THOAI]', '\n'),
+  `let currentLeadId = null, editingNoteId = null, tabChiTiet = 'viec', linkGuiData = {}, linkGuiNgay = {};
+   let venues = {}, toneMau = {}, venueTab = 'sp', venueDangChon = '', venueTim = '', venueTone = '';
+   const venueChon = new Set();
+   let leads = [];
+   window.napDuLieu = (l, v) => { leads = l; venues = v; };
+   window.trangThai = () => ({ tabChiTiet, venueDangChon, venueTone, venueTab, leads });
+   const scheduleSave = () => { window.__ghi++; }, renderPipeline = () => {}, renderBangLead = () => {}, renderDashboard = () => {};
+   const openZaloChat = () => { document.getElementById('zaloBlock').innerHTML = '<div class="drawer-section-title">Hội thoại Zalo</div><div>Tin nhắn mẫu</div>'; };
+   const moHoSo = () => {}, zaloChipHtml = () => '', khoCoNhom = n => !window.__anNhom || window.__anNhom !== n;
+   const closeZaloChat = () => {}, dongHoSo = () => {};`,
+  ...['todayISO', 'congNgayISO', 'formatDate', 'daysDiff', 'esc', 'linkify', 'formatMoney', 'moneyDisplay',
+    'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
+    'openLead', 'veChipDauChiTiet', 'chonTabChiTiet', 'datHanNhanh', 'toggleKhoiChiTiet', 'renderDrawerTodos', 'khoaONhapChiXem',
+    'autoGrowTextarea', 'initAutoGrowTextareas', 'onFieldChange', 'renderNotesStream', 'closeDrawer'].map(ham),
+  ...['leadTypeOf', 'tenVenueTheoId', 'doiTabVenue', 'xemSanPhamCuaVenue', 'boLocVenue', 'chonToneChip'].map(hamMotDong),
+  ...['openLead', 'closeDrawer', 'renderVenue', 'chonTabChiTiet', 'datHanNhanh', 'xemSanPhamCuaVenue', 'chonToneChip', 'doiTabVenue', 'onFieldChange']
+    .map(t => `window.${t} = ${t};`),
+].join('\n');
+document.head.append(nap);
+
+const homNay = new Date().toISOString().slice(0, 10);
+napDuLieu([
+  { id: 'L1', name: 'Chị Mai Anh ' + XSS, stage: 'baogia', package: 'Signature', phone: '0901 234 567', facebook: 'https://facebook.com/maianh', weddingDate: '2026-12-14', deadline: homNay,
+    revenueExpected: 45000000, schedule: 'Lễ sáng ở nhà, tiệc tối tại Gem Center', persona: 'Thích tone pastel, cần tư vấn nhanh', objection: 'So giá với 2 bên khác', venueId: 'vn_1', tags: ['Tiềm năng'],
+    todos: [{ id: 't1', text: 'Gửi lại báo giá bản 2', dueDate: homNay }, { id: 't2', text: 'Xin ảnh mood board', done: true }],
+    notesList: [{ id: 'n1', text: 'Khách hẹn cuối tuần gọi lại', createdAt: '30/10', updatedAt: '30/10' }], activityLog: [{ time: homNay, text: 'Tạo lead' }] },
+  { id: 'L2', name: 'Anh Hoàng', stage: 'won', facebook: 'javascript:window.__bi=1', phone: '', revenueActual: 30000000, wonAt: homNay, notesList: [] },
+  { id: 'L3', name: 'Lost', stage: 'lost', lostReason: 'Chọn bên khác', lostAt: homNay },
+], {
+  vn_1: { id: 'vn_1', ten: 'Gem Center', sanPham: {
+    sp_1: { id: 'sp_1', ten: 'Tiệc tone xanh', link: 'https://facebook.com/p/1', gia: 'Signature', tone: ['xanh-la'], taoLuc: homNay },
+    sp_2: { id: 'sp_2', ten: 'Tiệc tone trắng', link: 'https://facebook.com/p/2', tone: ['trang'], taoLuc: homNay } } },
+  vn_2: { id: 'vn_2', ten: 'Rex ' + XSS, sanPham: { sp_3: { id: 'sp_3', ten: 'Rex tối giản', link: 'https://facebook.com/p/3', tone: ['trang'], taoLuc: homNay } } },
+  vn_3: { id: 'vn_3', ten: 'Venue trống', sanPham: {} },
+});
+
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const hien = el => !!el && el.getClientRects().length > 0;
+const tabHien = () => $$('.detail-tab').filter(hien).map(b => b.dataset.tab).join();
+
+/* 1. Chi tiết lead: khung */
+openLead('L1');
+check('hang giai doan nam ngoai vung cuon', $('#drawerStepper .stepper') && !$('#drawerBody .stepper'));
+check('bo o chon giai doan trung lap', !$('#drawerBody select[onchange*="changeStageFromDrawer"]'));
+check('xoa lead khong con canh Won/Lost', !$('#drawerHeaderActions .btn-delete-lead') && $('.detail-col-info .btn-delete-lead'));
+check('du o sua', ['name', 'weddingDate', 'phone', 'facebook', 'schedule', 'persona', 'objection', 'leadType', 'package', 'revenueExpected', 'expectedCloseMonth', 'deadline']
+  .every(f => document.querySelector(`#drawerBody [oninput*="'${f}'"], #drawerBody [onchange*="'${f}'"]`)));
+check('link goi + mo facebook', $('.field-lk[href="tel:0901234567"]') && $('.field-lk[href="https://facebook.com/maianh"]')?.rel.includes('noopener'));
+// Bo ba tab theo do rong cua cua so Chrome ngam; ca 3 do rong da xem tay tren trinh duyet
+const rong = innerWidth >= 1280, vua = innerWidth >= 761;
+check('tab dung theo do rong', tabHien() === ['viec', !rong && 'hoithoai', 'hoso', 'baogia', !vua && 'thongtin'].filter(Boolean).join(), `${innerWidth}: ${tabHien()}`);
+
+/* 2. Tab đổi đúng khối */
+chonTabChiTiet('baogia');
+check('tab bao gia hien khoi san pham', hien($('.block-link-gui')) && !hien($('.block-todo')));
+chonTabChiTiet('hoso');
+check('tab ho so', hien($('.block-hoso')) && !hien($('.block-link-gui')));
+chonTabChiTiet('thongtin');
+check('tab thong tin dung theo do rong', vua ? trangThai().tabChiTiet === 'viec' && hien($('.block-todo')) : hien($('.detail-col-info')) && !hien($('.block-todo')));
+chonTabChiTiet('viec');
+
+/* 3. Hạn liên hệ */
+window.__ghi = 0;
+$$('.han-nut')[1].click();
+const mai = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+check('nut Ngay mai dat han va luu', $('#leadDeadline').value === mai && trangThai().leads[0].deadline === mai && window.__ghi === 1, $('#leadDeadline').value);
+
+/* 4. Lead đã đóng + chống link độc */
+openLead('L2');
+check('lead won khong co khoi han', !$('.block-han') && !$('.han-nut'));
+check('link javascript khong thanh the a', !$('.field-lk'), $('.detail-col-info').innerHTML.slice(0, 200));
+openLead('L3');
+check('lead lost hien banner', /Chọn bên khác/.test($('#drawerStepper').textContent));
+
+/* 5. Chỉ xem */
+window.__chiXem = true;
+openLead('L1');
+check('chi xem: khong co nut xoa', !$('.btn-delete-lead'));
+check('chi xem: o bi khoa', [...$$('#drawerBody select')].every(o => o.disabled) && $('#leadDeadline').disabled);
+window.__chiXem = false;
+closeDrawer();
+
+/* 6. Venue */
+renderVenue();
+check('khong con tab Venue', $$('.vn-tab').map(b => b.textContent).join() === 'Sản phẩm,Thống kê');
+check('danh sach venue day du', $$('.vn-rail-muc').length === 4 && $$('.vn-rail-muc')[0].textContent.includes('3'), $('#vnRail').innerText);
+check('so lead du kien', /1 lead dự kiến/.test($('#vnRail').textContent));
+check('chua chon venue: thay ca 3 san pham', $$('.vn-sp tbody tr').length === 3 && !$('.vn-dau'));
+$$('.vn-rail-muc')[1].click();
+check('chon venue: loc + tieu de + an cot venue', $$('.vn-sp tbody tr').length === 2 && /Gem Center/.test($('.vn-dau').textContent) && !hien($('.vn-sp td.vn-c-venue')) && /moDoiTenVenue/.test($('.vn-dau').innerHTML));
+$$('.vn-chip')[1].click();
+const tone1 = trangThai().venueTone;
+check('chip tone loc mot lan bam', tone1 && $$('.vn-chip.on').length === 1);
+$(`.vn-chip[data-tone="${tone1}"]`).click();
+check('bam lai chip bo loc', trangThai().venueTone === '');
+xemSanPhamCuaVenue('vn_3');
+check('venue trong co thong bao', /chưa có sản phẩm/.test($('#vnBang').textContent) && $('.vn-dau'));
+xemSanPhamCuaVenue('');
+doiTabVenue('thongke');
+check('tab Thong ke khong co danh sach venue', !hien($('#vnRail')));
+doiTabVenue('sp');
+window.__chiXem = true; renderVenue();
+check('chi xem: khong them/doi ten', !$('.vn-rail-cuoi') && !$('.vn-chip.them') && !/moThemSanPham/.test($('#vnToolbar').innerHTML));
+window.__chiXem = false; renderVenue();
+
+/* 7. Chống XSS */
+openLead('L1');
+check('khong tao the img', !document.querySelector('#drawer img, #viewVenue img'));
+await new Promise(r => setTimeout(r, 50));
+check('khong co ma nao chay', window.__bi === undefined);
+} catch (e) { check('chay het test', false, e.stack || e); }
+
+window.__ketQua = ket;
+</script>
+</body>
+</html>
