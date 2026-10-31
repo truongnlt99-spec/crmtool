@@ -1,5 +1,20 @@
 # Theo dõi link sản phẩm gửi khách
 
+## Thay đổi sau bản đầu (31/10/2026)
+
+Phần này thắng mọi mô tả cũ bên dưới.
+
+- **Chỉ đếm lượt click.** Trường quyết định không cần thời gian xem. Trang `/xem/<token>` không nhúng gì: giữ thẻ xem trước
+  cho Zalo, gửi một sự kiện `mo` rồi `location.replace` tới link gốc, áp dụng cho cả YouTube, Facebook và link khác.
+  Bỏ thời gian xem, tương tác, iframe, lớp phủ. Sự kiện `giay` và `tuongTac` không còn.
+- **Nhãn.** Quan tâm = mở từ 2 lần, Đã mở = mở 1 lần, Chưa mở.
+- **Tạo link ít thao tác hơn.** Chọn khách xong app tự copy và đóng hộp, báo bằng thông báo ngắn. Một mẫu chỉ copy URL để Zalo
+  hiện thẻ ảnh, nhiều mẫu copy kèm tên. Hộp kết quả chỉ hiện khi có lỗi hoặc trình duyệt không cho copy. Hộp chọn khách có nhóm
+  "Vừa gửi" ở đầu, Enter chọn khách đầu tiên. Gửi một dòng không làm mất các ô đang tick.
+- **Tab Thống kê trong Venue.** 4 ô số (sản phẩm đã gửi, khách đã nhận, lượt click, tỉ lệ mở), biểu đồ cột lượt click 14 ngày,
+  sản phẩm được click nhiều, khách vừa mở (bấm vào mở lead). Lượt click theo ngày ở `<aiRoot>/linkGuiNgay/<yyyy-mm-dd>/mo`,
+  nên chỉ có từ lúc tính năng này chạy trở đi. `guiLuc` trong bản ghi link là lần gửi gần nhất.
+
 ## Vì sao làm
 
 Trân gửi link sản phẩm cho khách qua chat Zalo, một khách có thể nhận nhiều lần. Hiện nút "Copy link"

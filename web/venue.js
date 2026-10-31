@@ -211,7 +211,7 @@ export function veDongSanPham(venue, sp, tones, { chiXem = false, chon = false, 
     <td>${ngayNgan(sp.taoLuc)}</td>
     <td class="so">${tk.daGui || 0}</td>
     <td class="so">${tk.khachMo || 0}</td>
-    <td class="so">${tk.tuongTac || 0}</td>
+    <td class="so">${tk.luotClick || 0}</td>
     <td class="vn-c-thao">${thao}</td>
   </tr>`;
 }

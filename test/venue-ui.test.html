@@ -24,11 +24,12 @@ check('ten la link mo tab moi', a && a.href === sp.link && a.target === '_blank'
 check('du 10 cot', box.querySelectorAll('td').length === 10, box.querySelectorAll('td').length);
 check('o tick mang dung san pham', box.querySelector('input.vn-chon')?.dataset.sp === 'vn_1/sp_1');
 check('nut gui khach', /moChonKhach\(\['vn_1\/sp_1'\]\)/.test(box.innerHTML), box.innerHTML.slice(-500));
-ve(venue, sp, { chon: true, thongKe: { daGui: 12, khachMo: 9, tuongTac: 5 } });
+ve(venue, sp, { chon: true, thongKe: { daGui: 12, khachMo: 9, luotClick: 5 } });
 check('dang chon thi tick san', box.querySelector('input.vn-chon').checked);
 check('hien 3 cot so', [...box.querySelectorAll('td.so')].map(t => t.textContent).join() === '12,9,5', box.innerText);
 ve(venue, sp);
 check('chua gui thi hien 0', [...box.querySelectorAll('td.so')].map(t => t.textContent).join() === '0,0,0', box.innerText);
+ve(venue, sp);
 check('hien venue + gia + ngay', /Gem Center/.test(box.innerText) && /Gói Standard/.test(box.innerText));
 check('2 tone', box.querySelectorAll('.vn-tone').length === 2);
 check('nut copy mang link', box.querySelector('[data-link]')?.dataset.link === sp.link);

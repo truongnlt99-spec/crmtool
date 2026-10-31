@@ -175,16 +175,18 @@ try {
   const banGhi = await dbJson(`aiDataTest/linkGui/${kq.token}`);
   check('ban ghi dung kho', banGhi.leadId === LEAD && banGhi.soLanGui === 1 && banGhi.nenTang === 'youtube', banGhi);
   const traCuu = await dbJson(`linkXem/${kq.token}`);
-  check('bang tra cuu tro ve aiDataTest', traCuu.aiRoot === 'aiDataTest' && traCuu.ytId === ID, traCuu);
+  check('bang tra cuu tro ve aiDataTest', traCuu.aiRoot === 'aiDataTest' && traCuu.linkGoc.includes(ID), traCuu);
   check('bang tra cuu khong co lead', !JSON.stringify(traCuu).includes(LEAD), traCuu);
 
   const r2 = await goiLinkGui(admin.token, yeuCau);
   check('gui lai: cung token, daCo', r2.data.ketQua[0].token === kq.token && r2.data.ketQua[0].daCo === true, r2);
-  check('gui lai: soLanGui = 2', (await dbJson(`aiDataTest/linkGui/${kq.token}`)).soLanGui === 2);
+  const sauGuiLai = await dbJson(`aiDataTest/linkGui/${kq.token}`);
+  check('gui lai: soLanGui = 2', sauGuiLai.soLanGui === 2);
+  check('gui lai: cap nhat guiLuc', sauGuiLai.guiLuc >= banGhi.guiLuc && sauGuiLai.guiLuc > 0, sauGuiLai);
 
   await db(`crmDataTest/venues/${VN}/sanPham/yt/link`, { method: 'PUT', body: JSON.stringify('https://www.youtube.com/watch?v=RzjhHL1aHmk') });
   await goiLinkGui(admin.token, yeuCau);
-  check('sua link san pham roi gui lai: link cu tro sang link moi', (await dbJson(`linkXem/${kq.token}`)).ytId === 'RzjhHL1aHmk');
+  check('sua link san pham roi gui lai: link cu tro sang link moi', (await dbJson(`linkXem/${kq.token}`)).linkGoc.includes('RzjhHL1aHmk'));
 
   await db(`crmDataTest/venues/${VN}/sanPham/yt`, { method: 'DELETE' });
   check('san pham da xoa: link van con', (await dbJson(`linkXem/${kq.token}`)).tieuDe.includes('test'));
@@ -234,13 +236,11 @@ try {
   const sau2 = await dbJson(`aiDataTest/linkGui/${kq.token}`);
   check('2 luot mo song song du 2', sau2.soLanMo === 2, sau2);
   check('co lanDau, lanCuoi', sau2.lanDau > 0 && sau2.lanCuoi >= sau2.lanDau, sau2);
+  const demNgay = (await dbJson(`aiDataTest/linkGuiNgay/${mod.ngayVN(Date.now())}/mo`)) || 0;
+  check('dem theo ngay tang', demNgay >= 2, demNgay);
   await new Promise((r) => setTimeout(r, 30));
-  await suKien({ t: kq.token, loai: 'giay', giay: 15 });
-  await suKien({ t: kq.token, loai: 'giay', giay: 9 });
-  await suKien({ t: kq.token, loai: 'tuongTac' });
+  await suKien({ t: kq.token, loai: 'mo' });
   const sau3 = await dbJson(`aiDataTest/linkGui/${kq.token}`);
-  check('giay cong don', sau3.tongGiay === 24, sau3);
-  check('tuongTac tang', sau3.soLanTuongTac === 1, sau3);
   check('lanDau giu nguyen, lanCuoi moi hon', sau3.lanDau === sau2.lanDau && sau3.lanCuoi > sau2.lanCuoi, sau3);
 
   console.log('\n>> Tool MCP');
@@ -274,8 +274,8 @@ try {
   check('11 san pham -> loi', (await callTool('create_product_links', { lead: LEAD, sanPham: Array(11).fill(sp1) })).isError);
 
   const theoKhach = await callTool('get_link_stats', { lead: LEAD });
-  const dongYt = theoKhach.json?.links?.find((d: any) => d.tongGiay === 24);
-  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 3 && dongYt?.nhan === 'quanTam' && dongYt?.tuongTac === 1, theoKhach.text);
+  const dongYt = theoKhach.json?.links?.find((d: any) => d.soLanMo === 3);
+  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 3 && dongYt?.nhan === 'quanTam', theoKhach.text);
   check('co ten khach', dongYt?.khach === `Khach LG ${rand}`, dongYt);
   const theoSp = await callTool('get_link_stats', { venueId: VN, id: 'khac' });
   check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);
@@ -283,6 +283,7 @@ try {
   check('get_link_stats toan kho', toanKho.json?.links?.length >= 2, toanKho.text);
 } finally {
   for (const t of tokens) { await db(`linkXem/${t}`, { method: 'DELETE' }); await db(`aiDataTest/linkGui/${t}`, { method: 'DELETE' }); }
+  await db(`aiDataTest/linkGuiNgay/${mod.ngayVN(Date.now())}`, { method: 'DELETE' });
   for (const k of ['', '_a', '_b']) await db(`crmDataTest/leads/${LEAD}${k}`, { method: 'DELETE' });
   await db(`crmDataTest/venues/${VN}`, { method: 'DELETE' });
   for (const uid of cacUid) {

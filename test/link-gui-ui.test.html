@@ -12,6 +12,8 @@ import * as V from '../web/venue.js';
 
 const ket = [];
 const check = (ten, dk, ct = '') => ket.push({ ten, ok: !!dk, chiTiet: String(ct) });
+// Lỗi giữa chừng thì vẫn trả kết quả để thấy nguyên nhân, không chỉ báo "không có kết quả".
+window.addEventListener('error', e => { check('loi trong trang', false, e.message); window.__ketQua = ket; });
 const box = document.getElementById('box');
 const XSS = '<img src=x onerror="window.__bi=1">';
 const chu = () => box.innerText;
@@ -51,10 +53,10 @@ check('loi chong XSS', !box.querySelector('img'), box.innerHTML);
 /* 2b. Khối trong lead + danh sách chọn mẫu */
 const MOC = new Date(2026, 9, 30, 21, 40).getTime();
 box.innerHTML = L.veKhoiDaGui([
-  { token: 'a', tenSp: 'Pre Wedding', soLanMo: 4, tongGiay: 192, lanCuoi: MOC, nhan: 'quanTam' },
+  { token: 'a', tenSp: 'Pre Wedding', soLanMo: 4, lanCuoi: MOC, nhan: 'quanTam' },
   { token: 'b', tenSp: 'Mẫu đã xoá khỏi kho', nhan: 'chuaMo', taoLuc: MOC },
 ]);
-check('khoi: so lan mo + thoi gian + gan nhat', /4 lần mở/.test(chu()) && /3p12s/.test(chu()) && /21:40 30\/10/.test(chu()), chu());
+check('khoi: so lan mo + gan nhat', /4 lần mở/.test(chu()) && /21:40 30\/10/.test(chu()), chu());
 check('khoi: hien nhan', /Quan tâm/.test(chu()) && /Chưa mở/.test(chu()), chu());
 check('khoi: san pham da xoa van hien ten', /Mẫu đã xoá khỏi kho/.test(chu()));
 box.innerHTML = L.veKhoiDaGui([]);
@@ -81,7 +83,6 @@ const src = await (await fetch('../index.html')).text();
 const giua = (dau, cuoi) => { const a = src.indexOf(dau), b = src.indexOf(cuoi, a); if (a < 0 || b < 0) throw new Error('khong tim thay ' + dau); return src.slice(a, b); };
 const ham = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf('\n}', a) + 2); };
 const NL = String.fromCharCode(10);
-const dongHam = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf(NL, a)); };
 check('thanh chon dinh ca khoi de dinh duoc cuoi bang', /#vnThanhChon\{position:sticky; bottom:0;/.test(src));
 window.LinkGui = L;
 window.esc = s => String(s ?? '').replace(/[&<>"']/g, k => `&#${k.charCodeAt(0)};`);
@@ -97,11 +98,15 @@ window.renderVenue = () => { window.__soLanVe = (window.__soLanVe || 0) + 1; };
 window.uiIsBusy = () => false;
 window.__firebase = { auth: { currentUser: { getIdToken: async () => 'tok' } }, khoUid: () => 'uidKho' };
 const nap = document.createElement('script');
-nap.textContent = [giua('async function goiApiAdmin(', '// Đọc toàn bộ taiKhoan'), giua('function copyChuoi(', 'function moVenueModal('), ham('moVenueModal'), dongHam('dongVenueModal')].join(NL);
+nap.textContent = [giua('async function goiApiAdmin(', '// Đọc toàn bộ taiKhoan'), giua('function copyChuoi(', 'function moVenueModal('), ham('moVenueModal'), ham('dongVenueModal')].join(NL);
 document.head.append(nap);
 
 const dem = { goi: [], clip: [] };
-Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { dem.clip.push(s); } }, configurable: true });
+let chanClipboard = false;
+Object.defineProperty(navigator, 'clipboard', { value: {
+  writeText: async s => { dem.clip.push(s); },
+  write: async ds => { const b = await ds[0].getType('text/plain'); if (chanClipboard) throw new Error('chan'); dem.clip.push(await b.text()); },
+}, configurable: true });
 let traLoi;
 window.fetch = async (u, o) => { dem.goi.push({ u, body: JSON.parse(o.body), auth: o.headers.Authorization }); return traLoi(JSON.parse(o.body)); };
 const json = (d, status = 200) => new Response(JSON.stringify(d), { status });
@@ -118,7 +123,9 @@ check('o tim duoc focus', document.activeElement === $('lgTim'));
 const dsTen = () => $('lgDsKhach').innerText;
 check('bo khach da won khi chua go', /Mai Anh/.test(dsTen()) && /Anh Hoàng/.test(dsTen()) && !/Đã chốt/.test(dsTen()), dsTen());
 check('nhan da gui 1/2', /Đã gửi 1\/2 mẫu/.test(dsTen()), dsTen());
-check('nhan nhom la khach moi nhat', /Khách mới nhất/.test(dsTen()), dsTen());
+check('khach vua gui len dau', /^\s*Vừa gửi/.test(dsTen()) && document.querySelector('#lgDsKhach button').textContent.includes('Mai Anh'), dsTen());
+check('khach vua gui khong lap lai', dsTen().match(/Mai Anh/g).length === 1, dsTen());
+check('nhan nhom khach moi nhat', /Khách mới nhất/.test(dsTen()), dsTen());
 $('lgTim').value = 'khong co'; veDsKhach();
 check('khong thay khach', /Không tìm thấy khách "khong co"/.test(dsTen()) && /có trong CRM/.test(dsTen()), dsTen());
 $('lgTim').value = 'mai'; veDsKhach();
@@ -140,7 +147,7 @@ check('copy mot link', dem.clip.at(-1) === 'https://x/xem/t1', dem.clip);
 const nutTatCa = $('venueModalFooter').querySelector('.btn-primary');
 nutTatCa.click();
 await cho();
-check('copy tat ca bo dong loi', dem.clip.at(-1) === 'Mẫu Một\nhttps://x/xem/t1', dem.clip.at(-1));
+check('copy tat ca bo dong loi', dem.clip.at(-1) === 'https://x/xem/t1', dem.clip.at(-1));
 
 traLoi = () => json({ ok: true, ketQua: [{ token: 't2', url: 'https://x/xem/t2', tenSp: 'Mẫu Hai', venueId: 'v1', spId: 's2', daCo: false, soLanMo: 0 }] });
 thuLaiLink(1);
@@ -195,8 +202,80 @@ traLoi = () => json({ ok: true, ketQua: [{ token: 't', url: 'https://x/xem/t', t
 $('lgNutTaoLink').click();
 await cho();
 check('chon mau: tao link dung khach', dem.goi.at(-1).body.leadId === 'L1' && dem.goi.at(-1).body.dsSp[0].spId === 's1', JSON.stringify(dem.goi.at(-1)));
-check('chon mau: sang man lay link', /Link cho Chị Mai Anh/.test(CHUA_DOI('venueModalTitle')));
+check('chon mau: tu copy, dong hop', dem.clip.at(-1) === 'https://x/xem/t' && !$('venueOverlay').classList.contains('show'), dem.clip.at(-1));
+
+/* 4. Tự copy khi tạo xong */
+const mot = (spId, ten, them = {}) => ({ token: 't' + spId, url: `https://x/xem/${spId}`, tenSp: ten, venueId: 'v1', spId, daCo: false, soLanMo: 0, ...them });
+traLoi = () => json({ ok: true, ketQua: [mot('s1', 'Mẫu Một')] });
+moChonKhach(['v1/s1']);
+chonKhachGui('L2');
+await cho();
+check('mot mau: chon khach la xong', dem.clip.at(-1) === 'https://x/xem/s1' && !$('venueOverlay').classList.contains('show'), dem.clip.at(-1));
+check('mot mau: bao da copy', /Đã copy link cho Anh Hoàng/.test($('lgToast').textContent), $('lgToast').textContent);
+check('thong bao doc duoc bang trinh doc man hinh', $('lgToast').getAttribute('role') === 'status');
+
+traLoi = () => json({ ok: true, ketQua: [mot('s1', 'Mẫu Một', { daCo: true, soLanMo: 3 })] });
+moChonKhach(['v1/s1']);
+chonKhachGui('L1');
+await cho();
+check('link cu: bao so lan khach mo', /Khách đã mở 3 lần/.test($('lgToast').textContent), $('lgToast').textContent);
+
+traLoi = () => json({ ok: true, ketQua: [mot('s1', 'Mẫu Một'), mot('s2', 'Mẫu Hai')] });
+moChonKhach(['v1/s1', 'v1/s2']);
+chonKhachGui('L2');
+await cho();
+check('nhieu mau: copy ca ten va link', dem.clip.at(-1) === 'Mẫu Một\nhttps://x/xem/s1\n\nMẫu Hai\nhttps://x/xem/s2', dem.clip.at(-1));
+check('nhieu mau: bao so link', /Đã copy 2 link/.test($('lgToast').textContent), $('lgToast').textContent);
+
+chanClipboard = true;
+traLoi = () => json({ ok: true, ketQua: [mot('s1', 'Mẫu Một')] });
+moChonKhach(['v1/s1']);
+chonKhachGui('L2');
+await cho();
+check('khong copy duoc: giu hop de copy tay', $('venueOverlay').classList.contains('show') && !!document.querySelector('[data-url]'));
+chanClipboard = false;
 dongVenueModal();
+
+window.eval(`venueChon.add('v1/s1'); venueChon.add('v1/s2');`);
+moChonKhach(['v1/s9']);
+chonKhachGui('L2');
+await cho();
+check('gui mot dong khong mat o dang tick', window.eval('venueChon.size') === 2);
+moChonKhach(['v1/s1', 'v1/s2']);
+chonKhachGui('L2');
+await cho();
+check('gui nhom dang tick thi bo tick', window.eval('venueChon.size') === 0);
+dongVenueModal();
+window.__soLanVe = 0;
+moChonKhach(['v1/s1']);
+chonKhachGui('L2');
+await cho();
+check('dong hop thi ve lai bang', window.__soLanVe >= 1);
+
+/* 5. Màn Thống kê */
+const tenKhach = id => ({ L1: 'Chị Mai Anh' })[id] || '';
+const LINK = {
+  a: { leadId: 'L1', venueId: 'v1', spId: 's1', tenSp: XSS, soLanMo: 4, lanCuoi: MOC, guiLuc: 1 },
+  b: { leadId: 'L9', venueId: 'v1', spId: 's2', tenSp: 'Mẫu Hai', soLanMo: 1, lanCuoi: MOC - 1, guiLuc: 2 },
+  c: { leadId: 'L1', venueId: 'v1', spId: 's3', tenSp: 'Mẫu Ba', guiLuc: 3 },
+};
+const NGAY = { '2026-10-30': { mo: 4 }, '2026-10-31': { mo: 1 } };
+box.innerHTML = L.veThongKe({ linkGui: LINK, linkGuiNgay: NGAY, homNay: '2026-10-31', tenKhach });
+const o = [...box.querySelectorAll('.lg-o')].map(x => x.innerText.replace(/\s+/g, ' '));
+check('4 o so', o.length === 4 && /Sản phẩm đã gửi\s*3/.test(o[0]) && /Khách đã nhận\s*2/.test(o[1]) && /Lượt click\s*5/.test(o[2]) && /Tỉ lệ mở\s*67%/.test(o[3]), o.join(' | '));
+check('bieu do du 14 cot', box.querySelectorAll('.lg-cot').length === 14);
+check('cot co nhan cho trinh doc man hinh', box.querySelectorAll('.lg-cot')[12].getAttribute('aria-label') === '30/10: 4 lượt click');
+check('chi ghi so tren cot cao nhat', box.querySelectorAll('.lg-cot b').length === 1 && box.querySelector('.lg-cot b').textContent === '4');
+check('bam khach mo lead', /openLead\('L1'\)/.test(box.innerHTML));
+check('lead da xoa khong bam duoc', /\(lead đã xoá\)/.test(chu()) && !/openLead\('L9'\)/.test(box.innerHTML), chu());
+check('thong ke chong XSS', !box.querySelector('img'), box.innerHTML.slice(0, 300));
+box.innerHTML = L.veThongKe({ linkGui: LINK, linkGuiNgay: {}, homNay: '2026-10-31', tenKhach });
+check('chua co click trong ky thi khong ve cot', !box.querySelector('.lg-cot') && /Chưa có lượt click/.test(chu()), chu());
+box.innerHTML = L.veThongKe({ linkGui: {}, linkGuiNgay: {}, homNay: '2026-10-31', tenKhach });
+check('chua gui gi: moi di gui', /Chưa gửi link/.test(chu()) && /doiTabVenue\('sp'\)/.test(box.innerHTML));
+box.innerHTML = L.veThongKe({ linkGui: {}, linkGuiNgay: {}, homNay: '2026-10-31', tenKhach, chiXem: true });
+check('chi xem: khong moi di gui', !/doiTabVenue/.test(box.innerHTML));
+box.innerHTML = '';
 
 window.__ketQua = ket;
 </script>
