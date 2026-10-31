@@ -870,23 +870,34 @@
   .vn-chip.them{border-style:dashed; padding-left:12px; color:var(--text-3);}
   .vn-chips{display:flex; flex-wrap:wrap; gap:6px;}
 
-  /* Danh sách venue bên trái thay cho tab Venue; tab Thống kê không có danh sách */
-  .vn-khung{flex:1; min-height:0; display:grid; grid-template-columns:232px minmax(0,1fr); gap:12px;}
-  .vn-khung:has(.vn-rail:empty){grid-template-columns:minmax(0,1fr);}
-  .vn-rail{display:flex; flex-direction:column; gap:2px; min-height:0; overflow-y:auto;}
-  .vn-rail:empty{display:none;}
-  .vn-rail-muc{
-    flex:none; display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; min-height:44px; padding:7px 10px;
-    border:0; border-radius:var(--r-md); background:none; font:inherit; font-size:14px; text-align:left; color:var(--text-2); cursor:pointer;
+  /* Lọc venue: một nút cùng hàng chip tone, bấm mới mở danh sách có ô tìm */
+  .vn-loc-hang{display:flex; align-items:flex-start; gap:8px;}
+  .vn-loc{position:relative; flex:none;}
+  .vn-loc-nut{font-weight:600; color:var(--text);}
+  .vn-loc-nut svg{flex:none; width:15px; height:15px;}
+  .vn-loc-nut span{max-width:200px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;}
+  .vn-loc-nut .vn-loc-mui{width:13px; height:13px; color:var(--text-3); transition:transform .15s;}
+  .vn-loc-nut[aria-expanded="true"] .vn-loc-mui{transform:rotate(180deg);}
+  .vn-loc-gach{flex:none; width:1px; height:20px; margin-top:6px; background:var(--border-strong);}
+  .vn-loc-pop{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:10; width:300px; max-width:calc(100vw - 24px); padding:8px;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); box-shadow:var(--sh-md);
   }
-  .vn-rail-muc:hover{background:var(--well); color:var(--text);}
-  .vn-rail-muc:focus-visible{outline:2px solid var(--primary); outline-offset:-2px;}
-  .vn-rail-muc.on{background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
-  .vn-rail-muc b{font-weight:500; font-size:13px; font-variant-numeric:tabular-nums;}
-  .vn-rail-ten{min-width:0; overflow-wrap:anywhere;}
-  .vn-rail-ten small{display:block; font-size:12px; font-weight:400; color:var(--text-3);}
-  .vn-rail-cuoi{margin-top:auto; padding-top:10px; display:flex; flex-direction:column; gap:6px;}
-  .vn-rail-cuoi .btn{justify-content:center; padding:8px 10px;}
+  .vn-loc-pop .field-input{width:100%; min-height:36px; padding:6px 10px;}
+  .vn-loc-ds{max-height:320px; overflow-y:auto; margin-top:6px;}
+  .vn-loc-muc{
+    display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; min-height:36px; padding:6px 8px;
+    border:0; border-radius:var(--r-sm); background:none; font:inherit; font-size:13.5px; text-align:left; color:var(--text); cursor:pointer;
+  }
+  .vn-loc-muc:hover{background:var(--well);}
+  .vn-loc-muc:focus-visible{outline:2px solid var(--primary); outline-offset:-2px;}
+  .vn-loc-muc.on{background:var(--primary-soft); color:var(--primary-ink); font-weight:600;}
+  .vn-loc-muc span{min-width:0; overflow-wrap:anywhere;}
+  .vn-loc-muc b{flex:none; font-weight:500; font-size:12.5px; color:var(--text-3); font-variant-numeric:tabular-nums;}
+  .vn-loc-nhom{padding:10px 8px 4px; font-size:12px; font-weight:600; color:var(--text-3);}
+  .vn-loc-trong{padding:14px 8px; text-align:center; font-size:13px; color:var(--text-3);}
+  .vn-loc-cuoi{display:flex; justify-content:space-between; gap:8px; margin-top:6px; padding-top:6px; border-top:1px solid var(--border);}
+  .vn-loc-cuoi .vn-lk{margin:0; padding:6px;}
   .vn-dau{display:flex; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:10px 14px; border-bottom:1px solid var(--border);}
   .vn-dau h2{margin:0; font:600 17px/1.25 var(--font-head); color:var(--text);}
   .vn-sp.mot-venue .vn-c-venue{display:none;}
@@ -962,14 +973,12 @@
     .lg-thanh{flex-wrap:wrap;}
     .vn-bang td.vn-c-ten{min-width:160px;}
 
-    /* Điện thoại: danh sách venue cuộn ngang, sản phẩm thành thẻ */
-    .vn-khung{grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); gap:8px;}
-    .vn-khung:has(.vn-rail:empty){grid-template-rows:minmax(0,1fr);}
-    .vn-rail{flex-direction:row; overflow:auto hidden; gap:6px; scrollbar-width:none;}
-    .vn-rail-muc{width:auto; max-width:220px; border:1px solid var(--border); background:var(--surface);}
-    .vn-rail-ten small{display:none;}
-    .vn-rail-cuoi{flex-direction:row; flex:none; margin:0; padding:0;}
-    .vn-rail-cuoi .btn{white-space:nowrap;}
+    /* Điện thoại: chip tone cuộn ngang, sản phẩm thành thẻ */
+    .vn-chips{flex:1; min-width:0;}
+    .vn-loc-gach{display:none;}
+    .vn-loc-nut{min-height:40px;}
+    .vn-loc-nut span{max-width:120px;}
+    .vn-loc-muc{min-height:44px;}
     .vn-chips{flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none;}
     .vn-chip{flex:none; min-height:40px;}
     table.bang.vn-sp, .vn-sp tbody{display:block;}
@@ -2350,7 +2359,7 @@
       </button>
       <button class="nav-item" id="navVenue" onclick="setView('venue')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
-        <span>Venue</span>
+        <span>Venue &amp; sản phẩm</span>
       </button>
       <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
@@ -2502,10 +2511,7 @@
     <section class="view" id="viewVenue">
       <div class="bang-wrap">
         <div class="bang-toolbar" id="vnToolbar"></div>
-        <div class="vn-khung">
-          <nav class="vn-rail" id="vnRail" aria-label="Danh sách venue"></nav>
-          <div class="bang-scroll" id="vnBang"></div>
-        </div>
+        <div class="bang-scroll" id="vnBang"></div>
       </div>
     </section>
 
@@ -3743,7 +3749,7 @@ function toggleSidebar(){
 const VIEWS = {
   pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Pipeline',  sub:'Theo dõi lead theo từng giai đoạn' },
   list:          { el:'viewList',          nav:'navList',          title:'Danh sách', sub:'Tất cả lead dạng bảng' },
-  venue:         { el:'viewVenue',         nav:'navVenue',         title:'Venue',     sub:'Venue và sản phẩm đã làm, tra theo tone màu' },
+  venue:         { el:'viewVenue',         nav:'navVenue',         title:'Venue & sản phẩm', sub:'Số liệu link đã gửi, tra sản phẩm theo venue và tone màu' },
   dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Dashboard', sub:'Báo cáo tổng quan theo tháng' },
   conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tất cả hội thoại Zalo đã gắn lead' },
 };
@@ -3765,7 +3771,8 @@ function setView(view){
 // <kho>/toneMau. KHÁC lead: app ghi venue NGAY khi bấm, theo đường dẫn nhỏ nhất (venues/<id>/sanPham/<spId>),
 // không đi qua diff tinhThayDoiCucBo — để không đè sản phẩm Claude vừa thêm vào cùng venue.
 let venues = {}, toneMau = {};
-let venueTab = 'sp';         // 'sp' = venue + bảng sản phẩm, 'thongke' = thống kê link gửi
+let venueTab = 'thongke';    // 'thongke' = thống kê link gửi, 'sp' = bảng sản phẩm
+let venueLocMo = false, venueLocTim = '';   // hộp lọc venue đang mở + chữ đang gõ trong hộp
 let venueDangChon = '';      // lọc sản phẩm theo venue ('' = tất cả)
 let venueTim = '', venueTone = '';   // venueTone: id một tone ('' = tất cả)
 let venueGoiYDangMo = null;  // kết quả khopVenueMau đang hiện trong hộp gợi ý
@@ -3817,12 +3824,12 @@ function renderVenue(){
   const tongSp = ds.reduce((n, v) => n + soSp(v), 0);
   if (venueDangChon && !venues[venueDangChon]) venueDangChon = '';
   if (venueTone && !tones.some(t => t.id === venueTone)) venueTone = '';
-  const dangGo = document.activeElement && document.activeElement.id === 'vnTim';
+  const dangGo = ['vnTim', 'vnLocTim'].find(id => document.activeElement && document.activeElement.id === id);
 
   const tab = (ma, ten) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}</button>`;
-  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm')}${tab('thongke', 'Thống kê')}${tab('langui', 'Lần gửi')}</div>`;
+  const tabs = `<div class="vn-tabs" role="tablist">${tab('thongke', 'Thống kê')}${tab('sp', 'Sản phẩm')}${tab('langui', 'Lần gửi')}</div>`;
 
-  let toolbar, than, rail = '';
+  let toolbar, than;
   const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
   if (venueTab === 'thongke'){
     toolbar = `<div class="vn-hang">${tabs}</div>`;
@@ -3850,15 +3857,25 @@ function renderVenue(){
         <input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="Tìm tên, giá, venue…" aria-label="Tìm sản phẩm" oninput="venueTim=this.value; renderVenue()">
         <span class="vn-dem">${kq.length === tongLoc ? `${tongLoc} sản phẩm` : `${kq.length} / ${tongLoc} sản phẩm`}</span>
         <span class="vn-cach"></span>${chiXem ? '' : `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`}</div>
-      <div class="vn-chips" role="group" aria-label="Lọc theo tone">${chip('', 'Tất cả tone', '')}${tones.map(t => chip(t.id, t.ten, `<span class="vn-cham" style="background:${V.mauAnToan(t.mau)}"></span>`)).join('')}
-        ${chiXem ? '' : '<button type="button" class="vn-chip them" onclick="moThemTone()">+ Tone</button>'}</div>`;
-
-    const mucRail = (id, ten, so, phu) => `<button type="button" class="vn-rail-muc ${venueDangChon === id ? 'on' : ''}" ${venueDangChon === id ? 'aria-current="true"' : ''} data-vn="${esc(id)}" onclick="xemSanPhamCuaVenue(this.dataset.vn)">
-      <span class="vn-rail-ten">${esc(ten)}${phu ? `<small>${phu}</small>` : ''}</span><b>${so}</b></button>`;
-    rail = mucRail('', 'Tất cả', tongSp, '') +
-      ds.map(v => mucRail(v.id, v.ten, soSp(v), soLead[v.id] ? `${soLead[v.id]} lead dự kiến` : '')).join('') +
-      (chiXem ? '' : `<div class="vn-rail-cuoi"><button type="button" class="btn btn-ghost" onclick="moThemVenue()">+ Thêm venue</button>
-        <button type="button" class="btn btn-ghost" onclick="moGoiYVenue()">Gợi ý từ lead</button></div>`);
+      <div class="vn-loc-hang">
+        <div class="vn-loc" onkeydown="if(event.key==='Escape') dongLocVenue(true)">
+          <button type="button" class="vn-chip vn-loc-nut ${vDangChon ? 'on' : ''}" id="vnLocNut" aria-haspopup="listbox" aria-expanded="${venueLocMo}" onclick="moLocVenue()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+            <span>${esc(vDangChon ? vDangChon.ten : 'Tất cả venue')}</span>
+            <svg class="vn-loc-mui" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          ${venueLocMo ? `<div class="vn-loc-pop">
+            <input class="field-input" id="vnLocTim" type="search" value="${esc(venueLocTim)}" placeholder="Tìm venue…" aria-label="Tìm venue" autocomplete="off"
+              oninput="venueLocTim=this.value; veDsLocVenue()" onkeydown="if(event.key==='Enter'){ event.preventDefault(); const b=document.querySelector('#vnLocDs .vn-loc-muc:not(.tat-ca)'); if(b) b.click(); }">
+            <div class="vn-loc-ds" id="vnLocDs" role="listbox" aria-label="Venue"></div>
+            ${chiXem ? '' : `<div class="vn-loc-cuoi"><button type="button" class="vn-lk" onclick="dongLocVenue(); moThemVenue()">+ Thêm venue</button>
+              <button type="button" class="vn-lk" onclick="dongLocVenue(); moGoiYVenue()">Gợi ý từ lead</button></div>`}
+          </div>` : ''}
+        </div>
+        <span class="vn-loc-gach" aria-hidden="true"></span>
+        <div class="vn-chips" role="group" aria-label="Lọc theo tone">${chip('', 'Tất cả tone', '')}${tones.map(t => chip(t.id, t.ten, `<span class="vn-cham" style="background:${V.mauAnToan(t.mau)}"></span>`)).join('')}
+          ${chiXem ? '' : '<button type="button" class="vn-chip them" onclick="moThemTone()">+ Tone</button>'}</div>
+      </div>`;
 
     const dau = vDangChon ? `<div class="vn-dau"><h2>${esc(vDangChon.ten)}</h2>
       <span class="vn-dem">${soSp(vDangChon)} sản phẩm · ${soLead[venueDangChon] || 0} lead dự kiến</span><span class="vn-cach"></span>
@@ -3878,14 +3895,41 @@ function renderVenue(){
     }
   }
   document.getElementById('vnToolbar').innerHTML = toolbar;
-  document.getElementById('vnRail').innerHTML = rail;
   bang.innerHTML = than;
+  veDsLocVenue();
   veThanhChon();
-  if (dangGo){ const o = document.getElementById('vnTim'); if (o){ o.focus(); o.setSelectionRange(o.value.length, o.value.length); } }
+  if (dangGo){ const o = document.getElementById(dangGo); if (o){ o.focus(); o.setSelectionRange(o.value.length, o.value.length); } }
 }
 
+// Danh sách trong hộp lọc: chỉ tên + số sản phẩm; venue có sản phẩm lên trước, nhiều nhất trước
+function veDsLocVenue(){
+  const o = document.getElementById('vnLocDs');
+  if (!o) return;
+  const boDau = window.BangLead ? window.BangLead.boDau : c => String(c).toLowerCase();
+  const q = boDau(venueLocTim.trim());
+  const soSp = v => Object.keys(v.sanPham || {}).length;
+  const ds = dsVenueSapXep();
+  const khop = ds.filter(v => !q || boDau(v.ten).includes(q));
+  const muc = (id, ten, so, lop = '') => `<button type="button" role="option" aria-selected="${venueDangChon === id}" class="vn-loc-muc ${lop} ${venueDangChon === id ? 'on' : ''}" data-vn="${esc(id)}" onclick="xemSanPhamCuaVenue(this.dataset.vn)"><span>${esc(ten)}</span><b>${so || ''}</b></button>`;
+  const co = khop.filter(soSp).sort((a, b) => soSp(b) - soSp(a)), chua = khop.filter(v => !soSp(v));
+  o.innerHTML = (q ? '' : muc('', 'Tất cả venue', ds.reduce((n, v) => n + soSp(v), 0), 'tat-ca')) +
+    co.map(v => muc(v.id, v.ten, soSp(v))).join('') +
+    (chua.length ? `<div class="vn-loc-nhom">Chưa có sản phẩm</div>${chua.map(v => muc(v.id, v.ten, 0)).join('')}` : '') +
+    (khop.length ? '' : '<div class="vn-loc-trong">Không có venue khớp.</div>');
+}
+function moLocVenue(){
+  if (venueLocMo) return dongLocVenue();
+  venueLocMo = true; venueLocTim = ''; renderVenue();
+  document.getElementById('vnLocTim').focus();
+}
+function dongLocVenue(traFocus){
+  venueLocMo = false; venueLocTim = ''; renderVenue();
+  if (traFocus) document.getElementById('vnLocNut').focus();
+}
+document.addEventListener('click', e => { if (venueLocMo && !e.target.closest('.vn-loc')) dongLocVenue(); });
+
 function doiTabVenue(ma){ venueTab = ma; venueTim = ''; renderVenue(); }
-function xemSanPhamCuaVenue(id){ venueDangChon = id; renderVenue(); }
+function xemSanPhamCuaVenue(id){ venueDangChon = id; venueLocMo = false; venueLocTim = ''; renderVenue(); }
 function boLocVenue(){ venueTim = ''; venueTone = ''; venueDangChon = ''; renderVenue(); }
 function chonToneChip(id){ venueTone = venueTone === id ? '' : id; renderVenue(); }
 

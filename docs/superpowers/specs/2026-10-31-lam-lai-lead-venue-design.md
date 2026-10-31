@@ -42,12 +42,12 @@ Bỏ: thu gọn khối Hồ sơ (đã có tab riêng), thu gọn khối Thông t
 
 ## Venue
 
-- **Danh sách venue bên trái** thay cho tab "Venue": Tất cả + từng venue, kèm số sản phẩm và số lead dự kiến. Bấm là lọc ngay. "+ Thêm venue" và "Gợi ý từ lead" nằm cuối danh sách.
+- Tên màn đổi thành "Venue & sản phẩm", mở ra là tab Thống kê (đứng trước tab Sản phẩm). Trường yêu cầu sau khi xem bản đầu.
+- **Lọc venue là một nút** cùng hàng chip tone, thay cho tab "Venue". Bản đầu là danh sách cố định bên trái, nhưng hơn 30 venue, đa số chưa có sản phẩm, vừa nhiều chữ vừa làm bảng phải cuộn ngang. Bấm nút mở hộp có ô tìm: chỉ tên + số sản phẩm, venue nhiều sản phẩm lên trước, venue trống gom xuống cuối. "+ Thêm venue" và "Gợi ý từ lead" nằm đáy hộp.
 - Chọn một venue: tiêu đề phía trên bảng có số liệu, Đổi tên, Xoá; bảng ẩn cột Venue.
 - **Tone là hàng chip** bấm một lần, bấm lại để bỏ, có chip "+ Tone".
 - Mỗi dòng: "Gửi khách" nổi nhất, Sửa/Xoá chỉ hiện khi rê chuột hoặc focus. Màn cảm ứng luôn hiện.
-- Thống kê giữ nguyên, thành tab thứ hai.
-- Điện thoại: danh sách venue thành hàng cuộn ngang, mỗi sản phẩm là một thẻ thay vì dòng bảng.
+- Điện thoại: chip tone cuộn ngang, mỗi sản phẩm là một thẻ thay vì dòng bảng.
 
 ## Không đổi
 
@@ -60,6 +60,6 @@ Bỏ: thu gọn khối Hồ sơ (đã có tab riêng), thu gọn khối Thông t
 
 1. Khung HTML + CSS màn chi tiết lead, sắp lại khối trong `openLead`.
 2. Hàng giai đoạn lên đầu màn, khối hạn liên hệ, link liên hệ, phím tắt, số đề xuất trên tab.
-3. `renderVenue`: danh sách venue, chip tone, tiêu đề venue; `veDongSanPham`: thao tác và thẻ trên điện thoại.
+3. `renderVenue`: nút lọc venue, chip tone, tiêu đề venue; `veDongSanPham`: thao tác và thẻ trên điện thoại.
 4. Test mới `test/lead-venue-ui.test.html` chạy hàm thật trích từ `index.html` với dữ liệu giả, không chạm Firebase.
 5. Chạy toàn bộ test UI và test thuần, xem ở 3 độ rộng, sáng và tối.
