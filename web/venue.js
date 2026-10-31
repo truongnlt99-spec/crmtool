@@ -183,7 +183,7 @@ export function khopVenueMau(leads, venues, mau = VENUE_MAU){
   return { goiY: [...goiY.values()].sort((a, b) => b.nhacDen - a.nhacDen || a.ten.localeCompare(b.ten)), canChonTay };
 }
 
-const mauAnToan = m => (/^#[0-9a-f]{6}$/i.test(m) ? m : '#cccccc');
+export const mauAnToan = m => (/^#[0-9a-f]{6}$/i.test(m) ? m : '#cccccc');
 const ngayNgan = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : '—'; };
 
 /** Một dòng <tr> của bảng sản phẩm. Mọi chữ đã escape; link chỉ thành thẻ <a> / nút Copy khi là http(s). */
@@ -195,23 +195,23 @@ export function veDongSanPham(venue, sp, tones, { chiXem = false, chon = false, 
   const idOk = ID_HOP_LE.test(venue.id) && ID_HOP_LE.test(sp.id);
   const guiDuoc = !chiXem && ok && idOk;
   const khoa = `${venue.id}/${sp.id}`;
-  const thao = (guiDuoc ? `<button type="button" class="vn-lk" onclick="moChonKhach(['${khoa}'])">Gửi khách</button>` : '') +
+  const thao = (guiDuoc ? `<button type="button" class="vn-lk chinh" onclick="moChonKhach(['${khoa}'])">Gửi khách</button>` : '') +
     (ok ? `<button type="button" class="vn-lk" data-link="${link}" onclick="copyLinkSanPham(this)">Copy link</button>` : '') +
     (chiXem || !idOk ? '' :
-      `<button type="button" class="vn-lk" onclick="moSuaSanPham('${venue.id}','${sp.id}')">Sửa</button>` +
-      `<button type="button" class="vn-lk xoa" onclick="xoaSanPham('${venue.id}','${sp.id}')">Xoá</button>`);
+      `<button type="button" class="vn-lk phu" onclick="moSuaSanPham('${venue.id}','${sp.id}')">Sửa</button>` +
+      `<button type="button" class="vn-lk xoa phu" onclick="xoaSanPham('${venue.id}','${sp.id}')">Xoá</button>`);
   const oTick = chiXem ? '' : `<td class="vn-c-chon">${guiDuoc
     ? `<input type="checkbox" class="vn-chon" data-sp="${khoa}" aria-label="Chọn ${esc(sp.ten)}" ${chon ? 'checked' : ''} onchange="chonSanPham(this)">` : ''}</td>`;
   const tk = thongKe || {};
   return `<tr>${oTick}
     <td class="vn-c-ten">${ok ? `<a href="${link}" target="_blank" rel="noopener noreferrer">${esc(sp.ten)}</a>` : esc(sp.ten)}</td>
-    <td>${esc(venue.ten)}</td>
+    <td class="vn-c-venue">${esc(venue.ten)}</td>
     <td>${tone}</td>
     <td>${sp.gia ? esc(sp.gia) : '<span class="vn-c-mo">—</span>'}</td>
-    <td>${ngayNgan(sp.taoLuc)}</td>
-    <td class="so">${tk.daGui || 0}</td>
-    <td class="so">${tk.khachMo || 0}</td>
-    <td class="so">${tk.luotClick || 0}</td>
+    <td class="vn-c-ngay">${ngayNgan(sp.taoLuc)}</td>
+    <td class="so" data-nhan="Đã gửi">${tk.daGui || 0}</td>
+    <td class="so" data-nhan="Khách mở">${tk.khachMo || 0}</td>
+    <td class="so" data-nhan="Click">${tk.luotClick || 0}</td>
     <td class="vn-c-thao">${thao}</td>
   </tr>`;
 }
