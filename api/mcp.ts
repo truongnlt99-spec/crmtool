@@ -3037,7 +3037,7 @@ const ID_DUONG_DAN = /^[A-Za-z0-9_-]{1,80}$/;
 const TOKEN_XEM = /^[A-Za-z0-9]{10}$/;
 const HET_GIO_LINK_MS = 5000;
 
-type LinkDaChuanHoa = { linkGoc: string; anh: string; nenTang: 'facebook' | 'youtube' | 'khac'; ytId: string | null };
+type LinkDaChuanHoa = { linkGoc: string; anh: string; nenTang: 'facebook' | 'youtube' | 'khac'; ytId: string | null; tenPage: string; moTa: string };
 type KetQuaLink =
   | { token: string; url: string; tenSp: string; venueId: string; spId: string; daCo: boolean; soLanMo: number }
   | { venueId: string; spId: string; loi: string };
@@ -3065,18 +3065,48 @@ export function layYoutubeId(link: string): string | null {
 
 const laFacebook = (u: URL) => /(^|\.)(facebook\.com|fb\.com|fb\.watch)$/.test(u.hostname);
 
+const giaiMaHtml = (s: string) => s
+  .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+  .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
+  .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+const chuThuan = (html: string) => giaiMaHtml(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+const catNgan = (s: string, n = 200) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s);
+
+/** Tên page, nội dung và ảnh bài trong trang plugin nhúng của Facebook (t39.30808-1 là avatar fanpage, rsrc.php là icon). */
+function docPluginFacebook(html: string): { tenPage: string; moTa: string; anh: string } {
+  const ten = /<a[^>]*class="[^"]*profileLink[^"]*"[^>]*>(.*?)<\/a>/s.exec(html);
+  const noiDung = /<div[^>]*data-testid="post_message"[^>]*>(.*?)<\/div>/s.exec(html);
+  const anh = [...html.matchAll(/<img[^>]+src="(https:\/\/[^"]*fbcdn\.net[^"]*)"/g)].map((x) => x[1]).find((u) => !/t39\.30808-1\/|rsrc\.php/.test(u));
+  return {
+    tenPage: ten ? chuThuan(ten[1]) : '',
+    moTa: noiDung ? catNgan(chuThuan(noiDung[1]).replace(/\s*…?\s*(See more|Xem thêm)$/i, '')) : '',
+    anh: anh ? giaiMaHtml(anh) : '',
+  };
+}
+
 /**
- * Nhận dạng nền tảng, đổi link share của Facebook về link bài gốc (để chuyển thẳng tới bài và lấy đúng ảnh) và lấy ảnh bìa.
- * Không bao giờ ném lỗi: Facebook chặn hoặc treo thì vẫn dùng link vào, thẻ Zalo chỉ thiếu ảnh.
- * shortcut: giả UA crawler của Facebook vì UA trình duyệt bị 400, Facebook đổi cách chặn thì mất ảnh và link share không nhúng được.
+ * Nhận dạng nền tảng, đổi link share của Facebook về link bài gốc, lấy ảnh bìa, tên page và nội dung bài cho thẻ Zalo.
+ * Không bao giờ ném lỗi: nền tảng chặn hoặc treo thì vẫn dùng link vào, thẻ Zalo chỉ thiếu thông tin.
+ * shortcut: giả UA crawler của Facebook vì UA trình duyệt bị 400, Facebook đổi cách chặn thì thẻ về lại tên sản phẩm.
  */
 export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promise<LinkDaChuanHoa> {
   const ytId = layYoutubeId(link);
-  if (ytId) return { linkGoc: link, anh: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, nenTang: 'youtube', ytId };
+  if (ytId) {
+    const kq: LinkDaChuanHoa = { linkGoc: link, anh: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, nenTang: 'youtube', ytId, tenPage: '', moTa: '' };
+    try {
+      const url = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ytId}`)}&format=json`;
+      const d: any = await (await f(url, { signal: AbortSignal.timeout(HET_GIO_LINK_MS) })).json();
+      kq.tenPage = String(d?.author_name || '');
+      kq.moTa = catNgan(String(d?.title || ''));
+    } catch (e) {
+      console.warn('Khong lay duoc thong tin video YouTube:', e);
+    }
+    return kq;
+  }
   const u = urlHopLe(link);
-  if (!u || !laFacebook(u)) return { linkGoc: link, anh: '', nenTang: 'khac', ytId: null };
+  if (!u || !laFacebook(u)) return { linkGoc: link, anh: '', nenTang: 'khac', ytId: null, tenPage: '', moTa: '' };
 
-  const kq: LinkDaChuanHoa = { linkGoc: link, anh: '', nenTang: 'facebook', ytId: null };
+  const kq: LinkDaChuanHoa = { linkGoc: link, anh: '', nenTang: 'facebook', ytId: null, tenPage: '', moTa: '' };
   const tuyChon = { headers: { 'User-Agent': 'facebookexternalhit/1.1' }, signal: AbortSignal.timeout(HET_GIO_LINK_MS) };
   try {
     if (u.pathname.startsWith('/share/') || u.hostname === 'fb.watch') {
@@ -3092,14 +3122,15 @@ export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promi
     }
     const html = await (await f(kq.linkGoc, tuyChon)).text();
     const m = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
-    if (m) kq.anh = m[1].replace(/&amp;/g, '&');
-    else {
-      // Link /photo/ không có og:image; trang plugin nhúng vẫn có ảnh bài (t39.30808-1 là avatar fanpage, rsrc.php là icon).
-      const plugin = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(kq.linkGoc)}&show_text=false&width=500`;
-      const anhPlugin = [...(await (await f(plugin, tuyChon)).text()).matchAll(/<img[^>]+src="(https:\/\/[^"]*fbcdn\.net[^"]*)"/g)]
-        .map((x) => x[1]).find((u) => !/t39\.30808-1\/|rsrc\.php/.test(u));
-      if (anhPlugin) kq.anh = anhPlugin.replace(/&amp;/g, '&');
-    }
+    if (m) kq.anh = giaiMaHtml(m[1]);
+    const ogTen = /<meta[^>]+property="og:title"[^>]+content="([^"]+)"/.exec(html);
+    if (ogTen) kq.tenPage = giaiMaHtml(ogTen[1]);
+    // Facebook không có og:description, link /photo/ còn thiếu cả og:image; trang plugin nhúng có đủ.
+    const plugin = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(kq.linkGoc)}&show_text=true&width=500`;
+    const p = docPluginFacebook(await (await f(plugin, tuyChon)).text());
+    kq.anh ||= p.anh;
+    kq.tenPage ||= p.tenPage;
+    kq.moTa = p.moTa;
   } catch (e) {
     console.warn('Khong chuan hoa duoc link Facebook:', e);
   }
@@ -3131,12 +3162,13 @@ export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ ven
     if (cu) { patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } }; patch[`${ai}/linkGui/${token}/guiLuc`] = { '.sv': 'timestamp' }; }
     // Trân sửa link sản phẩm rồi gửi lại thì link đã gửi phải trỏ sang link mới
     const doiLink = !cu || cu[1].linkNguon !== link;
-    // Lần trước Facebook lỗi tạm thời (chưa có ảnh): gửi lại là dịp thử chuẩn hoá lần nữa
-    const thieuAnh = !doiLink && cu![1].nenTang === 'facebook' && !(await readPath(`linkXem/${token}/anh`));
-    if (doiLink || thieuAnh) {
+    // Lần trước nền tảng lỗi tạm thời, hoặc link cũ chưa có nội dung: gửi lại là dịp lấy thông tin thẻ lần nữa
+    const thieuThe = !doiLink && cu![1].nenTang !== 'khac' && !(await readPath(`linkXem/${token}/moTa`));
+    if (doiLink || thieuThe) {
       const c = await chuanHoaLink(link, f);
-      if (doiLink || c.anh || c.linkGoc !== link) {
-        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang };
+      if (doiLink || c.anh || c.tenPage || c.linkGoc !== link) {
+        const tieuDe = c.tenPage ? (c.moTa ? c.tenPage : `${c.tenPage} - ${sp.ten}`) : sp.ten;
+        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe, moTa: c.moTa, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang };
       }
       if (cu && doiLink) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
       if (!cu) patch[`${ai}/linkGui/${token}`] = {
@@ -3194,14 +3226,15 @@ const THOAT_HTML: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&g
 const escTrang = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (k) => THOAT_HTML[k]);
 
 /** Trang trung gian: giữ thẻ xem trước cho Zalo, đếm một lượt mở rồi chuyển thẳng tới link gốc. Không có dữ liệu lead nào. */
-export function veTrangXem(d: { token: string; tieuDe: string; anh: string; linkGoc: string }): string {
+export function veTrangXem(d: { token: string; tieuDe: string; moTa?: string; anh: string; linkGoc: string }): string {
   const link = /^https?:\/\//i.test(d.linkGoc) ? d.linkGoc : '';
   const cauHinh = JSON.stringify({ t: d.token, linkGoc: link }).replace(/[<>&\u2028\u2029]/g, (k) => `\\u${k.charCodeAt(0).toString(16).padStart(4, '0')}`);
   return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex"><meta name="referrer" content="no-referrer">
 <title>${escTrang(d.tieuDe)}</title>
-<meta property="og:title" content="${escTrang(d.tieuDe)}"><meta property="og:type" content="website">${d.anh ? `
+<meta property="og:title" content="${escTrang(d.tieuDe)}"><meta property="og:type" content="website">${d.moTa ? `
+<meta property="og:description" content="${escTrang(d.moTa)}">` : ''}${d.anh ? `
 <meta property="og:image" content="${escTrang(d.anh)}">` : ''}
 </head><body style="margin:0;background:#fff">${link ? `<noscript><a href="${escTrang(link)}">${escTrang(d.tieuDe)}</a></noscript>` : ''}<script>window.__xem=${cauHinh}</script><script>${JS_THEO_DOI}</script></body></html>`;
 }
@@ -3217,7 +3250,7 @@ async function xuLyXem(url: URL): Promise<Response> {
   const t = url.searchParams.get('t') || '';
   const d = TOKEN_XEM.test(t) ? await readPath<any>(`linkXem/${t}`) : null;
   if (!d) return trangThongBao('Link không còn hiệu lực', 404);
-  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc }));
+  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, moTa: d.moTa, anh: d.anh, linkGoc: d.linkGoc }));
 }
 
 async function xuLyXemSuKien(request: Request): Promise<Response> {

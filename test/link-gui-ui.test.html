@@ -78,6 +78,27 @@ box.innerHTML = L.veDongMau({ venue: { id: 'v1', ten: 'A' }, sp: { id: 's1', ten
 check('link hong khong chon duoc', !box.querySelector('input'));
 box.innerHTML = '';
 
+/* 2c. Bảng Lần gửi */
+const DS_GUI = L.dsLanGui({
+  a: { leadId: 'L1', tenSp: XSS, guiLuc: MOC, soLanGui: 2, soLanMo: 3, lanCuoi: MOC },
+  b: { leadId: 'L9', tenSp: 'Mẫu Hai', guiLuc: MOC - 86400000, soLanGui: 1 },
+}, id => ({ L1: 'Chị Mai Anh' })[id] || '');
+box.innerHTML = L.veLanGui(DS_GUI, DS_GUI, { khoa: 'guiLuc', giam: true, origin: 'https://x' });
+check('lan gui: du dong', box.querySelectorAll('tbody tr').length === 2);
+check('lan gui: tong ket', /2 link/.test(chu()) && /3 lần gửi/.test(chu()) && /1 đã mở/.test(chu()) && /3 lượt click/.test(chu()), chu());
+check('lan gui: co ngay, so lan, trang thai', /30\/10\/2026/.test(chu()) && /Quan tâm/.test(chu()) && /Chưa mở/.test(chu()), chu());
+check('lan gui: bam khach mo lead', /openLead\('L1'\)/.test(box.innerHTML));
+check('lan gui: lead da xoa khong bam duoc', /\(lead đã xoá\)/.test(chu()) && !/openLead\('L9'\)/.test(box.innerHTML), chu());
+check('lan gui: copy dung link', box.querySelector('[data-url]').dataset.url === 'https://x/xem/a', box.querySelector('[data-url]')?.dataset.url);
+check('lan gui: cot dang sap xep co aria-sort', box.querySelector('th[aria-sort="descending"]')?.textContent.includes('Ngày gửi'));
+check('lan gui: bam tieu de de sap xep', /doiSapLanGui\('soLanMo'\)/.test(box.innerHTML));
+check('lan gui chong XSS', !box.querySelector('img'), box.innerHTML.slice(0, 300));
+box.innerHTML = L.veLanGui([], DS_GUI, { khoa: 'guiLuc', giam: true, origin: 'https://x' });
+check('lan gui: loc rong co nut xoa loc', /Không có lần gửi nào khớp/.test(chu()) && /xoaLocLanGui/.test(box.innerHTML), chu());
+box.innerHTML = L.veLanGui([], [], { khoa: 'guiLuc', giam: true, origin: 'https://x' });
+check('lan gui: chua gui gi', /Chưa gửi link/.test(chu()), chu());
+box.innerHTML = '';
+
 /* 3. Cả luồng tạo link: chạy nguyên văn hàm trong index.html */
 const src = await (await fetch('../index.html')).text();
 const giua = (dau, cuoi) => { const a = src.indexOf(dau), b = src.indexOf(cuoi, a); if (a < 0 || b < 0) throw new Error('khong tim thay ' + dau); return src.slice(a, b); };

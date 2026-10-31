@@ -45,7 +45,13 @@ for (const u of [
 console.log('\n>> chuanHoaLink');
 const khongGoi = async () => { throw new Error('khong duoc goi mang'); };
 const yt = await chuanHoaLink(`https://youtu.be/${ID}`, khongGoi);
-check('youtube khong goi mang, co anh', yt.nenTang === 'youtube' && yt.ytId === ID && yt.anh === `https://img.youtube.com/vi/${ID}/hqdefault.jpg`, yt);
+check('youtube mat mang van co anh', yt.nenTang === 'youtube' && yt.ytId === ID && yt.anh === `https://img.youtube.com/vi/${ID}/hqdefault.jpg` && yt.tenPage === '', yt);
+const OEMBED = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${ID}`)}&format=json`;
+const ytThe = await chuanHoaLink(`https://youtu.be/${ID}`, (async (u: string) => {
+  if (u !== OEMBED) throw new Error('la ' + u);
+  return new Response(JSON.stringify({ title: 'Phim cuoi', author_name: 'HayDay Media' }));
+}) as typeof fetch);
+check('youtube lay ten kenh + tieu de video', ytThe.tenPage === 'HayDay Media' && ytThe.moTa === 'Phim cuoi', ytThe);
 const khac = await chuanHoaLink('https://hayday.vn/mau', khongGoi);
 check('link la -> khac, khong goi mang', khac.nenTang === 'khac' && khac.linkGoc === 'https://hayday.vn/mau', khac);
 const fGia = (kich: Record<string, Response>) => async (u: string) => {
@@ -77,13 +83,20 @@ const album = await chuanHoaLink(ALBUM, fGia({ [ALBUM]: new Response('<html></ht
 check('album giu query, khong co anh', album.linkGoc === ALBUM && album.anh === '', album);
 
 const ANH_LE = 'https://www.facebook.com/photo/?fbid=9&set=pb.1';
-const PLUGIN = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(ANH_LE)}&show_text=false&width=500`;
+const PLUGIN = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(ANH_LE)}&show_text=true&width=500`;
 const htmlPlugin = '<img class="_s0" src="https://scontent.fb.fbcdn.net/v/t39.30808-1/dai-dien.jpg"><img class="img" src="https://static.xx.fbcdn.net/rsrc.php/a.webp">' +
   '<img class="scaledImageFitWidth img" src="https://scontent.fb.fbcdn.net/v/t39.30808-6/anh.jpg?a=1&amp;b=2">';
 const anhLe = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<title>Facebook</title>'), [PLUGIN]: new Response(htmlPlugin) }));
 check('anh le khong co og:image: lay anh bai tu plugin, bo avatar', anhLe.anh === 'https://scontent.fb.fbcdn.net/v/t39.30808-6/anh.jpg?a=1&b=2', anhLe);
 const coOg = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<meta property="og:image" content="https://cdn.fb/og.jpg">') }));
-check('co og:image thi khong goi plugin', coOg.anh === 'https://cdn.fb/og.jpg', coOg);
+check('co og:image thi giu anh do, plugin loi khong sao', coOg.anh === 'https://cdn.fb/og.jpg', coOg);
+const htmlBai = '<a class="profileLink _x" href="#">TOM &amp; Party</a><div data-testid="post_message" class="_5pbx"><p>Sneak <b>Peek</b></p><p> Decor: &#x110;&#x1eb9;p&nbsp;l&#x1eaf;m</p></div>' + htmlPlugin;
+const baiFb = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<title>Facebook</title>'), [PLUGIN]: new Response(htmlBai) }));
+check('fb: lay ten page + noi dung tu plugin', baiFb.tenPage === 'TOM & Party' && baiFb.moTa === 'Sneak Peek Decor: Đẹp lắm', baiFb);
+const baiOg = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<meta property="og:title" content="HayDay Media - Ph&#xf3;ng s&#x1ef1;" />'), [PLUGIN]: new Response(htmlBai) }));
+check('fb: uu tien ten page tu og:title', baiOg.tenPage === 'HayDay Media - Phóng sự', baiOg);
+const baiDai = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response(''), [PLUGIN]: new Response(`<div data-testid="post_message">${'a '.repeat(200)}</div>`) }));
+check('fb: noi dung dai bi cat gon', baiDai.moTa.length <= 201 && baiDai.moTa.endsWith('…'), baiDai.moTa.length);
 const pluginRong = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response(''), [PLUGIN]: new Response('<img src="https://scontent.fb.fbcdn.net/v/t39.30808-1/dai-dien.jpg">') }));
 check('plugin chi co avatar thi khong lay', pluginRong.anh === '', pluginRong);
 const loiMang = await chuanHoaLink(SHARE, khongGoi);
@@ -200,7 +213,7 @@ try {
   check('sua link san pham roi gui lai: link cu tro sang link moi', (await dbJson(`linkXem/${kq.token}`)).linkGoc.includes('RzjhHL1aHmk'));
 
   await db(`crmDataTest/venues/${VN}/sanPham/yt`, { method: 'DELETE' });
-  check('san pham da xoa: link van con', (await dbJson(`linkXem/${kq.token}`)).tieuDe.includes('test'));
+  check('san pham da xoa: link van con', (await dbJson(`linkXem/${kq.token}`)).linkGoc.includes('RzjhHL1aHmk'));
 
   console.log('\n>> Facebook loi tam thoi roi gui lai');
   await db(`crmDataTest/venues/${VN}/sanPham/fb`, { method: 'PUT', body: JSON.stringify({ id: 'fb', ten: 'Bai FB', link: SHARE, tone: [] }) });
@@ -218,6 +231,14 @@ try {
   const lan3 = (await mod.taoLinkGui('crmDataTest', LEAD, dsFb, 'https://x', fbTot))[0];
   const sauSua = await dbJson(`linkXem/${lan3.token}`);
   check('gui lai sau khi Facebook on: tu sua link va anh', lan3.token === lan1.token && sauSua.linkGoc === GOC && sauSua.anh === 'https://cdn.fb/b.jpg', sauSua);
+  const pluginGoc = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(GOC)}&show_text=true&width=500`;
+  await mod.taoLinkGui('crmDataTest', LEAD, dsFb, 'https://x', fGia({
+    [SHARE]: new Response(null, { status: 302, headers: { Location: GOC } }),
+    [GOC]: new Response('<meta property="og:title" content="HayDay Media" /><meta property="og:image" content="https://cdn.fb/b.jpg">'),
+    [pluginGoc]: new Response('<div data-testid="post_message">Tiec cuoi dep</div>'),
+  }));
+  const coThe = await dbJson(`linkXem/${lan3.token}`);
+  check('link cu chua co noi dung: gui lai tu bo sung ten page + noi dung', coThe.tieuDe === 'HayDay Media' && coThe.moTa === 'Tiec cuoi dep', coThe);
 
   console.log('\n>> /xem + su kien');
   const xem = async (t: string) => handler.fetch(new Request(`https://huyentran.vercel.app/api/mcp?mode=xem&t=${t}`));
@@ -229,7 +250,7 @@ try {
   const html = await trang.text();
   check('/xem 200 html', trang.status === 200 && (trang.headers.get('content-type') || '').includes('text/html'), trang.status);
   check('/xem khong lo lead', !html.includes(LEAD) && !html.includes('Khach LG'));
-  check('/xem tieu de da escape', !html.includes('<b>"test"</b>') && html.includes('&lt;b&gt;'));
+  check('/xem khong co ten san pham noi bo khi da co ten page', !html.includes('<b>"test"</b>'));
   const la = await xem('aaaaaaaaaa');
   check('token la -> 404 co thong bao', la.status === 404 && (await la.text()).includes('Link không còn hiệu lực'));
   check('token sai dinh dang -> 404', (await xem('..%2F..%2Fx')).status === 404);

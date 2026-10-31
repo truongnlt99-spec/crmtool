@@ -47,6 +47,7 @@ nap.textContent = [
    const openZaloChat = () => { document.getElementById('zaloBlock').innerHTML = '<div class="drawer-section-title">Hội thoại Zalo</div><div>Tin nhắn mẫu</div>'; };
    const moHoSo = () => {}, zaloChipHtml = () => '', khoCoNhom = n => !window.__anNhom || window.__anNhom !== n;
    const closeZaloChat = () => {}, dongHoSo = () => {};`,
+  giua('// Tab Lần gửi:', '\n}'),
   ...['todayISO', 'congNgayISO', 'formatDate', 'daysDiff', 'esc', 'linkify', 'formatMoney', 'moneyDisplay',
     'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veDsLocVenue', 'moLocVenue', 'dongLocVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
     'openLead', 'veChipDauChiTiet', 'chonTabChiTiet', 'datHanNhanh', 'toggleKhoiChiTiet', 'renderDrawerTodos', 'khoaONhapChiXem',
@@ -122,7 +123,31 @@ closeDrawer();
 
 /* 6. Venue */
 renderVenue();
-check('mo man la tab Thong ke, dung truoc tab San pham', trangThai().venueTab === 'thongke' && $$('.vn-tab').map(b => b.textContent).join() === 'Thống kê,Sản phẩm');
+check('mo man la tab Thong ke, dung truoc tab San pham, Lan gui cuoi', trangThai().venueTab === 'thongke' && $$('.vn-tab').map(b => b.textContent).join() === 'Thống kê,Sản phẩm,Lần gửi');
+
+/* 5b. Tab Lần gửi */
+window.eval(`linkGuiData = {
+  a: { leadId: 'L_x', tenSp: 'Mẫu Một', guiLuc: new Date(2026, 9, 1, 12).getTime(), soLanGui: 2, soLanMo: 3, lanCuoi: 5 },
+  b: { leadId: 'L_y', tenSp: 'Mẫu Hai', guiLuc: new Date(2026, 9, 20, 12).getTime(), soLanGui: 1 },
+}`);
+doiTabVenue('langui');
+const dongGui = () => $$('#vnBang tbody tr').map(t => t.children[2].textContent);
+check('lan gui: moi nhat len dau', dongGui().join() === 'Mẫu Hai,Mẫu Một', dongGui());
+const locChon = (nhan, v) => { const o = $(`#vnToolbar select[aria-label="${nhan}"]`); o.value = v; o.dispatchEvent(new Event('change')); };
+locChon('Lọc theo trạng thái', 'chuaMo');
+check('lan gui: loc chua mo', dongGui().join() === 'Mẫu Hai', dongGui());
+check('lan gui: bo loc giu gia tri sau khi ve lai', $('#vnToolbar select[aria-label="Lọc theo trạng thái"]').value === 'chuaMo');
+$('#vnToolbar .btn-ghost').click();
+check('lan gui: xoa loc', dongGui().length === 2 && !$('#vnToolbar .btn-ghost'));
+locChon('Lọc theo số lần mở', '2');
+check('lan gui: loc so lan mo', dongGui().join() === 'Mẫu Một', dongGui());
+xoaLocLanGui();
+const oTu = $$('#vnToolbar input[type=date]')[0]; oTu.value = '2026-10-10'; oTu.dispatchEvent(new Event('change'));
+check('lan gui: loc tu ngay', dongGui().join() === 'Mẫu Hai', dongGui());
+xoaLocLanGui();
+$$('.lg-sap').find(b => b.textContent.startsWith('Lượt click')).click();
+check('lan gui: bam tieu de sap xep', dongGui()[0] === 'Mẫu Một', dongGui());
+window.eval('linkGuiData = {}');
 doiTabVenue('sp');
 check('chua chon venue: thay ca 3 san pham', $$('.vn-sp tbody tr').length === 3 && !$('.vn-dau'));
 check('hop loc dong san', $('#vnLocNut').getAttribute('aria-expanded') === 'false' && !$('.vn-loc-pop'));

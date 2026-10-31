@@ -177,6 +177,63 @@ function veBieuDoNgay(ngay){
       : '<p class="lg-trong">Chưa có lượt click nào trong khoảng này.</p>'}</section>`;
 }
 
+const ngayCua = ms => {
+  const d = new Date(ms), hai = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${hai(d.getMonth() + 1)}-${hai(d.getDate())}`;
+};
+
+/** Mỗi dòng là một link (một khách + một sản phẩm); gửi lại cùng cặp thì tăng soLanGui, ngày gửi là lần gần nhất. */
+export function dsLanGui(linkGui, tenKhach){
+  return dsLink(linkGui).map(([token, d]) => {
+    const guiLuc = d.guiLuc || d.taoLuc || 0;
+    return { ...d, token, guiLuc, ngayGui: guiLuc ? ngayCua(guiLuc) : '', khach: tenKhach(d.leadId), nhan: nhanLink(d) };
+  });
+}
+
+/** Lọc bảng Lần gửi. `tu`, `den` là yyyy-mm-dd, gồm cả hai ngày đó. */
+export function locLanGui(ds, { q = '', tu = '', den = '', trangThai = '', moTu = 0, guiTu = 0 } = {}){
+  const k = boDau(q).trim();
+  return ds.filter(d =>
+    (!k || boDau(d.khach).includes(k) || boDau(d.tenSp).includes(k)) &&
+    (!tu || d.ngayGui >= tu) && (!den || d.ngayGui <= den) &&
+    (!trangThai || (trangThai === 'daMo' ? d.soLanMo > 0 : d.nhan === trangThai)) &&
+    (d.soLanMo || 0) >= moTu && (d.soLanGui || 0) >= guiTu);
+}
+
+export function sapXepLanGui(ds, khoa, giam){
+  const dau = giam ? -1 : 1;
+  return [...ds].sort((a, b) => dau * ((a[khoa] || 0) - (b[khoa] || 0)));
+}
+
+export function tongLanGui(ds){
+  return {
+    dong: ds.length,
+    daMo: ds.filter(d => d.soLanMo > 0).length,
+    luotClick: ds.reduce((n, d) => n + (d.soLanMo || 0), 0),
+    soLanGui: ds.reduce((n, d) => n + (d.soLanGui || 0), 0),
+  };
+}
+
+/** Bảng Lần gửi. `ds` đã lọc và sắp xếp, `tatCa` để phân biệt chưa gửi gì với lọc không ra. */
+export function veLanGui(ds, tatCa, { khoa, giam, origin }){
+  if (!tatCa.length) return '<div class="bang-trong">Chưa gửi link sản phẩm nào.</div>';
+  if (!ds.length) return '<div class="bang-trong">Không có lần gửi nào khớp bộ lọc.<button type="button" class="btn btn-ghost" onclick="xoaLocLanGui()">Xoá lọc</button></div>';
+  const t = tongLanGui(ds);
+  const cot = (ma, ten, lop = '') => `<th class="${lop}" aria-sort="${khoa === ma ? (giam ? 'descending' : 'ascending') : 'none'}"><button type="button" class="lg-sap" onclick="doiSapLanGui('${ma}')">${ten}${khoa === ma ? (giam ? ' ↓' : ' ↑') : ''}</button></th>`;
+  const dong = ds.map(d => {
+    const ten = esc(d.khach || '(lead đã xoá)');
+    const khach = d.khach && /^[A-Za-z0-9_-]+$/.test(String(d.leadId)) ? `<button type="button" class="vn-lk lg-mo-lead" onclick="openLead('${d.leadId}')">${ten}</button>` : ten;
+    return `<tr><td>${esc(ddmmyyyy(d.ngayGui)) || '—'}</td><td>${khach}</td><td class="vn-c-ten">${esc(d.tenSp)}</td>
+      <td class="so">${Number(d.soLanGui) || 0}</td><td class="so">${Number(d.soLanMo) || 0}</td>
+      <td><span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span></td>
+      <td>${d.lanCuoi ? hhmmNgay(d.lanCuoi) : '—'}</td>
+      <td class="vn-c-thao"><button type="button" class="vn-lk" data-url="${esc(`${origin}/xem/${d.token}`)}" onclick="copyLinkGui(this)">Copy link</button></td></tr>`;
+  }).join('');
+  return `<p class="lg-tong"><b>${t.dong}</b> link · <b>${t.soLanGui}</b> lần gửi · <b>${t.daMo}</b> đã mở · <b>${t.luotClick}</b> lượt click</p>
+    <table class="bang vn-bang"><thead><tr>${cot('guiLuc', 'Ngày gửi')}<th>Khách</th><th>Sản phẩm</th>${cot('soLanGui', 'Lần gửi', 'so')}${cot('soLanMo', 'Lượt click', 'so')}<th>Trạng thái</th>${cot('lanCuoi', 'Mở gần nhất')}<th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
+    <tbody>${dong}</tbody></table>`;
+}
+
 /** Màn Thống kê trong Venue. `tenKhach(leadId)` trả tên lead hoặc rỗng nếu lead đã xoá. */
 export function veThongKe({ linkGui, linkGuiNgay, homNay, tenKhach, chiXem = false }){
   const t = tongQuan(linkGui);
