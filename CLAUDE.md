@@ -39,6 +39,13 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và phân quyền tài kh
   theo đường dẫn nhỏ nhất (không qua diff `tinhThayDoiCucBo`) để không đè sản phẩm Claude vừa thêm. `TONE_MAC_DINH` **chép 2 nơi**
   (đây và `api/mcp.ts`). Tool MCP: `list_venues`, `find_venue_products`, `add_venue_product` (ghi thẳng); gắn venue cho lead
   chỉ qua hàng chờ (`venueId` nằm trong `FIELD_WHITELIST`).
+- **`web/link-gui.js`** — logic thuần theo dõi link sản phẩm gửi khách (`window.LinkGui`). Trân tạo link riêng theo khách + sản phẩm
+  (bảng Sản phẩm, chi tiết lead, hoặc tool MCP `create_product_links`), xem số liệu trong lead / bảng Sản phẩm / tool `get_link_stats`.
+  `GET /xem/<token>` trả trang khách (bài Facebook nhúng hoặc trình phát YouTube trên nền trắng, link khác thì chuyển thẳng),
+  `POST /api/xem-su-kien` nhận `mo` / `giay` / `tuongTac` không cần đăng nhập, `POST /api/link-gui` tạo link bằng ID token (cùng điều kiện ghi với rules).
+  Dữ liệu: `linkXem/<token>` (bảng tra toàn cục, chỉ server đọc, không có thông tin lead) và `<aiRoot>/linkGui/<token>` (số liệu, app chỉ đọc, server ghi bằng
+  `{".sv":{"increment":n}}`). Không cần sửa Rules. Lý do dựng plugin Facebook 750px rồi thu nhỏ: rộng dưới 750px trên điện thoại Facebook cắt ảnh.
+  `nhanLink` **chép 2 nơi** (đây và `api/mcp.ts`) — sửa một chỗ thì sửa cả hai.
 - **`web/bang-lead.js`** — logic thuần của view "Danh sách" (bảng lead kiểu Excel): định nghĩa cột, lọc,
   sắp xếp, dòng tổng, dòng xuất Excel, đọc cài đặt. `index.html` nạp bằng `<script type="module">`
   (`window.BangLead`); phần giao diện nằm ở khối `RENDER: DANH SÁCH` trong `index.html`. Thêm cột mới:
@@ -94,6 +101,9 @@ npm run test:mcp-venue   # test/mcp-venue.test.ts — tool MCP venue + venueId t
 npm run test:bao-gia     # test/bao-gia.test.ts — hàm thuần báo giá (phép tính, khớp gói, đề xuất), KHÔNG chạm Firebase
 npm run test:mcp-bao-gia # test/mcp-bao-gia.test.ts — tool save_quote (sandbox crmDataTest + aiDataTest)
 npm run test:bao-gia-ui  # test/bao-gia.test.html — vẽ khối Báo giá, chống XSS (Chrome ngầm)
+npm run test:link-gui    # test/link-gui.test.ts — hàm thuần theo dõi link, trang khách, JS đo giờ xem, KHÔNG chạm Firebase
+npm run test:mcp-link-gui # test/mcp-link-gui.test.ts — API tạo link, /xem, sự kiện, tool MCP (sandbox crmDataTest + aiDataTest + user Auth tạm)
+npm run test:link-gui-ui # test/link-gui-ui.test.html — khối trong lead + cả luồng tạo link, chạy hàm trích từ index.html, chống XSS (Chrome ngầm)
 npm run test:phan-quyen  # test/phan-quyen.test.ts — hàm thuần web/phan-quyen.js, KHÔNG chạm Firebase
 npm run test:rules-tinh  # test/rules-tinh.test.ts — kiểm tra tĩnh firebase-rules*.json (khoá, taiKhoan, quyenXem), KHÔNG chạm Firebase
 npm run test:admin       # test/admin-api.test.ts — /api/admin (tạo/khoá/mở khoá) + MCP chặn khoá của tài khoản bị khoá

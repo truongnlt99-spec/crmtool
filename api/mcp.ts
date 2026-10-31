@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { createSign } from 'node:crypto';
+import { createSign, randomInt } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /*
@@ -452,6 +452,15 @@ export function aiRootFromDataRoot(dataRoot: string): string {
 /** Kho AI của request hiện tại. */
 function aiRoot(): string {
   return aiRootFromDataRoot(dataRoot());
+}
+
+const ORIGIN_APP = 'https://huyentran.vercel.app';
+const MAX_SP_MOT_LAN = 10;
+
+/** Mức quan tâm của khách với một link. CHÉP Ở 2 NƠI: đây và web/link-gui.js — sửa một chỗ thì sửa cả hai. */
+export function nhanLink(s: { soLanMo?: number; tongGiay?: number; soLanTuongTac?: number } | null): 'quanTam' | 'xemQua' | 'chuaMo' {
+  if (!s || !s.soLanMo) return 'chuaMo';
+  return (s.soLanTuongTac ?? 0) > 0 || s.soLanMo >= 2 || (s.tongGiay ?? 0) >= 60 ? 'quanTam' : 'xemQua';
 }
 
 export const TOI_DA_TIN = 400;
@@ -1401,7 +1410,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Tìm sản phẩm theo venue / tone',
         description:
-          'Tìm sản phẩm (thường là link bài Facebook HayDay đã làm) theo venue, tone màu hoặc chữ. Vd "sản phẩm ở Gem Center" -> venue "Gem Center"; "mẫu tone xanh" -> tone "xanh" (khớp cả Xanh lá và Xanh dương). Mọi điều kiện đều không phân biệt dấu. Trả link để gửi khách.',
+          'Tìm sản phẩm (thường là link bài Facebook HayDay đã làm) theo venue, tone màu hoặc chữ. Vd "sản phẩm ở Gem Center" -> venue "Gem Center"; "mẫu tone xanh" -> tone "xanh" (khớp cả Xanh lá và Xanh dương). Mọi điều kiện đều không phân biệt dấu. Khi gửi cho một khách cụ thể, đừng đưa link trong kết quả này mà gọi create_product_links để có link theo dõi được.',
         inputSchema: z.object({
           venue: z.string().optional().describe('Tên venue (khớp một phần, không dấu) hoặc id'),
           tone: z.string().optional().describe('Tên tone (vd "xanh", "hồng", "pastel") hoặc id tone'),
@@ -1479,6 +1488,60 @@ const mcpHandler = createMcpHandler(
         await patchPath(`${dataRoot()}/venues/${v.id}/sanPham/${sp.id}`, sp);
         await touch();
         return ok({ daThem: true, venueMoi, venue: v.ten, venueId: v.id, sanPham: { ...sp, tone: toneIds.map((id) => tones.find((t) => t.id === id)!.ten) } });
+      }
+    );
+
+    server.registerTool(
+      'create_product_links',
+      {
+        title: 'Tạo link theo dõi sản phẩm cho khách',
+        description:
+          'Tạo link riêng cho một khách + các sản phẩm (dùng venueId và id lấy từ find_venue_products), để biết khách có mở xem không. Dùng khi Trân muốn gửi sản phẩm cho một khách cụ thể, thay cho link Facebook/YouTube gốc. Cùng khách + sản phẩm thì dùng lại link cũ. Không sửa ô nào của lead nên không qua hàng chờ. Tool này CHỈ tạo link: Trân tự dán sang Zalo, tuyệt đối không nói là đã gửi cho khách. Có nhiều lead trùng tên thì hỏi lại Trân là khách nào, không tự chọn.',
+        inputSchema: z.object({
+          lead: z.string().min(1).describe('leadId hoặc tên khách'),
+          sanPham: z.array(z.object({
+            venueId: z.string().describe('venueId từ find_venue_products'),
+            id: z.string().describe('id sản phẩm từ find_venue_products'),
+          })).min(1).max(MAX_SP_MOT_LAN),
+        }),
+      },
+      async (args) => {
+        const lead = findLead(await loadCrm(), args.lead);
+        const kq = await taoLinkGui(dataRoot(), lead.id, args.sanPham.map((s) => ({ venueId: s.venueId, spId: s.id })), ORIGIN_APP);
+        return ok({
+          khach: lead.name,
+          links: kq.filter((k) => 'url' in k).map((k: any) => ({ tenSp: k.tenSp, url: k.url, daTaoTruocDo: k.daCo, soLanKhachMo: k.soLanMo })),
+          loi: kq.filter((k) => 'loi' in k),
+        });
+      }
+    );
+
+    server.registerTool(
+      'get_link_stats',
+      {
+        title: 'Xem số liệu link sản phẩm đã gửi',
+        description:
+          'Xem khách có mở link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Trả số lần mở, thời gian xem (giây), số lần tương tác (bấm sang Facebook hoặc bấm phát YouTube), lần xem gần nhất và nhãn quanTam / xemQua / chuaMo. Thời gian xem không gồm phần khách xem trên app Facebook, nên chỉ dùng để so sánh tương đối và không so trực tiếp giữa Facebook với YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
+        inputSchema: z.object({
+          lead: z.string().optional().describe('leadId hoặc tên khách'),
+          venueId: z.string().optional(),
+          id: z.string().optional().describe('id sản phẩm'),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const lead = args.lead ? findLead(crm, args.lead) : null;
+        const tenKhach = Object.fromEntries(crm.leads.map((l) => [l.id, l.name]));
+        const thuTu = { quanTam: 0, xemQua: 1, chuaMo: 2 };
+        const ds = Object.values((await readPath<Record<string, LinkGui> | null>(`${aiRoot()}/linkGui`)) || {})
+          .filter((d) => d && (!lead || d.leadId === lead.id) && (!args.venueId || d.venueId === args.venueId) && (!args.id || d.spId === args.id))
+          .map((d) => ({
+            khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
+            soLanGui: d.soLanGui, soLanMo: d.soLanMo, tongGiay: d.tongGiay, tuongTac: d.soLanTuongTac,
+            lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
+          }))
+          .sort((a, b) => thuTu[a.nhan] - thuTu[b.nhan] || String(b.lanCuoi).localeCompare(String(a.lanCuoi)));
+        return ok({ total: ds.length, links: ds });
       }
     );
 
@@ -2893,10 +2956,8 @@ async function identityAdmin(hanhDong: string, body: unknown): Promise<{ status:
   return { status: res.status, data: await res.json().catch(() => ({})) };
 }
 
-async function xuLyAdmin(request: Request): Promise<Response> {
-  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
-
-  // 1. Xác minh người gọi bằng ID token Firebase
+/** Xác minh ID token Firebase của người gọi. Trả UID, hoặc Response 401 để trả thẳng về. */
+async function xacMinhNguoiGoi(request: Request): Promise<string | Response> {
   const m = /^Bearer\s+(.+)$/i.exec(request.headers.get('authorization') || '');
   if (!m) return traLoiJson({ loi: 'Chưa đăng nhập.' }, 401);
   const tra = await fetch(`${IDENTITY_URL}/accounts:lookup?key=${FIREBASE_WEB_API_KEY}`, {
@@ -2907,7 +2968,15 @@ async function xuLyAdmin(request: Request): Promise<Response> {
   const traData: any = await tra.json().catch(() => ({}));
   const nguoiGoi = tra.ok ? traData?.users?.[0] : null;
   if (!nguoiGoi?.localId || nguoiGoi.disabled) return traLoiJson({ loi: 'Phiên đăng nhập không hợp lệ.' }, 401);
-  const uidNguoiGoi = String(nguoiGoi.localId);
+  return String(nguoiGoi.localId);
+}
+
+async function xuLyAdmin(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+
+  // 1. Xác minh người gọi bằng ID token Firebase
+  const uidNguoiGoi = await xacMinhNguoiGoi(request);
+  if (uidNguoiGoi instanceof Response) return uidNguoiGoi;
 
   // 2. Phải là admin và không đang bị khoá (đọc bằng service account, rules không chặn)
   const tk = await readPath<any>(`taiKhoan/${uidNguoiGoi}`);
@@ -2962,6 +3031,258 @@ async function xuLyAdmin(request: Request): Promise<Response> {
   return traLoiJson({ ok: true });
 }
 
+/* ===================== Theo dõi link sản phẩm gửi khách ===================== */
+
+const ID_DUONG_DAN = /^[A-Za-z0-9_-]{1,80}$/;
+const TOKEN_XEM = /^[A-Za-z0-9]{10}$/;
+const HET_GIO_LINK_MS = 5000;
+
+type LinkDaChuanHoa = { linkGoc: string; anh: string; nenTang: 'facebook' | 'youtube' | 'khac'; ytId: string | null };
+type KetQuaLink =
+  | { token: string; url: string; tenSp: string; venueId: string; spId: string; daCo: boolean; soLanMo: number }
+  | { venueId: string; spId: string; loi: string };
+interface LinkGui {
+  leadId: string; venueId: string; spId: string; tenSp: string; nenTang: string; linkNguon: string;
+  taoLuc: number; soLanGui: number; soLanMo: number; tongGiay: number; soLanTuongTac: number;
+  lanDau?: number; lanCuoi?: number;
+}
+
+const urlHopLe = (link: string): URL | null => { try { return new URL(link); } catch { return null; } };
+
+/** Mã video YouTube trong link, hoặc null nếu không phải link một video cụ thể. */
+export function layYoutubeId(link: string): string | null {
+  const u = urlHopLe(link);
+  if (!u) return null;
+  const host = u.hostname.replace(/^(www|m|music)\./, '');
+  let id: string | null = null;
+  if (host === 'youtu.be') id = u.pathname.split('/')[1] ?? null;
+  else if (host === 'youtube.com' || host === 'youtube-nocookie.com') {
+    const m = /^\/(?:shorts|live|embed)\/([^/]+)/.exec(u.pathname);
+    id = m ? m[1] : u.pathname === '/watch' ? u.searchParams.get('v') : null;
+  }
+  return id && /^[A-Za-z0-9_-]{11}$/.test(id) ? id : null;
+}
+
+const laFacebook = (u: URL) => /(^|\.)(facebook\.com|fb\.com|fb\.watch)$/.test(u.hostname);
+
+/**
+ * Nhận dạng nền tảng, đổi link share của Facebook về link bài gốc (link share không nhúng được) và lấy ảnh bìa.
+ * Không bao giờ ném lỗi: Facebook chặn hoặc treo thì vẫn dùng link vào, thẻ Zalo chỉ thiếu ảnh.
+ * shortcut: giả UA crawler của Facebook vì UA trình duyệt bị 400, Facebook đổi cách chặn thì mất ảnh và link share không nhúng được.
+ */
+export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promise<LinkDaChuanHoa> {
+  const ytId = layYoutubeId(link);
+  if (ytId) return { linkGoc: link, anh: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`, nenTang: 'youtube', ytId };
+  const u = urlHopLe(link);
+  if (!u || !laFacebook(u)) return { linkGoc: link, anh: '', nenTang: 'khac', ytId: null };
+
+  const kq: LinkDaChuanHoa = { linkGoc: link, anh: '', nenTang: 'facebook', ytId: null };
+  const tuyChon = { headers: { 'User-Agent': 'facebookexternalhit/1.1' }, signal: AbortSignal.timeout(HET_GIO_LINK_MS) };
+  try {
+    if (u.pathname.startsWith('/share/') || u.hostname === 'fb.watch') {
+      const dich = (await f(link, { ...tuyChon, redirect: 'manual' })).headers.get('location');
+      const goc = dich ? urlHopLe(new URL(dich, link).href) : null;
+      if (goc && laFacebook(goc) && !goc.pathname.startsWith('/login')) {
+        // Bỏ tham số theo dõi, giữ tham số định danh bài: thiếu chúng link ra trang Facebook rỗng
+        const giu = new URLSearchParams();
+        for (const k of ['story_fbid', 'id', 'fbid', 'set', 'v']) { const v = goc.searchParams.get(k); if (v !== null) giu.set(k, v); }
+        goc.search = giu.toString();
+        kq.linkGoc = goc.href;
+      }
+    }
+    const html = await (await f(kq.linkGoc, tuyChon)).text();
+    const m = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
+    if (m) kq.anh = m[1].replace(/&amp;/g, '&');
+  } catch (e) {
+    console.warn('Khong chuan hoa duoc link Facebook:', e);
+  }
+  return kq;
+}
+
+function taoTokenXem(): string {
+  const CHU = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  return Array.from({ length: 10 }, () => CHU[randomInt(CHU.length)]).join('');
+}
+
+/**
+ * Tạo (hoặc dùng lại) link riêng cho một lead + các sản phẩm, trong kho `root`. Dùng chung cho /api/link-gui và tool MCP.
+ * Sản phẩm lỗi trả `loi` ở đúng dòng đó, các sản phẩm khác vẫn có link.
+ */
+export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ venueId: string; spId: string }>, origin: string, f: typeof fetch = fetch): Promise<KetQuaLink[]> {
+  const ai = aiRootFromDataRoot(root);
+  const daCo = (await readPath<Record<string, LinkGui> | null>(`${ai}/linkGui`)) || {};
+  return Promise.all(dsSp.map(async ({ venueId, spId }): Promise<KetQuaLink> => {
+    const loi = (m: string) => ({ venueId, spId, loi: m });
+    if (!ID_DUONG_DAN.test(venueId) || !ID_DUONG_DAN.test(spId)) return loi('Mã sản phẩm không hợp lệ.');
+    const sp = await readPath<SanPhamVenue | null>(`${root}/venues/${venueId}/sanPham/${spId}`);
+    const link = String(sp?.link || '').trim();
+    if (!sp || !/^https?:\/\/\S+$/i.test(link)) return loi('Sản phẩm không còn tồn tại hoặc link không hợp lệ.');
+
+    const cu = Object.entries(daCo).find(([, d]) => d?.leadId === leadId && d.venueId === venueId && d.spId === spId);
+    const token = cu ? cu[0] : taoTokenXem();
+    const patch: Record<string, unknown> = {};
+    if (cu) patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } };
+    // Trân sửa link sản phẩm rồi gửi lại thì link đã gửi phải trỏ sang link mới
+    const doiLink = !cu || cu[1].linkNguon !== link;
+    // Lần trước Facebook lỗi tạm thời (chưa có ảnh): gửi lại là dịp thử chuẩn hoá lần nữa
+    const thieuAnh = !doiLink && cu![1].nenTang === 'facebook' && !(await readPath(`linkXem/${token}/anh`));
+    if (doiLink || thieuAnh) {
+      const c = await chuanHoaLink(link, f);
+      if (doiLink || c.anh || c.linkGoc !== link) {
+        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang, ytId: c.ytId };
+      }
+      if (cu && doiLink) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
+      if (!cu) patch[`${ai}/linkGui/${token}`] = {
+        leadId, venueId, spId, tenSp: sp.ten, nenTang: c.nenTang, linkNguon: link,
+        taoLuc: Date.now(), soLanGui: 1, soLanMo: 0, tongGiay: 0, soLanTuongTac: 0,
+      };
+    }
+    await patchPath('', patch);
+    return { token, url: `${origin}/xem/${token}`, tenSp: sp.ten, venueId, spId, daCo: !!cu, soLanMo: cu?.[1].soLanMo ?? 0 };
+  }));
+}
+
+async function xuLyLinkGui(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+  const uid = await xacMinhNguoiGoi(request);
+  if (uid instanceof Response) return uid;
+
+  const b = (await request.json().catch(() => null)) as { khoUid?: unknown; leadId?: unknown; dsSp?: unknown } | null;
+  const khoUid = String(b?.khoUid ?? ''), leadId = String(b?.leadId ?? '');
+  const dsSp = b?.dsSp;
+  if (!UID_HOP_LE.test(khoUid) || !ID_DUONG_DAN.test(leadId) || !Array.isArray(dsSp) || !dsSp.length || dsSp.length > MAX_SP_MOT_LAN) {
+    return traLoiJson({ loi: 'Yêu cầu không hợp lệ.' }, 400);
+  }
+
+  // Cùng điều kiện với .write của kho trong Firebase Rules: người chỉ có quyền xem không tạo được link
+  const tk = await readPath<{ admin?: boolean; khoa?: boolean; coKho?: boolean } | null>(`taiKhoan/${uid}`);
+  const duocGhi = tk?.khoa !== true && ((uid === khoUid && tk?.coKho !== false) || tk?.admin === true);
+  if (!duocGhi) return traLoiJson({ loi: 'Bạn không có quyền tạo link ở kho này.' }, 403);
+
+  const { dataRoot: root } = resolveScope(`${khoUid}.x`);
+  if (!(await readPath(`${root}/leads/${leadId}/id`))) return traLoiJson({ loi: 'Không tìm thấy khách này.' }, 404);
+  const sach = dsSp.map((s: any) => ({ venueId: String(s?.venueId ?? ''), spId: String(s?.spId ?? '') }));
+  return traLoiJson({ ok: true, ketQua: await taoLinkGui(root, leadId, sach, new URL(request.url).origin) });
+}
+
+/** Sự kiện từ trang khách (không đăng nhập): chỉ nhận đúng dạng, `giay` 1..30 để không cộng thời gian khống quá nhanh. */
+export function kiemTraSuKien(b: any): { t: string; loai: 'mo' | 'giay' | 'tuongTac'; giay: number } | null {
+  if (!b || typeof b !== 'object' || typeof b.t !== 'string' || !TOKEN_XEM.test(b.t)) return null;
+  if (b.loai === 'mo' || b.loai === 'tuongTac') return { t: b.t, loai: b.loai, giay: 0 };
+  if (b.loai === 'giay' && Number.isInteger(b.giay) && b.giay >= 1 && b.giay <= 30) return { t: b.t, loai: 'giay', giay: b.giay };
+  return null;
+}
+
+/** JS chạy ở trang khách. `window.__xem` = { t, linkGoc, nenTang }. Lỗi đo đạc không được ảnh hưởng việc xem. */
+export const JS_THEO_DOI = `(function(){
+  var c = window.__xem, nhip = 0, daPhat = false, moc = Date.now(), noiBo = false;
+  try { noiBo = localStorage.getItem('crmNoiBo') === '1'; } catch (e) {}
+  function gui(loai, giay){
+    if (noiBo) return;
+    try { navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify({ t: c.t, loai: loai, giay: giay })], { type: 'text/plain' })); } catch (e) {}
+  }
+  function guiPhanLe(){
+    var d = Math.round((Date.now() - moc) / 1000);
+    moc = Date.now();
+    if (d >= 1 && d <= 30 && nhip <= 120) gui('giay', d);
+  }
+  gui('mo');
+  if (c.nenTang === 'khac') { if (c.linkGoc) location.replace(c.linkGoc); return; }
+  var dem = setInterval(function(){
+    if (document.visibilityState !== 'visible') return;
+    if (++nhip > 120) { clearInterval(dem); return; }
+    guiPhanLe();
+  }, 15000);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'visible') moc = Date.now(); else guiPhanLe();
+  });
+  addEventListener('pagehide', guiPhanLe);
+  if (c.nenTang === 'facebook') {
+    // Plugin Facebook trên điện thoại cắt mất ảnh nếu rộng dưới 750px (đã đo 440, 500, 600): dựng 750px rồi thu nhỏ.
+    var f = document.getElementById('fbp');
+    function vuaManHinh(){
+      var tiLe = Math.min(window.innerWidth || 500, 500) / 750;
+      f.style.transform = 'scale(' + tiLe + ')';
+      f.parentNode.style.height = Math.round(1100 * tiLe) + 'px';
+    }
+    vuaManHinh();
+    addEventListener('resize', vuaManHinh);
+    f.src = f.dataset.src + '&width=750';
+    document.getElementById('phu').addEventListener('click', function(){ gui('tuongTac'); });
+  }
+  window.onYouTubeIframeAPIReady = function(){
+    new YT.Player('ytp', { host: 'https://www.youtube-nocookie.com', events: {
+      onStateChange: function(e){ if (e.data === 1 && !daPhat) { daPhat = true; gui('tuongTac'); } },
+      onError: function(){ location.replace(c.linkGoc); }
+    } });
+  };
+})();`;
+
+const THOAT_HTML: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+const escTrang = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (k) => THOAT_HTML[k]);
+
+/** HTML trang khách. Chỉ có nội dung nền tảng trên nền trắng, không tên khách hay dữ liệu lead nào. */
+export function veTrangXem(d: { token: string; tieuDe: string; anh: string; linkGoc: string; nenTang: string; ytId: string | null; origin: string }): string {
+  const link = /^https?:\/\//i.test(d.linkGoc) ? d.linkGoc : '';
+  let than = '', sau = '';
+  if (d.nenTang === 'facebook') {
+    const src = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(link)}&show_text=false`;
+    than = `<div class="khung"><iframe id="fbp" data-src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" scrolling="no"></iframe>` +
+      `<a id="phu" href="${escTrang(link)}" rel="noreferrer" aria-label="Xem bài viết trên Facebook"></a></div>`;
+  } else if (d.nenTang === 'youtube') {
+    const src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(d.ytId || '')}?enablejsapi=1&playsinline=1&rel=0&origin=${encodeURIComponent(d.origin)}`;
+    const tiLe = link.includes('/shorts/') ? '9 / 16' : '16 / 9';
+    than = `<div class="yt" style="aspect-ratio:${tiLe}"><iframe id="ytp" src="${escTrang(src)}" title="${escTrang(d.tieuDe)}" ` +
+      `allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>`;
+    sau = '<script src="https://www.youtube.com/iframe_api"></script>';
+  }
+  const cauHinh = JSON.stringify({ t: d.token, linkGoc: link, nenTang: d.nenTang }).replace(/[<>&\u2028\u2029]/g, (k) => `\\u${k.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return `<!doctype html><html lang="vi"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><meta name="referrer" content="strict-origin">
+<title>${escTrang(d.tieuDe)}</title>
+<meta property="og:title" content="${escTrang(d.tieuDe)}"><meta property="og:type" content="website">${d.anh ? `
+<meta property="og:image" content="${escTrang(d.anh)}">` : ''}
+<style>html,body{margin:0;background:#fff}.khung{position:relative;max-width:500px;margin:0 auto;overflow:hidden}
+.khung iframe{display:block;width:750px;height:1100px;border:0;transform-origin:0 0}#phu{position:absolute;inset:0}
+.yt{max-width:900px;max-height:100vh;margin:0 auto}.yt iframe{display:block;width:100%;height:100%;border:0}</style>
+</head><body>${than}<script>window.__xem=${cauHinh}</script><script>${JS_THEO_DOI}</script>${sau}</body></html>`;
+}
+
+function traLoiHtml(html: string, status = 200): Response {
+  return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
+}
+
+const trangThongBao = (chu: string, status: number) => traLoiHtml('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+  `<title>${chu}</title><body style="margin:0;background:#fff;font:16px system-ui,sans-serif;color:#555;text-align:center;padding:40vh 16px 0">${chu}</body></html>`, status);
+
+async function xuLyXem(url: URL): Promise<Response> {
+  const t = url.searchParams.get('t') || '';
+  const d = TOKEN_XEM.test(t) ? await readPath<any>(`linkXem/${t}`) : null;
+  if (!d) return trangThongBao('Link không còn hiệu lực', 404);
+  return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc, nenTang: d.nenTang, ytId: d.ytId ?? null, origin: url.origin }));
+}
+
+async function xuLyXemSuKien(request: Request): Promise<Response> {
+  if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
+  const sk = kiemTraSuKien(await request.json().catch(() => null));
+  if (!sk) return traLoiJson({ loi: 'Sự kiện không hợp lệ.' }, 400);
+  const ai = await readPath<string | null>(`linkXem/${sk.t}/aiRoot`);
+  if (!ai) return traLoiJson({ loi: 'Không tìm thấy link.' }, 404);
+
+  const duongDan = `${ai}/linkGui/${sk.t}`;
+  const tang = (n: number) => ({ '.sv': { increment: n } });
+  const patch: Record<string, unknown> = { lanCuoi: { '.sv': 'timestamp' } };
+  if (sk.loai === 'giay') patch.tongGiay = tang(sk.giay);
+  if (sk.loai === 'tuongTac') patch.soLanTuongTac = tang(1);
+  if (sk.loai === 'mo') {
+    patch.soLanMo = tang(1);
+    if (!(await readPath(`${duongDan}/lanDau`))) patch.lanDau = { '.sv': 'timestamp' };
+  }
+  await patchPath(duongDan, patch);
+  return new Response(null, { status: 204 });
+}
+
 /* ===================== Vercel Function (framework: other) ===================== */
 
 export default {
@@ -2975,6 +3296,27 @@ export default {
       } catch (e) {
         console.error('Admin error:', e);
         return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 500);
+      }
+    }
+
+    // Tạo link theo dõi — xác thực bằng ID token Firebase; đọc quyền lỗi thì từ chối luôn (fail closed).
+    if (url.searchParams.get('mode') === 'linkGui') {
+      try {
+        return await xuLyLinkGui(request);
+      } catch (e) {
+        console.error('Link gui error:', e);
+        return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
+      }
+    }
+
+    // Trang khách + sự kiện xem: công khai, chỉ cần token trong link.
+    const laTrangXem = url.searchParams.get('mode') === 'xem';
+    if (laTrangXem || url.searchParams.get('mode') === 'xemSuKien') {
+      try {
+        return await (laTrangXem ? xuLyXem(url) : xuLyXemSuKien(request));
+      } catch (e) {
+        console.error('Xem link error:', e);
+        return laTrangXem ? trangThongBao('Chưa mở được link, bạn thử lại giúp nhé', 503) : traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
       }
     }
 

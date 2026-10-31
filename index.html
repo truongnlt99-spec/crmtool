@@ -183,6 +183,8 @@
   // Màn "Venue" (venue + sản phẩm theo tone) — test ở test/venue.test.ts và test/venue-ui.test.html. Nạp lỗi thì chỉ mất màn này.
   import * as Venue from './web/venue.js';
   window.Venue = Venue;
+  import * as LinkGui from './web/link-gui.js';
+  window.LinkGui = LinkGui;
   if (window.renderVenue) window.renderVenue();
 </script>
 <script>
@@ -865,10 +867,36 @@
   .vn-tone-chon{display:flex; gap:6px; flex-wrap:wrap;}
   .vn-chip{display:inline-flex; align-items:center; gap:6px; min-height:32px; padding:4px 12px 4px 9px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-2); font:inherit; font-size:13px; cursor:pointer;}
   .vn-chip.on{background:var(--primary-soft); border-color:var(--primary); color:var(--primary-ink); font-weight:600;}
+  .vn-bang .vn-c-chon{width:1%; padding-right:0;}
+  .vn-chon{width:18px; height:18px; accent-color:var(--primary); cursor:pointer; vertical-align:middle;}
+  .vn-bang tr:has(.vn-chon:checked) td{background:var(--primary-soft);}
+  #vnThanhChon{position:sticky; bottom:0; left:0; z-index:4;}
+  .lg-thanh{display:flex; align-items:center; gap:12px; margin:10px; padding:10px 14px; border-radius:12px; background:var(--ink); color:#fff; font-size:13.5px;}
+  .lg-bo{background:none; border:0; padding:8px 4px; font:inherit; font-size:13px; color:inherit; opacity:.85; cursor:pointer;}
+  .lg-bo:hover{opacity:1; text-decoration:underline;}
+  .lg-nhom{margin:12px 0 2px 8px; font-size:11.5px; font-weight:700; color:var(--ink-faint);}
+  .lg-trong{margin:12px 8px; font-size:13px; color:var(--ink-soft);}
+  .lg-khach{display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:8px; border:0; border-radius:10px; background:none; font:inherit; color:inherit; text-align:left; cursor:pointer;}
+  button.lg-khach:hover, button.lg-khach:focus-visible{background:var(--primary-soft); outline:none;}
+  .lg-khach-giua, .lg-link-giua{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .lg-khach-giua small, .lg-link-giua small{font-size:12.5px; color:var(--ink-faint);}
+  .lg-tag{flex:none; padding:2px 7px; border-radius:6px; background:var(--amber-soft); color:var(--amber); font-size:11.5px; font-weight:600;}
+  .lg-link{display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border-soft);}
+  .lg-link:last-child{border-bottom:0;}
+  .lg-link-giua .lg-url{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lg-link-giua .lg-loi{color:var(--red);}
+  .lg-nhan{flex:none; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; background:var(--gray-tag-soft); color:var(--gray-tag);}
+  .lg-nhan.quanTam{background:var(--red-soft); color:var(--red);}
+  .lg-nhan.xemQua{background:var(--amber-soft); color:var(--amber);}
+  .lg-link .btn.xong, .lg-link .btn-ghost.xong{background:var(--primary-soft); color:var(--primary-ink);}
   @media (max-width:760px){
     .bang-toolbar .vn-tim{max-width:none; flex-basis:100%;}
     .bang-toolbar select.field-input, .bang-toolbar .vn-loc-venue{flex:1; max-width:none;}
     .vn-lk{padding:8px 6px;}
+    #venueOverlay.lg-sheet{align-items:flex-end; padding:0;}
+    #venueOverlay.lg-sheet .modal{width:100%; max-width:none; max-height:85vh; border-radius:18px 18px 0 0;}
+    #venueOverlay.lg-sheet .btn{min-height:44px;}
+    .lg-thanh{flex-wrap:wrap;}
     .vn-bang td.vn-c-ten{min-width:160px;}
   }
   .bang-wrap{display:flex; flex-direction:column; min-height:0; flex:1; padding:14px 22px 18px; gap:10px;}
@@ -3357,14 +3385,14 @@ function dongQuanTri(){
 }
 
 // Gọi backend quản trị. Luôn trả object: thành công { ok, ... }, lỗi { loi } (không ném).
-async function goiApiAdmin(body){
+async function goiApiAdmin(body, duongDan = '/api/admin'){
   const f = window.__firebase;
   const nguoi = f && f.auth && f.auth.currentUser;
   if (!nguoi) return { loi: 'Chưa đăng nhập.' };
   let res;
   try {
     const token = await nguoi.getIdToken();
-    res = await fetch('/api/admin', {
+    res = await fetch(duongDan, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify(body),
@@ -3683,8 +3711,10 @@ function renderVenue(){
         ${chiXem ? '' : '<option value="__them">+ Thêm tone mới…</option>'}</select>
        <span class="vn-dem">${kq.length === tongSp ? `${tongSp} sản phẩm` : `${kq.length} / ${tongSp} sản phẩm`}</span></div>`;
     if (kq.length){
-      than = `<table class="bang vn-bang"><thead><tr><th>Sản phẩm</th><th>Venue</th><th>Tone</th><th>Giá / gói</th><th>Ngày thêm</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
-        <tbody>${kq.map(x => V.veDongSanPham(x.venue, x.sp, tones, { chiXem })).join('')}</tbody></table>`;
+      const thongKe = window.LinkGui ? LinkGui.thongKeSanPham(linkGuiData) : {};
+      const dong = x => { const k = `${x.venue.id}/${x.sp.id}`; return V.veDongSanPham(x.venue, x.sp, tones, { chiXem, chon: venueChon.has(k), thongKe: thongKe[k] }); };
+      than = `<table class="bang vn-bang"><thead><tr>${chiXem ? '' : '<th class="vn-c-chon"><span class="sr-only">Chọn</span></th>'}<th>Sản phẩm</th><th>Venue</th><th>Tone</th><th>Giá / gói</th><th>Ngày thêm</th><th class="so">Đã gửi</th><th class="so">Khách mở</th><th class="so">Tương tác</th><th class="vn-c-thao"><span class="sr-only">Thao tác</span></th></tr></thead>
+        <tbody>${kq.map(dong).join('')}</tbody></table><div id="vnThanhChon"></div>`;
     } else if (!tongSp){
       than = `<div class="bang-trong">${ds.length ? 'Chưa có sản phẩm nào.' : 'Chưa có venue và sản phẩm nào.'}
         ${chiXem ? '' : ds.length ? `<button type="button" class="btn btn-primary" onclick="moThemSanPham()">+ Thêm sản phẩm</button>`
@@ -3714,6 +3744,7 @@ function renderVenue(){
   }
   document.getElementById('vnToolbar').innerHTML = toolbar;
   bang.innerHTML = than;
+  veThanhChon();
   if (dangGo){ const o = document.getElementById('vnTim'); o.focus(); o.setSelectionRange(o.value.length, o.value.length); }
 }
 
@@ -3733,12 +3764,137 @@ function chonToneLoc(sel){
   venueTone = sel.value; renderVenue();
 }
 
-function copyLinkSanPham(btn){
-  const link = btn.dataset.link, cu = btn.textContent;
+function copyChuoi(chuoi, btn){
+  const cu = btn.textContent;
   const xong = () => { btn.textContent = 'Đã copy ✓'; btn.classList.add('xong'); setTimeout(() => { btn.textContent = cu; btn.classList.remove('xong'); }, 1500); };
-  if (navigator.clipboard) navigator.clipboard.writeText(link).then(xong, () => prompt('Copy link:', link));
-  else prompt('Copy link:', link);
+  if (navigator.clipboard) navigator.clipboard.writeText(chuoi).then(xong, () => prompt('Copy link:', chuoi));
+  else prompt('Copy link:', chuoi);
 }
+function copyLinkSanPham(btn){ copyChuoi(btn.dataset.link, btn); }
+
+// Link theo dõi gửi khách. Logic thuần ở web/link-gui.js (window.LinkGui). Số liệu ở <kho AI>/linkGui do server ghi,
+// app chỉ đọc; nghe riêng để nhịp đếm giờ xem của khách không đụng luồng đồng bộ CRM.
+let linkGuiData = {};
+const venueChon = new Set();  // 'venueId/spId' đang tick trong bảng Sản phẩm
+let guiDangMo = null;         // { spKeys, lead, items } của hộp tạo link đang mở
+
+function initLinkGui(){
+  const f = window.__firebase;
+  // Trang khách cùng tên miền đọc cờ này: máy nội bộ mở link không bị đếm là khách xem.
+  try { localStorage.setItem('crmNoiBo', '1'); } catch(e){}
+  f.onValue(f.refAt(f.aiBase() + '/linkGui'), s => {
+    linkGuiData = s.val() || {};
+    if (!uiIsBusy()) renderVenue();
+    const khoi = document.getElementById('lgKhoiDaGui');
+    if (khoi) khoi.innerHTML = LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, khoi.dataset.lead));
+  }, e => { console.warn('Không đọc được số liệu link:', e); linkGuiData = {}; });
+}
+
+function chonSanPham(o){
+  if (!o.checked) venueChon.delete(o.dataset.sp);
+  else if (venueChon.size >= LinkGui.MAX_SP) o.checked = false;
+  else venueChon.add(o.dataset.sp);
+  veThanhChon();
+}
+function boChonSanPham(){ venueChon.clear(); renderVenue(); }
+function veThanhChon(){
+  const o = document.getElementById('vnThanhChon');
+  if (!o) return;
+  const n = venueChon.size;
+  o.innerHTML = n ? `<div class="lg-thanh"><span>Đã chọn <b>${n}</b> sản phẩm${n >= LinkGui.MAX_SP ? ` (tối đa ${LinkGui.MAX_SP} mẫu một lần)` : ''}</span><span class="vn-cach"></span>
+    <button type="button" class="lg-bo" onclick="boChonSanPham()">Bỏ chọn</button>
+    <button type="button" class="btn btn-primary" onclick="moChonKhach([...venueChon])">Gửi cho khách</button></div>` : '';
+}
+
+function moChonKhach(spKeys, lead){
+  if (window.__chiXem) return;
+  guiDangMo = { spKeys, lead: null, items: [] };
+  document.getElementById('venueOverlay').classList.add('lg-sheet');
+  if (lead) return taoLinkChoKhach(lead);
+  moVenueModal('Gửi cho khách nào?', `${spKeys.length} sản phẩm đã chọn`,
+    `<label class="field-label" for="lgTim">Tìm khách</label>
+     <input class="field-input" id="lgTim" type="search" placeholder="Tên hoặc số điện thoại" autocomplete="off" oninput="veDsKhach()"
+       onkeydown="if(event.key==='Enter'){ event.preventDefault(); const b=document.querySelector('#lgDsKhach button'); if(b) b.click(); }">
+     <div id="lgDsKhach"></div>`,
+    `<button type="button" class="btn btn-ghost" onclick="dongVenueModal()">Huỷ</button>`);
+  veDsKhach();
+  document.getElementById('lgTim').focus();
+}
+// Bắt đầu từ chi tiết lead: khách có sẵn, chỉ cần chọn mẫu rồi sang thẳng màn lấy link.
+function moChonMauChoKhach(leadId){
+  const lead = leads.find(l => l.id === leadId);
+  if (window.__chiXem || !lead) return;
+  guiDangMo = { spKeys: [], lead, items: [] };
+  document.getElementById('venueOverlay').classList.add('lg-sheet');
+  moVenueModal(`Gửi sản phẩm cho ${lead.name}`, `Chọn tối đa ${LinkGui.MAX_SP} mẫu`,
+    `<label class="field-label" for="lgTimMau">Tìm mẫu</label>
+     <input class="field-input" id="lgTimMau" type="search" placeholder="Tên, giá, venue…" autocomplete="off" oninput="veDsMau()">
+     <div id="lgDsMau"></div>`,
+    `<button type="button" class="btn btn-ghost" onclick="dongVenueModal()">Huỷ</button>
+     <button type="button" class="btn btn-primary" id="lgNutTaoLink" disabled onclick="taoLinkChoKhach(guiDangMo.lead)">Tạo link</button>`);
+  veDsMau();
+  document.getElementById('lgTimMau').focus();
+}
+function veDsMau(){
+  const { spKeys, lead } = guiDangMo;
+  const ds = LinkGui.uuTienVenue(Venue.locSanPham(venues, { q: document.getElementById('lgTimMau').value }), lead.venueId);
+  const html = ds.map(x => LinkGui.veDongMau(x, spKeys.includes(`${x.venue.id}/${x.sp.id}`))).join('');
+  document.getElementById('lgDsMau').innerHTML = html || '<p class="lg-trong">Không có mẫu nào khớp.</p>';
+}
+function chonMauGui(o){
+  const g = guiDangMo, i = g.spKeys.indexOf(o.dataset.sp);
+  if (!o.checked) g.spKeys.splice(i, 1);
+  else if (g.spKeys.length >= LinkGui.MAX_SP) o.checked = false;
+  else g.spKeys.push(o.dataset.sp);
+  document.getElementById('lgNutTaoLink').disabled = !g.spKeys.length;
+}
+function veDsKhach(){
+  const q = document.getElementById('lgTim').value, { spKeys } = guiDangMo;
+  const tenGiaiDoan = id => (STAGES.find(s => s.id === id) || {}).name || '';
+  const ds = LinkGui.locKhach(leads, q);
+  document.getElementById('lgDsKhach').innerHTML = ds.length
+    ? (q.trim() ? '' : '<div class="lg-nhom">Khách mới nhất</div>') +
+      ds.map(l => LinkGui.veDongKhach(l, LinkGui.daGuiChoLead(linkGuiData, l.id, spKeys), spKeys.length, tenGiaiDoan(l.stage))).join('')
+    : `<p class="lg-trong">${q.trim() ? `Không tìm thấy khách "${esc(q)}". Khách phải có trong CRM thì mới tạo được link theo dõi.` : 'Chưa có khách nào đang chăm.'}</p>`;
+}
+function chonKhachGui(id){
+  const lead = leads.find(l => l.id === id);
+  if (lead && guiDangMo) taoLinkChoKhach(lead);
+}
+function taoLinkChoKhach(lead){
+  const g = guiDangMo;
+  g.lead = lead;
+  g.items = g.spKeys.map(k => {
+    const [venueId, spId] = k.split('/'), sp = venues[venueId] && venues[venueId].sanPham && venues[venueId].sanPham[spId];
+    return { venueId, spId, tenSp: sp ? sp.ten : '(sản phẩm đã xoá)', dangTao: true };
+  });
+  venueChon.clear();
+  renderVenue();
+  veKetQuaLink();
+  goiTaoLink(g.items);
+}
+async function goiTaoLink(items){
+  const g = guiDangMo;
+  const kq = await goiApiAdmin({ khoUid: window.__firebase.khoUid(), leadId: g.lead.id, dsSp: items.map(i => ({ venueId: i.venueId, spId: i.spId })) }, '/api/link-gui');
+  items.forEach((it, n) => Object.assign(it, kq.ketQua ? kq.ketQua[n] : { loi: kq.loi }, { dangTao: false }));
+  if (guiDangMo === g) veKetQuaLink();
+}
+function thuLaiLink(i){
+  const it = guiDangMo.items[i];
+  it.dangTao = true;
+  delete it.loi;
+  veKetQuaLink();
+  goiTaoLink([it]);
+}
+function veKetQuaLink(){
+  const { lead, items } = guiDangMo;
+  moVenueModal(`Link cho ${lead.name}`, 'Dán vào Zalo là khách thấy thẻ ảnh của sản phẩm',
+    items.map((it, i) => LinkGui.veDongLink(it, i)).join(''),
+    `<button type="button" class="btn btn-ghost" onclick="dongVenueModal()">Xong</button>
+     <button type="button" class="btn btn-primary" ${items.some(i => i.url) ? '' : 'disabled'} onclick="copyTatCaLink(this)">Copy tất cả</button>`);
+}
+function copyLinkGui(btn){ copyChuoi(btn.dataset.url, btn); }
+function copyTatCaLink(btn){ copyChuoi(LinkGui.chuoiCopyTatCa(guiDangMo.items.filter(i => i.url)), btn); }
 
 function moVenueModal(tieuDe, phu, body, footer){
   document.getElementById('venueModalTitle').textContent = tieuDe;
@@ -3747,7 +3903,7 @@ function moVenueModal(tieuDe, phu, body, footer){
   document.getElementById('venueModalFooter').innerHTML = footer;
   document.getElementById('venueOverlay').classList.add('show');
 }
-function dongVenueModal(){ document.getElementById('venueOverlay').classList.remove('show'); venueGoiYDangMo = null; }
+function dongVenueModal(){ document.getElementById('venueOverlay').classList.remove('show', 'lg-sheet'); venueGoiYDangMo = null; guiDangMo = null; }
 
 async function taoVenue(ten){
   const V = window.Venue;
@@ -4730,6 +4886,13 @@ function openLead(id){
             <button type="button" class="block-collapse" aria-expanded="true" onclick="toggleKhoiChiTiet(this)">Thu gọn ▴</button>
           </div>
           <div class="block-content">${window.BaoGia ? BaoGia.veBaoGia(lead, todayISO(), { choPhepChon: !window.__chiXem }) : ''}</div>
+        </div>
+        <div class="detail-block block-link-gui" data-tab-of="thongtin">
+          <div class="block-head">
+            <h3 class="block-title">Sản phẩm đã gửi</h3>
+            ${window.__chiXem ? '' : `<button type="button" class="btn btn-ghost" onclick="moChonMauChoKhach('${lead.id}')">Gửi sản phẩm</button>`}
+          </div>
+          <div class="block-content" id="lgKhoiDaGui" data-lead="${esc(lead.id)}">${window.LinkGui ? LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, lead.id)) : ''}</div>
         </div>
         <div class="detail-block block-package" data-tab-of="thongtin">
           <div class="block-head"><h3 class="block-title">Gói dịch vụ &amp; giai đoạn</h3></div>
@@ -7208,6 +7371,7 @@ async function initCloudSync(){
     // Hồ sơ khách AI là phần phụ: lỗi ở đây không được làm CRM báo "lỗi đồng bộ".
     if (khoCoNhom('ai')){
       try { initAI(); } catch(e){ console.warn('Không khởi động được phần hồ sơ AI:', e); }
+      try { initLinkGui(); } catch(e){ console.warn('Không khởi động được số liệu link:', e); }
     }
   } catch(e){
     console.error('Firebase init error:', e);
