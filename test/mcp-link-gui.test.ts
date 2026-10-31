@@ -75,6 +75,17 @@ check('fb.watch giu v', watch.linkGoc === 'https://www.facebook.com/watch/?v=77'
 const ALBUM = 'https://www.facebook.com/media/set/?set=a.1&type=3';
 const album = await chuanHoaLink(ALBUM, fGia({ [ALBUM]: new Response('<html></html>') }));
 check('album giu query, khong co anh', album.linkGoc === ALBUM && album.anh === '', album);
+
+const ANH_LE = 'https://www.facebook.com/photo/?fbid=9&set=pb.1';
+const PLUGIN = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(ANH_LE)}&show_text=false&width=500`;
+const htmlPlugin = '<img class="_s0" src="https://scontent.fb.fbcdn.net/v/t39.30808-1/dai-dien.jpg"><img class="img" src="https://static.xx.fbcdn.net/rsrc.php/a.webp">' +
+  '<img class="scaledImageFitWidth img" src="https://scontent.fb.fbcdn.net/v/t39.30808-6/anh.jpg?a=1&amp;b=2">';
+const anhLe = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<title>Facebook</title>'), [PLUGIN]: new Response(htmlPlugin) }));
+check('anh le khong co og:image: lay anh bai tu plugin, bo avatar', anhLe.anh === 'https://scontent.fb.fbcdn.net/v/t39.30808-6/anh.jpg?a=1&b=2', anhLe);
+const coOg = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response('<meta property="og:image" content="https://cdn.fb/og.jpg">') }));
+check('co og:image thi khong goi plugin', coOg.anh === 'https://cdn.fb/og.jpg', coOg);
+const pluginRong = await chuanHoaLink(ANH_LE, fGia({ [ANH_LE]: new Response(''), [PLUGIN]: new Response('<img src="https://scontent.fb.fbcdn.net/v/t39.30808-1/dai-dien.jpg">') }));
+check('plugin chi co avatar thi khong lay', pluginRong.anh === '', pluginRong);
 const loiMang = await chuanHoaLink(SHARE, khongGoi);
 check('loi mang -> giu link vao, khong nem', loiMang.linkGoc === SHARE && loiMang.nenTang === 'facebook' && loiMang.anh === '', loiMang);
 const dangNhapFb = await chuanHoaLink(SHARE, fGia({

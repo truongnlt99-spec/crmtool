@@ -3093,6 +3093,13 @@ export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promi
     const html = await (await f(kq.linkGoc, tuyChon)).text();
     const m = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
     if (m) kq.anh = m[1].replace(/&amp;/g, '&');
+    else {
+      // Link /photo/ không có og:image; trang plugin nhúng vẫn có ảnh bài (t39.30808-1 là avatar fanpage, rsrc.php là icon).
+      const plugin = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(kq.linkGoc)}&show_text=false&width=500`;
+      const anhPlugin = [...(await (await f(plugin, tuyChon)).text()).matchAll(/<img[^>]+src="(https:\/\/[^"]*fbcdn\.net[^"]*)"/g)]
+        .map((x) => x[1]).find((u) => !/t39\.30808-1\/|rsrc\.php/.test(u));
+      if (anhPlugin) kq.anh = anhPlugin.replace(/&amp;/g, '&');
+    }
   } catch (e) {
     console.warn('Khong chuan hoa duoc link Facebook:', e);
   }
