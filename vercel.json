@@ -8,6 +8,10 @@
     {
       "source": "/api/admin",
       "destination": "/api/mcp?mode=admin"
+    },
+    {
+      "source": "/api/link-gui",
+      "destination": "/api/mcp?mode=linkGui"
     }
   ]
 }
