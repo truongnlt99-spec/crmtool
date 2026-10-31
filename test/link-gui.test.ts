@@ -40,6 +40,35 @@ check('topSanPham nhieu click truoc', bang(web.topSanPham(links).map((x: any) =>
 check('topSanPham co so lieu', web.topSanPham(links)[1].daGui === 2 && web.topSanPham(links)[1].luotClick === 3);
 check('topSanPham gioi han', web.topSanPham(links, 1).length === 1);
 check('hoatDongGanDay moi truoc, bo link chua mo', bang(web.hoatDongGanDay(links).map((x: any) => x.token), ['c', 'a']));
+
+console.log('\n>> Lan gui');
+const M = (d: string, h = 12) => new Date(`${d}T${String(h).padStart(2, '0')}:00:00`).getTime();
+const guiDs = web.dsLanGui({
+  a: { leadId: 'l1', tenSp: 'Pre Wedding An Lâm', guiLuc: M('2026-10-01'), soLanGui: 2, soLanMo: 3, lanCuoi: M('2026-10-03') },
+  b: { leadId: 'l2', tenSp: 'Áo dài hồng', taoLuc: M('2026-10-10'), soLanGui: 1 },
+  c: { leadId: 'l1', tenSp: 'Decor be', guiLuc: M('2026-10-20'), soLanGui: 1, soLanMo: 1, lanCuoi: M('2026-10-21') },
+  d: { leadId: 'l3', tenSp: 'Lead da xoa', guiLuc: M('2026-10-05'), soLanGui: 1 },
+}, (id: string) => ({ l1: 'Chị Mai Anh', l2: 'Anh Hoàng' } as any)[id] || '');
+const idLoc = (b: any) => web.locLanGui(guiDs, b).map((x: any) => x.token);
+check('dsLanGui co token, ten khach, nhan, ngay gui', guiDs[0].token === 'a' && guiDs[0].khach === 'Chị Mai Anh' && guiDs[0].nhan === 'quanTam' && guiDs[0].ngayGui === '2026-10-01', guiDs[0]);
+check('thieu guiLuc thi dung taoLuc', guiDs[1].ngayGui === '2026-10-10', guiDs[1]);
+check('khong loc: du het', idLoc({}).length === 4);
+check('tim khong dau theo khach', bang(idLoc({ q: 'mai anh' }), ['a', 'c']), idLoc({ q: 'mai anh' }));
+check('tim khong dau theo san pham', bang(idLoc({ q: 'ao dai' }), ['b']));
+check('tu ngay gom ca ngay do', bang(idLoc({ tu: '2026-10-10' }), ['b', 'c']), idLoc({ tu: '2026-10-10' }));
+check('den ngay gom ca ngay do', bang(idLoc({ den: '2026-10-05' }), ['a', 'd']), idLoc({ den: '2026-10-05' }));
+check('chua mo', bang(idLoc({ trangThai: 'chuaMo' }), ['b', 'd']));
+check('da mo', bang(idLoc({ trangThai: 'daMo' }), ['a', 'c']));
+check('quan tam', bang(idLoc({ trangThai: 'quanTam' }), ['a']));
+check('mo tu n lan', bang(idLoc({ moTu: 2 }), ['a']));
+check('gui tu n lan', bang(idLoc({ guiTu: 2 }), ['a']));
+check('ket hop nhieu dieu kien', bang(idLoc({ q: 'mai', tu: '2026-10-10', trangThai: 'daMo' }), ['c']));
+const sx = (khoa: string, giam: boolean) => web.sapXepLanGui(guiDs, khoa, giam).map((x: any) => x.token);
+check('sap xep ngay gui moi truoc', bang(sx('guiLuc', true), ['c', 'b', 'd', 'a']), sx('guiLuc', true));
+check('sap xep luot click nhieu truoc', sx('soLanMo', true)[0] === 'a');
+check('sap xep tang dan', sx('soLanMo', false).at(-1) === 'a');
+check('sap xep khong doi mang goc', guiDs[0].token === 'a');
+check('tong lan gui', bang(web.tongLanGui(guiDs), { dong: 4, daMo: 2, luotClick: 4, soLanGui: 5 }), web.tongLanGui(guiDs));
 const nh = web.chuoiNgay({ '2026-10-30': { mo: 4 }, '2026-10-31': { mo: 1 } }, '2026-10-31', 3);
 check('chuoiNgay du ngay, thieu la 0', bang(nh, [{ ngay: '2026-10-29', mo: 0 }, { ngay: '2026-10-30', mo: 4 }, { ngay: '2026-10-31', mo: 1 }]), nh);
 const qua = web.chuoiNgay({}, '2026-03-01', 2);
@@ -94,6 +123,9 @@ const FB = { token: T, tieuDe: 'Ảnh đẹp', anh: 'https://cdn.fb/a.jpg', link
 const trang = mcp.veTrangXem(FB);
 check('co og:title va og:image', /property="og:title" content="Ảnh đẹp"/.test(trang) && /property="og:image" content="https:\/\/cdn\.fb\/a\.jpg"/.test(trang));
 check('khong co anh thi bo og:image', !/og:image/.test(mcp.veTrangXem({ ...FB, anh: '' })));
+check('co noi dung thi co og:description', /property="og:description" content="Tiệc &amp; cưới"/.test(mcp.veTrangXem({ ...FB, moTa: 'Tiệc & cưới' })));
+check('khong co noi dung thi bo og:description', !/og:description/.test(trang));
+check('chong XSS noi dung', !mcp.veTrangXem({ ...FB, moTa: '"><script>window.bi=1</script>' }).includes('<script>window.bi=1'));
 check('giau token voi trang dich', /<meta name="referrer" content="no-referrer">/.test(trang));
 check('noindex', /name="robots" content="noindex"/.test(trang));
 check('khong nhung gi', !trang.includes('<iframe'));

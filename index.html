@@ -941,6 +941,14 @@
   .lg-tk-hai{display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px;}
   .lg-tk-hai table.bang.vn-bang td.vn-c-ten{min-width:0;}
   .lg-khi{flex:none; font-size:12.5px; color:var(--text-3); font-variant-numeric:tabular-nums;}
+  .lg-tong{margin:0; padding:10px 14px; font-size:13px; color:var(--text-2); font-variant-numeric:tabular-nums;}
+  .lg-tong b{color:var(--text); font-weight:600;}
+  .lg-ngay{display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--text-2);}
+  .bang-toolbar .lg-ngay .field-input{width:auto; min-height:36px; padding:6px 10px;}
+  .lg-sap{border:0; padding:0; background:none; font:inherit; color:inherit; cursor:pointer; white-space:nowrap;}
+  .lg-sap:hover{color:var(--text);}
+  .lg-sap:focus-visible{outline:2px solid var(--primary); outline-offset:2px;}
+  .vn-bang .lg-mo-lead{margin-left:0; padding-left:0; font-weight:600; text-align:left;}
   .lg-nhan{flex:none; padding:2px 8px; border-radius:999px; font-size:11.5px; font-weight:600; background:var(--gray-tag-soft); color:var(--gray-tag);}
   .lg-nhan.quanTam{background:var(--red-soft); color:var(--red);}
   .lg-nhan.xemQua{background:var(--amber-soft); color:var(--amber);}
@@ -3812,13 +3820,27 @@ function renderVenue(){
   const dangGo = document.activeElement && document.activeElement.id === 'vnTim';
 
   const tab = (ma, ten) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}</button>`;
-  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm')}${tab('thongke', 'Thống kê')}</div>`;
+  const tabs = `<div class="vn-tabs" role="tablist">${tab('sp', 'Sản phẩm')}${tab('thongke', 'Thống kê')}${tab('langui', 'Lần gửi')}</div>`;
 
   let toolbar, than, rail = '';
+  const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
   if (venueTab === 'thongke'){
     toolbar = `<div class="vn-hang">${tabs}</div>`;
-    const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
     than = LinkGui.veThongKe({ linkGui: linkGuiData, linkGuiNgay, homNay: todayISO(), tenKhach, chiXem });
+  } else if (venueTab === 'langui'){
+    const L = lanGuiLoc, chon = (k, tieuDe, ds) => `<select class="field-input" aria-label="${tieuDe}" onchange="datLocLanGui('${k}', this.value)">${ds.map(([v, ten]) => `<option value="${v}" ${String(L[k]) === String(v) ? 'selected' : ''}>${ten}</option>`).join('')}</select>`;
+    const ngay = (k, ten) => `<label class="lg-ngay">${ten}<input class="field-input" type="date" value="${esc(L[k])}" onchange="datLocLanGui('${k}', this.value)"></label>`;
+    const dangLoc = venueTim || L.tu || L.den || L.trangThai || +L.moTu || +L.guiTu;
+    toolbar = `<div class="vn-hang">${tabs}</div>
+      <div class="vn-hang"><input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="Tìm khách, sản phẩm…" aria-label="Tìm khách hoặc sản phẩm" oninput="venueTim=this.value; renderVenue()">
+      ${ngay('tu', 'Từ')}${ngay('den', 'Đến')}
+      ${chon('trangThai', 'Lọc theo trạng thái', [['', 'Tất cả trạng thái'], ['chuaMo', 'Chưa mở'], ['daMo', 'Đã mở'], ['quanTam', 'Quan tâm']])}
+      ${chon('moTu', 'Lọc theo số lần mở', [[0, 'Số lần mở'], [1, 'Mở từ 1 lần'], [2, 'Mở từ 2 lần'], [3, 'Mở từ 3 lần'], [5, 'Mở từ 5 lần']])}
+      ${chon('guiTu', 'Lọc theo số lần gửi', [[0, 'Số lần gửi'], [2, 'Gửi từ 2 lần'], [3, 'Gửi từ 3 lần']])}
+      ${dangLoc ? '<button type="button" class="btn btn-ghost" onclick="xoaLocLanGui()">Xoá lọc</button>' : ''}</div>`;
+    const tatCa = LinkGui.dsLanGui(linkGuiData, tenKhach);
+    const kq = LinkGui.sapXepLanGui(LinkGui.locLanGui(tatCa, { ...L, q: venueTim, moTu: +L.moTu, guiTu: +L.guiTu }), lanGuiSap.khoa, lanGuiSap.giam);
+    than = LinkGui.veLanGui(kq, tatCa, { ...lanGuiSap, origin: location.origin });
   } else {
     const vDangChon = venueDangChon ? venues[venueDangChon] : null;
     const kq = V.locSanPham(venues, { q: venueTim, tone: venueTone ? [venueTone] : [], venueId: venueDangChon || null });
@@ -3904,6 +3926,16 @@ function chonSanPham(o){
   veThanhChon();
 }
 function boChonSanPham(){ venueChon.clear(); renderVenue(); }
+
+// Tab Lần gửi: chữ tìm dùng chung venueTim với các tab khác.
+const LAN_GUI_TRONG = { tu: '', den: '', trangThai: '', moTu: 0, guiTu: 0 };
+let lanGuiLoc = { ...LAN_GUI_TRONG }, lanGuiSap = { khoa: 'guiLuc', giam: true };
+function datLocLanGui(k, v){ lanGuiLoc[k] = v; renderVenue(); }
+function xoaLocLanGui(){ lanGuiLoc = { ...LAN_GUI_TRONG }; venueTim = ''; renderVenue(); }
+function doiSapLanGui(khoa){
+  lanGuiSap = { khoa, giam: lanGuiSap.khoa === khoa ? !lanGuiSap.giam : true };
+  renderVenue();
+}
 function veThanhChon(){
   const o = document.getElementById('vnThanhChon');
   if (!o) return;
