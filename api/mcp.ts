@@ -3082,7 +3082,13 @@ export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promi
     if (u.pathname.startsWith('/share/') || u.hostname === 'fb.watch') {
       const dich = (await f(link, { ...tuyChon, redirect: 'manual' })).headers.get('location');
       const goc = dich ? urlHopLe(new URL(dich, link).href) : null;
-      if (goc && laFacebook(goc) && !goc.pathname.startsWith('/login')) { goc.search = ''; kq.linkGoc = goc.href; }
+      if (goc && laFacebook(goc) && !goc.pathname.startsWith('/login')) {
+        // Bỏ tham số theo dõi, giữ tham số định danh bài: thiếu chúng link ra trang Facebook rỗng
+        const giu = new URLSearchParams();
+        for (const k of ['story_fbid', 'id', 'fbid', 'set', 'v']) { const v = goc.searchParams.get(k); if (v !== null) giu.set(k, v); }
+        goc.search = giu.toString();
+        kq.linkGoc = goc.href;
+      }
     }
     const html = await (await f(kq.linkGoc, tuyChon)).text();
     const m = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
@@ -3102,7 +3108,7 @@ function taoTokenXem(): string {
  * Tạo (hoặc dùng lại) link riêng cho một lead + các sản phẩm, trong kho `root`. Dùng chung cho /api/link-gui và tool MCP.
  * Sản phẩm lỗi trả `loi` ở đúng dòng đó, các sản phẩm khác vẫn có link.
  */
-async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ venueId: string; spId: string }>, origin: string): Promise<KetQuaLink[]> {
+export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ venueId: string; spId: string }>, origin: string, f: typeof fetch = fetch): Promise<KetQuaLink[]> {
   const ai = aiRootFromDataRoot(root);
   const daCo = (await readPath<Record<string, LinkGui> | null>(`${ai}/linkGui`)) || {};
   return Promise.all(dsSp.map(async ({ venueId, spId }): Promise<KetQuaLink> => {
@@ -3117,11 +3123,16 @@ async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ venueId: s
     const patch: Record<string, unknown> = {};
     if (cu) patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } };
     // Trân sửa link sản phẩm rồi gửi lại thì link đã gửi phải trỏ sang link mới
-    if (!cu || cu[1].linkNguon !== link) {
-      const c = await chuanHoaLink(link);
-      patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang, ytId: c.ytId };
-      if (cu) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
-      else patch[`${ai}/linkGui/${token}`] = {
+    const doiLink = !cu || cu[1].linkNguon !== link;
+    // Lần trước Facebook lỗi tạm thời (chưa có ảnh): gửi lại là dịp thử chuẩn hoá lần nữa
+    const thieuAnh = !doiLink && cu![1].nenTang === 'facebook' && !(await readPath(`linkXem/${token}/anh`));
+    if (doiLink || thieuAnh) {
+      const c = await chuanHoaLink(link, f);
+      if (doiLink || c.anh || c.linkGoc !== link) {
+        patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe: sp.ten, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang, ytId: c.ytId };
+      }
+      if (cu && doiLink) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
+      if (!cu) patch[`${ai}/linkGui/${token}`] = {
         leadId, venueId, spId, tenSp: sp.ten, nenTang: c.nenTang, linkNguon: link,
         taoLuc: Date.now(), soLanGui: 1, soLanMo: 0, tongGiay: 0, soLanTuongTac: 0,
       };
@@ -3173,15 +3184,14 @@ export const JS_THEO_DOI = `(function(){
   function guiPhanLe(){
     var d = Math.round((Date.now() - moc) / 1000);
     moc = Date.now();
-    if (d >= 1 && d <= 30 && nhip < 120) gui('giay', d);
+    if (d >= 1 && d <= 30 && nhip <= 120) gui('giay', d);
   }
   gui('mo');
   if (c.nenTang === 'khac') { if (c.linkGoc) location.replace(c.linkGoc); return; }
   var dem = setInterval(function(){
     if (document.visibilityState !== 'visible') return;
     if (++nhip > 120) { clearInterval(dem); return; }
-    moc = Date.now();
-    gui('giay', 15);
+    guiPhanLe();
   }, 15000);
   document.addEventListener('visibilitychange', function(){
     if (document.visibilityState === 'visible') moc = Date.now(); else guiPhanLe();
@@ -3243,13 +3253,13 @@ function traLoiHtml(html: string, status = 200): Response {
   return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
 
+const trangThongBao = (chu: string, status: number) => traLoiHtml('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+  `<title>${chu}</title><body style="margin:0;background:#fff;font:16px system-ui,sans-serif;color:#555;text-align:center;padding:40vh 16px 0">${chu}</body></html>`, status);
+
 async function xuLyXem(url: URL): Promise<Response> {
   const t = url.searchParams.get('t') || '';
   const d = TOKEN_XEM.test(t) ? await readPath<any>(`linkXem/${t}`) : null;
-  if (!d) {
-    return traLoiHtml('<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
-      '<title>Link không còn hiệu lực</title><body style="margin:0;background:#fff;font:16px system-ui,sans-serif;color:#555;text-align:center;padding:40vh 16px 0">Link không còn hiệu lực</body></html>', 404);
-  }
+  if (!d) return trangThongBao('Link không còn hiệu lực', 404);
   return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, anh: d.anh, linkGoc: d.linkGoc, nenTang: d.nenTang, ytId: d.ytId ?? null, origin: url.origin }));
 }
 
@@ -3300,12 +3310,13 @@ export default {
     }
 
     // Trang khách + sự kiện xem: công khai, chỉ cần token trong link.
-    if (url.searchParams.get('mode') === 'xem' || url.searchParams.get('mode') === 'xemSuKien') {
+    const laTrangXem = url.searchParams.get('mode') === 'xem';
+    if (laTrangXem || url.searchParams.get('mode') === 'xemSuKien') {
       try {
-        return await (url.searchParams.get('mode') === 'xem' ? xuLyXem(url) : xuLyXemSuKien(request));
+        return await (laTrangXem ? xuLyXem(url) : xuLyXemSuKien(request));
       } catch (e) {
         console.error('Xem link error:', e);
-        return traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
+        return laTrangXem ? trangThongBao('Chưa mở được link, bạn thử lại giúp nhé', 503) : traLoiJson({ loi: 'Có lỗi hệ thống. Thử lại sau.' }, 503);
       }
     }
 

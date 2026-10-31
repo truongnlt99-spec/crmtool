@@ -82,6 +82,7 @@ const giua = (dau, cuoi) => { const a = src.indexOf(dau), b = src.indexOf(cuoi, 
 const ham = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf('\n}', a) + 2); };
 const NL = String.fromCharCode(10);
 const dongHam = ten => { const a = src.indexOf(`function ${ten}(`); return src.slice(a, src.indexOf(NL, a)); };
+check('thanh chon dinh ca khoi de dinh duoc cuoi bang', /#vnThanhChon\{position:sticky; bottom:0;/.test(src));
 window.LinkGui = L;
 window.esc = s => String(s ?? '').replace(/[&<>"']/g, k => `&#${k.charCodeAt(0)};`);
 window.STAGES = [{ id: 'baogia', name: 'Báo giá' }, { id: 'leadin', name: 'Lead in' }];

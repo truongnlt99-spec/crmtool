@@ -59,6 +59,19 @@ const dLoi = await chuanHoaLink(SHARE, fGia({
 }));
 check('share/p -> link goc bo query', dLoi.linkGoc === GOC && dLoi.nenTang === 'facebook', dLoi);
 check('og:image giai ma &amp;', dLoi.anh === 'https://cdn.fb/a.jpg?x=1&y=2', dLoi);
+const doiShare = async (dich: string) => (await chuanHoaLink(SHARE, fGia({
+  [SHARE]: new Response(null, { status: 302, headers: { Location: dich } }),
+  [dich.split('?')[0]]: new Response(''),
+  [dich]: new Response(''),
+}))).linkGoc;
+check('permalink giu story_fbid + id', (await doiShare('https://www.facebook.com/permalink.php?story_fbid=123&id=456&rdid=x&share_url=y')) === 'https://www.facebook.com/permalink.php?story_fbid=123&id=456');
+check('photo giu fbid + set', (await doiShare('https://www.facebook.com/photo/?fbid=9&set=a.1&mibextid=z')) === 'https://www.facebook.com/photo/?fbid=9&set=a.1');
+const WATCH = 'https://fb.watch/abc/';
+const watch = await chuanHoaLink(WATCH, fGia({
+  [WATCH]: new Response(null, { status: 302, headers: { Location: 'https://www.facebook.com/watch/?v=77&rdid=1' } }),
+  'https://www.facebook.com/watch/?v=77': new Response(''),
+}));
+check('fb.watch giu v', watch.linkGoc === 'https://www.facebook.com/watch/?v=77', watch);
 const ALBUM = 'https://www.facebook.com/media/set/?set=a.1&type=3';
 const album = await chuanHoaLink(ALBUM, fGia({ [ALBUM]: new Response('<html></html>') }));
 check('album giu query, khong co anh', album.linkGoc === ALBUM && album.anh === '', album);
@@ -176,6 +189,23 @@ try {
   await db(`crmDataTest/venues/${VN}/sanPham/yt`, { method: 'DELETE' });
   check('san pham da xoa: link van con', (await dbJson(`linkXem/${kq.token}`)).tieuDe.includes('test'));
 
+  console.log('\n>> Facebook loi tam thoi roi gui lai');
+  await db(`crmDataTest/venues/${VN}/sanPham/fb`, { method: 'PUT', body: JSON.stringify({ id: 'fb', ten: 'Bai FB', link: SHARE, tone: [] }) });
+  const fbLoi = async () => { throw new Error('facebook loi'); };
+  const dsFb = [{ venueId: VN, spId: 'fb' }];
+  const lan1 = (await mod.taoLinkGui('crmDataTest', LEAD, dsFb, 'https://x', fbLoi))[0];
+  tokens.push(lan1.token);
+  check('Facebook loi van tao link', (await dbJson(`linkXem/${lan1.token}`)).linkGoc === SHARE);
+  await mod.taoLinkGui('crmDataTest', LEAD, dsFb, 'https://x', fbLoi);
+  check('van loi: giu nguyen, khong hong', (await dbJson(`linkXem/${lan1.token}`)).linkGoc === SHARE);
+  const fbTot = fGia({
+    [SHARE]: new Response(null, { status: 302, headers: { Location: GOC } }),
+    [GOC]: new Response('<meta property="og:image" content="https://cdn.fb/b.jpg">'),
+  });
+  const lan3 = (await mod.taoLinkGui('crmDataTest', LEAD, dsFb, 'https://x', fbTot))[0];
+  const sauSua = await dbJson(`linkXem/${lan3.token}`);
+  check('gui lai sau khi Facebook on: tu sua link va anh', lan3.token === lan1.token && sauSua.linkGoc === GOC && sauSua.anh === 'https://cdn.fb/b.jpg', sauSua);
+
   console.log('\n>> /xem + su kien');
   const xem = async (t: string) => handler.fetch(new Request(`https://huyentran.vercel.app/api/mcp?mode=xem&t=${t}`));
   const suKien = async (body: unknown) => (await handler.fetch(new Request('https://huyentran.vercel.app/api/mcp?mode=xemSuKien', {
@@ -190,6 +220,12 @@ try {
   const la = await xem('aaaaaaaaaa');
   check('token la -> 404 co thong bao', la.status === 404 && (await la.text()).includes('Link không còn hiệu lực'));
   check('token sai dinh dang -> 404', (await xem('..%2F..%2Fx')).status === 404);
+  const fetchGoc = globalThis.fetch;
+  globalThis.fetch = (async () => { throw new Error('firebase sap'); }) as typeof fetch;
+  const trangLoi = await xem(kq.token);
+  globalThis.fetch = fetchGoc;
+  check('firebase loi: khach thay trang thuong, khong thay JSON',
+    trangLoi.status === 503 && (trangLoi.headers.get('content-type') || '').includes('text/html') && !(await trangLoi.text()).includes('{"loi"'));
 
   check('su kien token la -> 404', (await suKien({ t: 'aaaaaaaaaa', loai: 'mo' })) === 404);
   check('su kien sai -> 400', (await suKien({ t: kq.token, loai: 'la' })) === 400);
@@ -226,7 +262,7 @@ try {
   await db(`crmDataTest/leads/${LEAD}_b`, { method: 'PUT', body: JSON.stringify({ id: `${LEAD}_b`, name: `Trung ten ${rand} B`, stage: 'leadin' }) });
 
   const tim = await callTool('find_venue_products', { venue: VN });
-  check('find_venue_products tra du venueId + id', tim.json?.sanPham?.[0]?.venueId === VN && tim.json.sanPham[0].id === 'khac', tim.text);
+  check('find_venue_products tra du venueId + id', tim.json?.sanPham?.some((s: any) => s.venueId === VN && s.id === 'khac'), tim.text);
   const sp1 = { venueId: VN, id: 'khac' };
   const taoTool = await callTool('create_product_links', { lead: `Khach LG ${rand}`, sanPham: [sp1] });
   const dongTool = taoTool.json?.links?.[0];
@@ -239,7 +275,7 @@ try {
 
   const theoKhach = await callTool('get_link_stats', { lead: LEAD });
   const dongYt = theoKhach.json?.links?.find((d: any) => d.tongGiay === 24);
-  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 2 && dongYt?.nhan === 'quanTam' && dongYt?.tuongTac === 1, theoKhach.text);
+  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 3 && dongYt?.nhan === 'quanTam' && dongYt?.tuongTac === 1, theoKhach.text);
   check('co ten khach', dongYt?.khach === `Khach LG ${rand}`, dongYt);
   const theoSp = await callTool('get_link_stats', { venueId: VN, id: 'khac' });
   check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);

@@ -150,6 +150,11 @@ check('an trang gui phan giay le', p4.gui.at(-1)?.giay === 9, p4.gui);
 p4.troi(60000); p4.ctx.document.visibilityState = 'visible'; p4.sk.visibilitychange(); p4.troi(15000); p4.tick();
 check('hien lai: khong tinh luc an', p4.gui.at(-1)?.giay === 15, p4.gui);
 
+const p4b = chayTrang(CFG);
+p4b.ctx.document.visibilityState = 'hidden'; p4b.sk.visibilitychange(); p4b.troi(60000);
+p4b.ctx.document.visibilityState = 'visible'; p4b.sk.visibilitychange(); p4b.troi(1000); p4b.tick();
+check('quay lai sat nhip: chi tinh giay that', p4b.gui.at(-1)?.giay === 1, p4b.gui);
+
 const p5 = chayTrang(CFG);
 for (let i = 0; i < 125; i++) { p5.troi(15000); p5.tick(); }
 check('dung sau 120 nhip', p5.gui.filter(g => g.loai === 'giay').length === 120 && p5.huy, p5.gui.length);
