@@ -206,9 +206,48 @@ try {
   check('giay cong don', sau3.tongGiay === 24, sau3);
   check('tuongTac tang', sau3.soLanTuongTac === 1, sau3);
   check('lanDau giu nguyen, lanCuoi moi hon', sau3.lanDau === sau2.lanDau && sau3.lanCuoi > sau2.lanCuoi, sau3);
+
+  console.log('\n>> Tool MCP');
+  const callTool = async (name: string, args: Record<string, unknown>) => {
+    const res = await handler.fetch(new Request('http://localhost/api/mcp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: Date.now(), method: 'tools/call', params: { name, arguments: args } }),
+    }));
+    const text = await res.text();
+    const line = text.split('\n').find((l) => l.startsWith('data:'));
+    const body = JSON.parse(line ? line.slice(5).trim() : text);
+    const out = body?.result?.content?.[0]?.text ?? JSON.stringify(body?.error ?? '');
+    let json: any = null;
+    try { json = JSON.parse(out); } catch { json = null; }
+    return { text: out, json, isError: !!body?.result?.isError || !!body?.error };
+  };
+  await db(`crmDataTest/leads/${LEAD}_a`, { method: 'PUT', body: JSON.stringify({ id: `${LEAD}_a`, name: `Trung ten ${rand} A`, stage: 'leadin' }) });
+  await db(`crmDataTest/leads/${LEAD}_b`, { method: 'PUT', body: JSON.stringify({ id: `${LEAD}_b`, name: `Trung ten ${rand} B`, stage: 'leadin' }) });
+
+  const tim = await callTool('find_venue_products', { venue: VN });
+  check('find_venue_products tra du venueId + id', tim.json?.sanPham?.[0]?.venueId === VN && tim.json.sanPham[0].id === 'khac', tim.text);
+  const sp1 = { venueId: VN, id: 'khac' };
+  const taoTool = await callTool('create_product_links', { lead: `Khach LG ${rand}`, sanPham: [sp1] });
+  const dongTool = taoTool.json?.links?.[0];
+  if (dongTool?.url) tokens.push(dongTool.url.split('/').pop());
+  check('create_product_links tra ten + url', dongTool?.tenSp === 'Link khac' && /^https:\/\/huyentran\.vercel\.app\/xem\/[A-Za-z0-9]{10}$/.test(dongTool?.url), taoTool.text);
+  const lai = await callTool('create_product_links', { lead: LEAD, sanPham: [sp1] });
+  check('goi lai khong tao token moi', lai.json?.links?.[0]?.url === dongTool?.url, lai.text);
+  check('trung ten -> loi, khong tao', (await callTool('create_product_links', { lead: `Trung ten ${rand}`, sanPham: [sp1] })).isError);
+  check('11 san pham -> loi', (await callTool('create_product_links', { lead: LEAD, sanPham: Array(11).fill(sp1) })).isError);
+
+  const theoKhach = await callTool('get_link_stats', { lead: LEAD });
+  const dongYt = theoKhach.json?.links?.find((d: any) => d.tongGiay === 24);
+  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 2 && dongYt?.nhan === 'quanTam' && dongYt?.tuongTac === 1, theoKhach.text);
+  check('co ten khach', dongYt?.khach === `Khach LG ${rand}`, dongYt);
+  const theoSp = await callTool('get_link_stats', { venueId: VN, id: 'khac' });
+  check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);
+  const toanKho = await callTool('get_link_stats', {});
+  check('get_link_stats toan kho', toanKho.json?.links?.length >= 2, toanKho.text);
 } finally {
   for (const t of tokens) { await db(`linkXem/${t}`, { method: 'DELETE' }); await db(`aiDataTest/linkGui/${t}`, { method: 'DELETE' }); }
-  await db(`crmDataTest/leads/${LEAD}`, { method: 'DELETE' });
+  for (const k of ['', '_a', '_b']) await db(`crmDataTest/leads/${LEAD}${k}`, { method: 'DELETE' });
   await db(`crmDataTest/venues/${VN}`, { method: 'DELETE' });
   for (const uid of cacUid) {
     await db(`taiKhoan/${uid}`, { method: 'DELETE' });

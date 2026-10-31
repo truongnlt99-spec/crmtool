@@ -454,6 +454,9 @@ function aiRoot(): string {
   return aiRootFromDataRoot(dataRoot());
 }
 
+const ORIGIN_APP = 'https://huyentran.vercel.app';
+const MAX_SP_MOT_LAN = 10;
+
 /** Mức quan tâm của khách với một link. CHÉP Ở 2 NƠI: đây và web/link-gui.js — sửa một chỗ thì sửa cả hai. */
 export function nhanLink(s: { soLanMo?: number; tongGiay?: number; soLanTuongTac?: number } | null): 'quanTam' | 'xemQua' | 'chuaMo' {
   if (!s || !s.soLanMo) return 'chuaMo';
@@ -1407,7 +1410,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Tìm sản phẩm theo venue / tone',
         description:
-          'Tìm sản phẩm (thường là link bài Facebook HayDay đã làm) theo venue, tone màu hoặc chữ. Vd "sản phẩm ở Gem Center" -> venue "Gem Center"; "mẫu tone xanh" -> tone "xanh" (khớp cả Xanh lá và Xanh dương). Mọi điều kiện đều không phân biệt dấu. Trả link để gửi khách.',
+          'Tìm sản phẩm (thường là link bài Facebook HayDay đã làm) theo venue, tone màu hoặc chữ. Vd "sản phẩm ở Gem Center" -> venue "Gem Center"; "mẫu tone xanh" -> tone "xanh" (khớp cả Xanh lá và Xanh dương). Mọi điều kiện đều không phân biệt dấu. Khi gửi cho một khách cụ thể, đừng đưa link trong kết quả này mà gọi create_product_links để có link theo dõi được.',
         inputSchema: z.object({
           venue: z.string().optional().describe('Tên venue (khớp một phần, không dấu) hoặc id'),
           tone: z.string().optional().describe('Tên tone (vd "xanh", "hồng", "pastel") hoặc id tone'),
@@ -1485,6 +1488,60 @@ const mcpHandler = createMcpHandler(
         await patchPath(`${dataRoot()}/venues/${v.id}/sanPham/${sp.id}`, sp);
         await touch();
         return ok({ daThem: true, venueMoi, venue: v.ten, venueId: v.id, sanPham: { ...sp, tone: toneIds.map((id) => tones.find((t) => t.id === id)!.ten) } });
+      }
+    );
+
+    server.registerTool(
+      'create_product_links',
+      {
+        title: 'Tạo link theo dõi sản phẩm cho khách',
+        description:
+          'Tạo link riêng cho một khách + các sản phẩm (dùng venueId và id lấy từ find_venue_products), để biết khách có mở xem không. Dùng khi Trân muốn gửi sản phẩm cho một khách cụ thể, thay cho link Facebook/YouTube gốc. Cùng khách + sản phẩm thì dùng lại link cũ. Không sửa ô nào của lead nên không qua hàng chờ. Tool này CHỈ tạo link: Trân tự dán sang Zalo, tuyệt đối không nói là đã gửi cho khách. Có nhiều lead trùng tên thì hỏi lại Trân là khách nào, không tự chọn.',
+        inputSchema: z.object({
+          lead: z.string().min(1).describe('leadId hoặc tên khách'),
+          sanPham: z.array(z.object({
+            venueId: z.string().describe('venueId từ find_venue_products'),
+            id: z.string().describe('id sản phẩm từ find_venue_products'),
+          })).min(1).max(MAX_SP_MOT_LAN),
+        }),
+      },
+      async (args) => {
+        const lead = findLead(await loadCrm(), args.lead);
+        const kq = await taoLinkGui(dataRoot(), lead.id, args.sanPham.map((s) => ({ venueId: s.venueId, spId: s.id })), ORIGIN_APP);
+        return ok({
+          khach: lead.name,
+          links: kq.filter((k) => 'url' in k).map((k: any) => ({ tenSp: k.tenSp, url: k.url, daTaoTruocDo: k.daCo, soLanKhachMo: k.soLanMo })),
+          loi: kq.filter((k) => 'loi' in k),
+        });
+      }
+    );
+
+    server.registerTool(
+      'get_link_stats',
+      {
+        title: 'Xem số liệu link sản phẩm đã gửi',
+        description:
+          'Xem khách có mở link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Trả số lần mở, thời gian xem (giây), số lần tương tác (bấm sang Facebook hoặc bấm phát YouTube), lần xem gần nhất và nhãn quanTam / xemQua / chuaMo. Thời gian xem không gồm phần khách xem trên app Facebook, nên chỉ dùng để so sánh tương đối và không so trực tiếp giữa Facebook với YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
+        inputSchema: z.object({
+          lead: z.string().optional().describe('leadId hoặc tên khách'),
+          venueId: z.string().optional(),
+          id: z.string().optional().describe('id sản phẩm'),
+        }),
+      },
+      async (args) => {
+        const crm = await loadCrm();
+        const lead = args.lead ? findLead(crm, args.lead) : null;
+        const tenKhach = Object.fromEntries(crm.leads.map((l) => [l.id, l.name]));
+        const thuTu = { quanTam: 0, xemQua: 1, chuaMo: 2 };
+        const ds = Object.values((await readPath<Record<string, LinkGui> | null>(`${aiRoot()}/linkGui`)) || {})
+          .filter((d) => d && (!lead || d.leadId === lead.id) && (!args.venueId || d.venueId === args.venueId) && (!args.id || d.spId === args.id))
+          .map((d) => ({
+            khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
+            soLanGui: d.soLanGui, soLanMo: d.soLanMo, tongGiay: d.tongGiay, tuongTac: d.soLanTuongTac,
+            lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
+          }))
+          .sort((a, b) => thuTu[a.nhan] - thuTu[b.nhan] || String(b.lanCuoi).localeCompare(String(a.lanCuoi)));
+        return ok({ total: ds.length, links: ds });
       }
     );
 
@@ -2976,7 +3033,6 @@ async function xuLyAdmin(request: Request): Promise<Response> {
 
 /* ===================== Theo dõi link sản phẩm gửi khách ===================== */
 
-const MAX_SP_MOT_LAN = 10;
 const ID_DUONG_DAN = /^[A-Za-z0-9_-]{1,80}$/;
 const TOKEN_XEM = /^[A-Za-z0-9]{10}$/;
 const HET_GIO_LINK_MS = 5000;
