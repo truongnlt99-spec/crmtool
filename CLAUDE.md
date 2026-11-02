@@ -40,7 +40,7 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và phân quyền tài kh
   (đây và `api/mcp.ts`). Tool MCP: `list_venues`, `find_venue_products`, `add_venue_product` (ghi thẳng); gắn venue cho lead
   chỉ qua hàng chờ (`venueId` nằm trong `FIELD_WHITELIST`).
 - **`web/link-gui.js`** — logic thuần theo dõi link sản phẩm gửi khách (`window.LinkGui`). Trân tạo link riêng theo khách + sản phẩm
-  (bảng Sản phẩm, chi tiết lead, hoặc tool MCP `create_product_links`), xem số liệu trong lead / bảng Sản phẩm / tool `get_link_stats`.
+  (bảng Sản phẩm, chi tiết lead, hoặc tool MCP `create_product_links`), xem số liệu trong lead / bảng Sản phẩm / tool `get_link_stats` (lọc theo ngày gửi `tu`/`den`, kèm click theo ngày của cả kho, không tách theo khách).
   Chỉ đếm lượt click: `GET /xem/<token>` trả trang rỗng có thẻ OG cho Zalo, JS gửi một lượt `mo` rồi chuyển thẳng tới link gốc (đếm bằng JS để bot tạo thẻ xem trước không bị tính).
   Thẻ Zalo hiện tên page + nội dung bài (`chuanHoaLink`): Facebook lấy từ `og:title` + trang plugin nhúng, YouTube lấy từ oEmbed; lỗi thì về tên sản phẩm. Link cũ tự bổ sung khi gửi lại.
   `POST /api/xem-su-kien` nhận `mo` không cần đăng nhập, `POST /api/link-gui` tạo link bằng ID token (cùng điều kiện ghi với rules). Venue có tab "Thống kê" (`veThongKe`) và "Lần gửi" (`veLanGui`, lọc theo ngày gửi, trạng thái, số lần; mỗi dòng là một cặp khách + sản phẩm).

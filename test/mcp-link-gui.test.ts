@@ -42,6 +42,11 @@ for (const u of [
   `https://www.youtube.com/watch?v=${ID.slice(0, 10)}"`, `https://notyoutube.com/watch?v=${ID}`, `https://youtube.com.evil.vn/watch?v=${ID}`, 'khong-phai-url',
 ]) check(`bo ${u}`, layYoutubeId(u) === null, layYoutubeId(u));
 
+console.log('\n>> clickTheoNgay');
+const ck = mod.clickTheoNgay({ '2026-10-30': { mo: 4 }, '2026-10-31': { mo: 1 }, '2026-11-02': { mo: 9 } }, '2026-10-29', '2026-11-01');
+check('chi lay ngay trong khoang, bo ngay khong co click', JSON.stringify(ck) === JSON.stringify({ tu: '2026-10-29', den: '2026-11-01', tong: 5, ngay: [{ ngay: '2026-10-30', click: 4 }, { ngay: '2026-10-31', click: 1 }] }), ck);
+check('khong co du lieu', mod.clickTheoNgay(null, '2026-10-29', '2026-10-30').tong === 0);
+
 console.log('\n>> chuanHoaLink');
 const khongGoi = async () => { throw new Error('khong duoc goi mang'); };
 const yt = await chuanHoaLink(`https://youtu.be/${ID}`, khongGoi);
@@ -313,6 +318,22 @@ try {
   check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);
   const toanKho = await callTool('get_link_stats', {});
   check('get_link_stats toan kho', toanKho.json?.links?.length >= 2, toanKho.text);
+
+  console.log('\n>> get_link_stats theo ngay');
+  const homNay = mod.ngayVN(Date.now()), homSau = mod.ngayVN(Date.now() + 864e5), homQua = mod.ngayVN(Date.now() - 864e5);
+  check('moi dong co ngay gui', theoKhach.json?.links?.every((d: any) => d.ngayGui === homNay), theoKhach.text);
+  const soDong = async (a: Record<string, unknown>) => (await callTool('get_link_stats', { lead: LEAD, ...a })).json?.links?.length;
+  check('loc tu hom nay: du link', (await soDong({ tu: homNay })) === 3);
+  check('loc den hom nay: du link', (await soDong({ den: homNay })) === 3);
+  check('loc tu ngay mai: khong co', (await soDong({ tu: homSau })) === 0);
+  check('loc den hom qua: khong co', (await soDong({ den: homQua })) === 0);
+  const theoNgay = (await callTool('get_link_stats', { lead: LEAD })).json?.clickTheoNgayToanKho;
+  const homNayClick = theoNgay?.ngay?.find((n: any) => n.ngay === homNay);
+  check('click theo ngay co hom nay', homNayClick?.click >= 3, theoNgay);
+  check('click theo ngay tong khop, mac dinh 14 ngay', theoNgay?.tong >= 3 && theoNgay?.den === homNay && theoNgay?.tu === mod.ngayVN(Date.now() - 13 * 864e5), theoNgay);
+  check('ngay sai dinh dang -> loi', (await callTool('get_link_stats', { tu: '31/10/2026' })).isError);
+  check('tu sau den -> loi', (await callTool('get_link_stats', { tu: homSau, den: homQua })).isError);
+  check('khoang qua dai -> loi', (await callTool('get_link_stats', { tu: '2025-01-01', den: '2026-10-31' })).isError);
 } finally {
   for (const t of tokens) { await db(`linkXem/${t}`, { method: 'DELETE' }); await db(`aiDataTest/linkGui/${t}`, { method: 'DELETE' }); }
   await db(`aiDataTest/linkGuiNgay/${mod.ngayVN(Date.now())}`, { method: 'DELETE' });

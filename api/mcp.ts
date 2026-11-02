@@ -1521,27 +1521,44 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Xem số liệu link sản phẩm đã gửi',
         description:
-          'Xem khách có bấm link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Trả số lần mở, lần mở gần nhất và nhãn quanTam (mở từ 2 lần) / xemQua (mở 1 lần) / chuaMo. Chỉ đếm được lượt bấm link, không biết khách xem bao lâu trên Facebook hay YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
+          'Xem khách có bấm link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Lọc theo ngày gửi bằng tu / den (vd "tuần này gửi cho ai"). Mỗi link trả ngày gửi gần nhất (ngayGui), số lần gửi, số lần mở, lần mở gần nhất và nhãn quanTam (mở từ 2 lần) / xemQua (mở 1 lần) / chuaMo. Gửi lại cùng khách + sản phẩm thì ngayGui là lần gần nhất. clickTheoNgayToanKho là lượt click từng ngày của CẢ KHO trong khoảng tu..den (mặc định 14 ngày tới hôm nay, tối đa 92 ngày, bỏ ngày không có click), không tách theo khách hay sản phẩm, và chỉ có từ 31/10/2026. Chỉ đếm được lượt bấm link, không biết khách xem bao lâu trên Facebook hay YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
         inputSchema: z.object({
           lead: z.string().optional().describe('leadId hoặc tên khách'),
           venueId: z.string().optional(),
           id: z.string().optional().describe('id sản phẩm'),
+          tu: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Từ ngày gửi, yyyy-mm-dd, gồm cả ngày này'),
+          den: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe('Đến ngày gửi, yyyy-mm-dd, gồm cả ngày này'),
         }),
       },
       async (args) => {
+        const homNay = ngayVN(Date.now());
+        const den = args.den ?? (args.tu && args.tu > homNay ? args.tu : homNay);
+        const tu = args.tu ?? ngayVN(Date.parse(`${den}T12:00:00Z`) - 13 * 86_400_000);
+        const soNgay = (Date.parse(den) - Date.parse(tu)) / 86_400_000;
+        if (!(soNgay >= 0)) throw new Error('Khoảng ngày không hợp lệ: "tu" phải trước hoặc bằng "den".');
+        if (soNgay > 92) throw new Error('Khoảng ngày tối đa 92 ngày.');
+
         const crm = await loadCrm();
         const lead = args.lead ? findLead(crm, args.lead) : null;
         const tenKhach = Object.fromEntries(crm.leads.map((l) => [l.id, l.name]));
         const thuTu = { quanTam: 0, xemQua: 1, chuaMo: 2 };
-        const ds = Object.values((await readPath<Record<string, LinkGui> | null>(`${aiRoot()}/linkGui`)) || {})
+        const [linkGui, linkGuiNgay] = await Promise.all([
+          readPath<Record<string, LinkGui> | null>(`${aiRoot()}/linkGui`),
+          readPath<Record<string, { mo?: number }> | null>(`${aiRoot()}/linkGuiNgay`),
+        ]);
+        const ds = Object.values(linkGui || {})
           .filter((d) => d && (!lead || d.leadId === lead.id) && (!args.venueId || d.venueId === args.venueId) && (!args.id || d.spId === args.id))
-          .map((d) => ({
-            khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
-            soLanGui: d.soLanGui, soLanMo: d.soLanMo,
-            lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
-          }))
+          .map((d) => {
+            const luc = d.guiLuc || d.taoLuc;
+            return {
+              khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
+              ngayGui: luc ? ngayVN(luc) : null, soLanGui: d.soLanGui, soLanMo: d.soLanMo,
+              lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
+            };
+          })
+          .filter((d) => (!args.tu || (d.ngayGui ?? '') >= args.tu) && (!args.den || (d.ngayGui ?? '') <= args.den))
           .sort((a, b) => thuTu[a.nhan] - thuTu[b.nhan] || String(b.lanCuoi).localeCompare(String(a.lanCuoi)));
-        return ok({ total: ds.length, links: ds });
+        return ok({ total: ds.length, links: ds, clickTheoNgayToanKho: clickTheoNgay(linkGuiNgay, tu, den) });
       }
     );
 
@@ -3045,6 +3062,15 @@ interface LinkGui {
   leadId: string; venueId: string; spId: string; tenSp: string; nenTang: string; linkNguon: string;
   taoLuc: number; guiLuc: number; soLanGui: number; soLanMo: number;
   lanDau?: number; lanCuoi?: number;
+}
+
+/** Lượt click từng ngày trong khoảng tu..den (yyyy-mm-dd), bỏ ngày không có click. */
+export function clickTheoNgay(duLieu: Record<string, { mo?: number }> | null, tu: string, den: string) {
+  const ngay = Object.entries(duLieu || {})
+    .filter(([k, v]) => k >= tu && k <= den && v?.mo)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => ({ ngay: k, click: v.mo as number }));
+  return { tu, den, tong: ngay.reduce((n, x) => n + x.click, 0), ngay };
 }
 
 const urlHopLe = (link: string): URL | null => { try { return new URL(link); } catch { return null; } };
