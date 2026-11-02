@@ -1624,7 +1624,10 @@
   .field-lk{font-size:12px; font-weight:600; color:var(--primary); text-decoration:none;}
   .field-lk:hover{text-decoration:underline;}
   .block-customer .block-head .tag-toggle{margin:0; flex:none;}
-  .btn-delete-lead{flex:none; min-height:40px; width:100%; justify-content:center;}
+  /* Ghim đáy cột: cột thông tin dài hơn màn hình nên để cuối cột là phải cuộn hết mới thấy nút */
+  .btn-delete-lead{position:sticky; bottom:0; z-index:1; flex:none; min-height:40px; width:100%; justify-content:center;}
+  /* Điện thoại cuộn cả ngăn chi tiết; cột không được là vùng cuộn riêng, nếu không nút không ghim được */
+  @media (max-width:760px){ .detail-col-info{overflow-y:visible;} }
 
   /* Hạn liên hệ tiếp theo */
   .han-hang{display:flex; flex-wrap:wrap; align-items:center; gap:8px;}

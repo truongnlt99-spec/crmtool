@@ -84,6 +84,13 @@ openLead('L1');
 check('hang giai doan nam ngoai vung cuon', $('#drawerStepper .stepper') && !$('#drawerBody .stepper'));
 check('bo o chon giai doan trung lap', !$('#drawerBody select[onchange*="changeStageFromDrawer"]'));
 check('xoa lead khong con canh Won/Lost', !$('#drawerHeaderActions .btn-delete-lead') && $('.detail-col-info .btn-delete-lead'));
+// Chrome ngam hep nen cot thong tin nam sau tab; man rong thi cot luon hien
+const cotInfo = $('.detail-col-info'), nutXoa = $('.btn-delete-lead');
+if (innerWidth < 761) chonTabChiTiet('thongtin');
+cotInfo.scrollTop = 0;
+check('nut xoa lead ghim trong cot, khong phai cuon moi thay', getComputedStyle(nutXoa).position === 'sticky' && hien(nutXoa) && nutXoa.getBoundingClientRect().bottom <= Math.min(cotInfo.getBoundingClientRect().bottom, innerHeight) + 1,
+  `cot ${cotInfo.clientHeight}/${cotInfo.scrollHeight}, nut day ${Math.round(nutXoa.getBoundingClientRect().bottom)}, cot day ${Math.round(cotInfo.getBoundingClientRect().bottom)}, rong ${innerWidth}`);
+chonTabChiTiet('viec');
 check('du o sua', ['name', 'weddingDate', 'phone', 'facebook', 'schedule', 'persona', 'objection', 'leadType', 'package', 'revenueExpected', 'expectedCloseMonth', 'deadline']
   .every(f => document.querySelector(`#drawerBody [oninput*="'${f}'"], #drawerBody [onchange*="'${f}'"]`)));
 check('link goi + mo facebook', $('.field-lk[href="tel:0901234567"]') && $('.field-lk[href="https://facebook.com/maianh"]')?.rel.includes('noopener'));
