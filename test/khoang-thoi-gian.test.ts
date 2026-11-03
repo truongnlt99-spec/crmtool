@@ -27,15 +27,18 @@ const t1 = tinhKhoang('tuan', 1, HOM_NAY);
 check('tuan truoc: 24/08 - 30/08', t1.tu === '2026-08-24' && t1.den === '2026-08-30', `${t1.tu} → ${t1.den}`);
 check('CHU NHAT thuoc tuan dang chay', dauTuan('2026-09-06') === '2026-08-31', dauTuan('2026-09-06'));
 
-console.log('\n>> Thang');
-const m0 = tinhKhoang('thang', 0, HOM_NAY);
-check('thang nay: 01/09 - 30/09', m0.tu === '2026-09-01' && m0.den === '2026-09-30', `${m0.tu} → ${m0.den}`);
-const m9 = tinhKhoang('thang', 9, HOM_NAY);
-check('lui 9 thang -> 12/2025 (giao nam)', m9.tu === '2025-12-01' && m9.den === '2025-12-31', `${m9.tu} → ${m9.den}`);
-const mFeb = tinhKhoang('thang', 7, HOM_NAY);
-check('thang 2/2026 co 28 ngay', mFeb.den === '2026-02-28', mFeb.den);
-const mFeb24 = tinhKhoang('thang', 31, HOM_NAY);
-check('thang 2/2024 NHUAN co 29 ngay', mFeb24.den === '2024-02-29', mFeb24.den);
+console.log('\n>> Thang (chu ky doanh thu: ngay 6 thang nay -> ngay 5 thang sau)');
+const m0 = tinhKhoang('thang', 0, HOM_NAY);   // 04/09 chua toi ngay 6 -> van thuoc ky thang 8
+check('04/09 thuoc ky thang 8: 06/08 - 05/09', m0.tu === '2026-08-06' && m0.den === '2026-09-05', `${m0.tu} → ${m0.den}`);
+check('nhan ky thang 8', m0.nhan === 'Tháng 8/2026', m0.nhan);
+const m6 = tinhKhoang('thang', 0, '2026-09-06');
+check('06/09 sang ky thang 9: 06/09 - 05/10', m6.tu === '2026-09-06' && m6.den === '2026-10-05', `${m6.tu} → ${m6.den}`);
+const m5 = tinhKhoang('thang', 0, '2026-09-05');
+check('05/09 con o ky thang 8', m5.tu === '2026-08-06', m5.tu);
+const m8 = tinhKhoang('thang', 8, HOM_NAY);
+check('lui 8 ky -> ky 12/2025: 06/12/2025 - 05/01/2026 (giao nam)', m8.tu === '2025-12-06' && m8.den === '2026-01-05', `${m8.tu} → ${m8.den}`);
+const mJan = tinhKhoang('thang', 0, '2026-01-03');
+check('03/01 thuoc ky thang 12 nam truoc', mJan.tu === '2025-12-06' && mJan.nhan === 'Tháng 12/2025', `${mJan.tu} ${mJan.nhan}`);
 
 console.log('\n>> Quy');
 const q0 = tinhKhoang('quy', 0, HOM_NAY);
