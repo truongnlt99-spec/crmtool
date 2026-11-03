@@ -2851,6 +2851,7 @@ function laNgayHopLe(s: unknown): s is string {
 }
 
 type DonVi = 'tuan' | 'thang' | 'quy' | 'nam' | 'tuyChon';
+const NGAY_DAU_KY = 6;   // kỳ "tháng" chạy từ ngày 6 đến ngày 5 tháng sau — khớp index.html
 
 /**
  * Quy mọi lựa chọn thời gian về một khoảng [tu, den].
@@ -2890,11 +2891,14 @@ export function tinhKhoang(don: DonVi, lui: number, homNay: string, tu?: string,
     return { tu: `${n}-01-01`, den: `${n}-12-31`, nhan: `Năm ${n}` };
   }
 
-  // Mặc định: theo tháng
-  const tong = nam * 12 + (thang1 - 1) - lui;
+  // Mặc định: theo tháng — chu kỳ doanh thu từ ngày 6 tháng này đến ngày 5 tháng sau.
+  // Trước ngày 6 thì hôm nay vẫn thuộc kỳ của tháng trước.
+  const ngay = Number(homNay.slice(8, 10));
+  const tong = nam * 12 + (thang1 - 1) - (ngay < NGAY_DAU_KY ? 1 : 0) - lui;
   const n = Math.floor(tong / 12);
   const t = tong - n * 12 + 1;
-  return { tu: ghepNgay(n, t, 1), den: ghepNgay(n, t, ngayTrongThang(n, t)), nhan: `Tháng ${t}/${n}` };
+  const [n2, t2] = t === 12 ? [n + 1, 1] : [n, t + 1];
+  return { tu: ghepNgay(n, t, NGAY_DAU_KY), den: ghepNgay(n2, t2, NGAY_DAU_KY - 1), nhan: `Tháng ${t}/${n}` };
 }
 
 /** Các mã tháng (YYYY-MM) mà khoảng thời gian chạm tới — dùng khớp "tháng chốt dự kiến". */

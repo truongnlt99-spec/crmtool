@@ -2915,6 +2915,7 @@ let dashLeadType = 'all';               // Bộ lọc loại lead trên dashboar
 let dashDon = 'thang';                  // 'tuan' | 'thang' | 'quy' | 'nam' | 'tuyChon'
 let dashLui = 0;                        // 0 = kỳ hiện tại, 1 = kỳ trước...
 let dashTu = '', dashDen = '', dashNhan = '';
+const NGAY_DAU_KY = 6;                  // kỳ "tháng" chạy từ ngày 6 đến ngày 5 tháng sau
 
 function congNgayISO(iso, n){
   const d = new Date(iso + 'T00:00:00Z');
@@ -2978,11 +2979,18 @@ function tinhKyDashboard(){
     dashTu = n + '-01-01'; dashDen = n + '-12-31'; dashNhan = 'Năm ' + n;
     return;
   }
-  const tong = nam * 12 + (thang1 - 1) - dashLui;
+  // Chu kỳ doanh thu: ngày 6 tháng này -> ngày 5 tháng sau; trước ngày 6 vẫn là kỳ tháng trước
+  const ngay = Number(homNay.slice(8,10));
+  const tong = nam * 12 + (thang1 - 1) - (ngay < NGAY_DAU_KY ? 1 : 0) - dashLui;
   const n = Math.floor(tong / 12), t = tong - n * 12 + 1;
-  dashTu = ghepNgayISO(n, t, 1);
-  dashDen = ghepNgayISO(n, t, soNgayCuaThang(n, t));
-  dashNhan = 'Tháng ' + t + '/' + n;
+  const n2 = t === 12 ? n + 1 : n, t2 = t === 12 ? 1 : t + 1;
+  dashTu = ghepNgayISO(n, t, NGAY_DAU_KY);
+  dashDen = ghepNgayISO(n2, t2, NGAY_DAU_KY - 1);
+  dashNhan = 'Tháng ' + t + '/' + n + ' (' + NGAY_DAU_KY + '/' + t + ' → ' + (NGAY_DAU_KY - 1) + '/' + t2 + ')';
+}
+// Kỳ tháng (06 → 05) chạm 2 tháng lịch nhưng "Dự kiến chốt" chỉ tính tháng của kỳ
+function thangCuaKy(){
+  return dashDon === 'thang' ? [dashTu.slice(0,7)] : cacThangTrongKhoang(dashTu, dashDen);
 }
 tinhKyDashboard();
 let editingNoteId = null;              // id ghi chú đang được sửa trong drawer (null = đang viết ghi chú mới)
@@ -6590,7 +6598,7 @@ function renderDashboard(){
   const leadTypeInput = document.getElementById('dashLeadTypeInput');
   if (leadTypeInput) leadTypeInput.value = dashLeadType;
 
-  const thangTrongKy = cacThangTrongKhoang(dashTu, dashDen);
+  const thangTrongKy = thangCuaKy();
   // Dữ liệu dashboard lọc theo "Loại lead" đang chọn (Tất cả / Lead công ty / Lead salehunt)
   const scoped = scopeByLeadType(leads);
   const activeLeads = scoped.filter(l => l.stage !== 'won' && l.stage !== 'lost');
@@ -6941,7 +6949,7 @@ function getRevenueListData(type){
       items, revenueField: 'revenueExpected',
     };
   }
-  const thangTrongKy = cacThangTrongKhoang(dashTu, dashDen);
+  const thangTrongKy = thangCuaKy();
   const items = activeLeads.filter(l => !!l.expectedCloseMonth && thangTrongKy.includes(l.expectedCloseMonth));
   return {
     title: `Dự kiến chốt`,
