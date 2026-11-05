@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM của Huyền Trân</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FBEAEE%22%2F%3E%3Cpath%20d%3D%22M9%2011.6c0-3.4%201.9-5.7%203.5-5.7%201%200%201.7%201%202%202.3.3-1.4.7-2.3%201.5-2.3s1.2.9%201.5%202.3c.3-1.3%201-2.3%202-2.3%201.6%200%203.5%202.3%203.5%205.7v1.2c0%204.6-3%207.5-6.7%207.5S9%2017.4%209%2012.8z%22%20fill%3D%22%23E8899B%22%2F%3E%3Cpath%20d%3D%22M15.2%2019h1.6v7.4h-1.6z%22%20fill%3D%22%231FAE6F%22%2F%3E%3Cpath%20d%3D%22M15.2%2025.6c-2.6-.1-4.5-1.4-5-3.5%202.5-.3%204.5%201%205%203.5z%22%20fill%3D%22%231FAE6F%22%2F%3E%3C%2Fsvg%3E">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#1FAE6F">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1942,8 +1943,8 @@
   @media (prefers-reduced-motion: reduce){ .lock-photos img{transition:none;} }
   .lock-hero{position:absolute; inset:0; z-index:1; padding:40px; display:flex; flex-direction:column; justify-content:space-between; color:#fff;}
   .lock-hero-brand{display:flex; align-items:center; gap:11px; font:700 19px/1.1 var(--font-head); color:#fff;}
-  .lock-hero-mark{width:36px; height:36px; border-radius:13px; background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center; font-size:18px;}
-  html[data-theme="dark"] .lock-hero-mark{background:rgba(58,35,48,.85);}
+  .lock-hero-mark{width:36px; height:36px; border-radius:9px; overflow:hidden; display:flex; flex:none; box-shadow:0 2px 8px rgba(0,0,0,.18);}
+  
   .lock-hero-bottom{display:flex; flex-direction:column; gap:12px; max-width:440px;}
   .lock-hero .lock-quote{font:500 26px/1.3 var(--font-head); font-style:normal; color:#fff; margin:0; padding:0; text-wrap:pretty; text-shadow:0 1px 12px rgba(0,0,0,.25);}
   .lock-credit{position:static; font-size:11px; font-weight:400; line-height:1.5; color:rgba(255,255,255,.88);}
@@ -2297,7 +2298,7 @@
   <div class="lock-visual">
     <div class="lock-photos" id="lockPhotos" aria-hidden="true"></div>
     <div class="lock-hero">
-      <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true">🌷</span>CRM của Huyền Trân</div>
+      <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true"><svg width="36" height="36" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lkA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DB386"/><stop offset=".55" stop-color="#21946C"/><stop offset="1" stop-color="#0F6B50"/></linearGradient><linearGradient id="lkP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A8BE"/><stop offset="1" stop-color="#DC5F84"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lkA)"/><path d="M32 38v15" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M32 51c-7 0-11.5-4.2-13-10.5 6.6.2 11 3.8 13 10.5z" fill="#fff"/><path d="M32 47.5c5.2-.2 8.6-3.2 9.8-7.8-5 .3-8.3 3-9.8 7.8z" fill="#fff" opacity=".85"/><path d="M19 17 L25.5 23 L32 13.5 L38.5 23 L45 17 C47.5 30 42.5 39 32 39 C21.5 39 16.5 30 19 17 Z" fill="url(#lkP)"/><path d="M32 13.5 L28.6 23.4 C29.8 30 31 34.5 32 39 C33 34.5 34.2 30 35.4 23.4 Z" fill="#fff" opacity=".22"/></svg></span>CRM của Huyền Trân</div>
       <div class="lock-hero-bottom">
         <div class="lock-quote" id="lockQuote"></div>
       </div>
