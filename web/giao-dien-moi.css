@@ -655,3 +655,128 @@ table.bang tr:hover td{background:var(--hover) !important;}
   .hn-dong-chu{flex-direction:column !important; gap:0;}
   .column{width:100% !important; flex:none !important;}
 }
+
+
+/* =====================================================================
+   KIỂU TRỘN (chốt 05/11/2026): khung Notion + màu, tiêu đề, con số của Editorial.
+   Nền kem, xanh rêu; tiêu đề/tên/con số font có chân (Playfair Display); nhóm việc và ngày viết nghiêng;
+   khối nền nhạt thay viền; dải hoa CHỈ ở màn Hôm nay. Bản vẽ: docs/mockup/tron.html. Đặt CUỐI file.
+   ===================================================================== */
+:root{
+  --bg:#FBF8F3; --surface:#FFFDF9; --surface-2:#F4EFE6; --well:#F2ECE2; --khoi-nen:#F5F0E7;
+  --border:#ECE4D7; --border-soft:#F2ECE2; --border-strong:#DCD1BF;
+  --text:#2A2622; --text-2:#5C544C; --text-3:#958A7E; --ink:#2A2622; --ink-soft:#5C544C; --ink-faint:#958A7E;
+  --primary:#2F5D46; --primary-hover:#264D3A; --primary-ink:#2F5D46; --primary-soft:#E6EEE6; --ok-border:#C9D8CC;
+  --hover:#F2ECE2; --chon:#EAE2D3; --grad-nhat:#F2ECE2; --dong:#C9A26B;
+  --av-a:#EAD9C8; --av-a-ink:#7A4E2E;
+  --bong-khoi:0 0 0 1px rgba(60,40,20,.07), 0 1px 2px rgba(60,40,20,.05);
+  --font-ui:'Inter','Be Vietnam Pro',system-ui,sans-serif; --font-serif:'Playfair Display',Georgia,serif;
+}
+html[data-theme="dark"]{
+  --bg:#171411; --surface:#1F1B17; --surface-2:#1B1814; --well:#26211B; --khoi-nen:#221D18;
+  --border:#2E2822; --border-soft:#26211B; --border-strong:#3A332B;
+  --text:#EFE8DF; --text-2:#B5AA9C; --text-3:#887D70; --ink:#EFE8DF; --ink-soft:#B5AA9C; --ink-faint:#887D70;
+  --primary:#7DB596; --primary-hover:#93C4A8; --primary-ink:#9CCBB0; --primary-soft:#1E2B23; --ok-border:#2E4236;
+  --hover:#26211B; --chon:#2C261F; --grad-nhat:#26211B; --dong:#B48B55;
+  --av-a:#3A2C20; --av-a-ink:#E6C7A6;
+  --bong-khoi:0 0 0 1px rgba(255,255,255,.06);
+}
+html[data-theme="dark"] .btn-primary, html[data-theme="dark"] .btn-won-action, html[data-theme="dark"] .nut-chinh{color:#10140F !important;}
+
+/* Playfair mặc định dùng số kiểu cũ (1, 04/11 thấp xuống): ép số thẳng hàng cho cả app */
+html{font-variant-numeric:lining-nums;}
+/* Font có chân cho tiêu đề, tên, con số */
+.page-title, .hn-chao h2, .card-moi-h h3, .drawer-header-title, .column-title, .dash-greeting h2,
+.box-head-row .box-label, .list-box .box-label, .funnel-box .box-label, .conv-list-title, .cs-dau b,
+.vn-the-than b, .modal-title, .modal-header h2, .modal-header h3{font-family:var(--font-serif) !important; font-weight:600 !important; letter-spacing:-.005em;}
+.hn-so-o .v, .box-value, .kpi-row .box-value, .cs-tien, .detail-col-info .money b, .card-tien, .tien-to{font-family:var(--font-serif) !important; font-variant-numeric:lining-nums tabular-nums; font-weight:600 !important;}
+.page-title{font-size:18px !important;}
+.hn-chao h2{font-size:28px !important;}
+.drawer-header-title{font-size:26px !important;}
+.column-title{font-size:15px !important;}
+.card-moi-h h3{font-size:15px !important;}
+.hn-so-o .v{font-size:25px !important;}
+.box-value, .kpi-row .box-value{font-size:24px !important;}
+/* Nghiêng có chân: tên nhóm việc, mốc ngày, giai đoạn đang ở, tiêu đề khối cột phải */
+.hn-nhom h4, .tl-ngay, .zalo-day, .step.current .step-label, .detail-col-info .block-title, .cs-khoi h4{
+  font-family:var(--font-serif) !important; font-style:italic; font-weight:500 !important; color:var(--text) !important; font-size:14px !important; text-transform:none !important; letter-spacing:0 !important;}
+.tl-ngay, .zalo-day{font-size:13px !important; color:var(--text-3) !important; background:none !important; box-shadow:none !important;}
+.step.current .step-label{font-size:13px !important;}
+
+/* Khung Notion: không viền thanh trên, khối nền nhạt thay viền */
+.topbar{border-bottom:0 !important; background:var(--bg) !important;}
+.sidebar{background:var(--surface-2) !important; border-right:0 !important;}
+.nav-item.active{background:var(--chon) !important;}
+.card-moi, .card-box{background:var(--khoi-nen) !important; border:0 !important;}
+.hn-viec{background:none !important;}
+.hn-so{border:0 !important; gap:12px !important; overflow:visible !important;}
+.hn-so-o{background:var(--khoi-nen) !important; border:0 !important; border-radius:6px !important;}
+.hn-so-o:hover{background:var(--chon) !important;}
+.hn-dong:hover, .hn-lk:hover{background:var(--hover) !important;}
+.hn-dx-lead, .hn-lk{border-top:0 !important;}
+.column{background:var(--khoi-nen) !important; border-radius:6px !important; padding:8px !important;}
+.column-header::after{display:none !important;}
+.card.card-gon{background:var(--surface) !important; border:0 !important; box-shadow:var(--bong-khoi) !important;}
+.card.card-gon:hover{box-shadow:0 0 0 1px var(--border-strong), 0 4px 12px rgba(60,40,20,.08) !important;}
+table.bang th{background:var(--surface-2) !important;}
+.bang-scroll{background:var(--surface) !important; border-color:var(--border) !important;}
+.btn-primary, .btn.btn-primary, .btn-won-action, .lock-btn{background:var(--primary) !important;}
+.btn-primary:hover, .btn-won-action:hover{background:var(--primary-hover) !important;}
+.btn-secondary, .btn-ghost, .btn-lost-action, .select-pill, .topbar-search{background:var(--surface) !important;}
+.field-input{background:var(--surface);}
+
+/* Dải hoa ở màn Hôm nay */
+.hn-hoa{height:84px; border-radius:6px; position:relative; overflow:hidden; background:linear-gradient(110deg,#E6EEE6,#F5EBE6 55%,#F3E3E3); flex:none}
+html[data-theme="dark"] .hn-hoa{background:linear-gradient(110deg,#1E2B23,#2A2220 60%,#2B1F21)}
+.hn-hoa::after{content:""; position:absolute; right:22px; bottom:-6px; width:200px; height:82px; background:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 220 90%27%3E%3Cg fill=%27none%27 stroke=%27%237E9C86%27 stroke-width=%272%27%3E%3Cpath d=%27M40 90V40M110 90V30M180 90V44%27/%3E%3C/g%3E%3Cg fill=%27%23E39AAE%27%3E%3Cpath d=%27M28 22l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M98 12l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M168 26l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3C/g%3E%3C/svg%3E") no-repeat center/contain}
+.hn-hoa span{position:absolute; left:18px; bottom:14px; font-family:var(--font-serif); font-style:italic; color:var(--primary-ink); font-size:15px}
+.hn-wrap{padding:18px 40px 28px !important;}
+
+/* Chi tiết lead */
+.drawer-header, .detail-stepper, .detail-tabs{background:var(--bg) !important;}
+.detail-tab[aria-selected="true"]{border-bottom-color:var(--text) !important;}
+.detail-col-main{padding:16px 36px 0 !important;}
+.detail-col-info{background:var(--surface) !important; border-left:1px solid var(--border-soft) !important;}
+.tl-zalo{background:var(--khoi-nen) !important; border:0 !important;}
+.tl-zalo-h{border-bottom-color:var(--border) !important;}
+.tl-su{background:var(--surface) !important; border:0 !important; box-shadow:var(--bong-khoi);}
+.tl-su.note-item{border-left:3px solid var(--dong) !important; border-radius:0 6px 6px 0 !important;}
+.tl-su.editing{box-shadow:0 0 0 2px var(--primary) !important;}
+.block-notes{background:var(--bg) !important; margin:0 -36px !important; padding:12px 36px 16px !important;}
+
+/* Hội thoại */
+.conv-listcol{background:var(--surface-2) !important; border-right:0 !important;}
+.conv-item.on{background:var(--chon) !important;}
+.conv-chatcol{background:var(--bg) !important;}
+.conv-chat-head, .conv-chat-foot{background:var(--bg) !important;}
+.zalo-row .zalo-bubble{background:var(--khoi-nen) !important; border:0 !important; border-radius:12px !important;}
+.zalo-row.me .zalo-bubble{background:var(--primary-soft) !important;}
+.conv-sidecol{background:var(--surface) !important;}
+.cs-tomtat{background:var(--primary-soft) !important; border:0 !important;}
+.conv-cho{background:var(--surface) !important; border:0 !important; box-shadow:var(--bong-khoi);}
+
+/* Báo cáo, Venue */
+.bd-cot{fill:var(--border-strong);}
+.vn-the{background:var(--surface) !important; border:0 !important; box-shadow:var(--bong-khoi) !important;}
+
+@media (max-width:760px){
+  .hn-wrap{padding:12px 14px 22px !important;}
+  .hn-chao h2{font-size:24px !important;}
+  .hn-hoa{height:64px}
+  .hn-hoa::after{width:140px; height:62px}
+  .hn-hoa span{font-size:13px; bottom:10px}
+  .drawer-header-title{font-size:20px !important;}
+  .detail-col-main{padding:14px 14px 0 !important;}
+  .block-notes{margin:0 -14px !important; padding:10px 14px 12px !important;}
+  .column{background:none !important; padding:0 !important;}
+}
+
+/* Sửa sau khi soát ảnh chụp */
+.zalo-list{background:var(--bg) !important; border-color:var(--border) !important;}
+@media (max-width:760px){
+  /* nút + nổi: lớp nút gọn ở trên làm nó dài ra thành chữ, trả lại dáng tròn */
+  .topbar .btn-primary{width:52px !important; height:52px !important; min-height:0 !important; padding:0 !important; font-size:0 !important; border-radius:999px !important; gap:0 !important; justify-content:center;}
+  .topbar .btn-primary svg{width:24px !important; height:24px !important;}
+  .box-value, .kpi-row .box-value{font-size:19px !important;}
+  .hn-so-o .v{font-size:21px !important;}
+}

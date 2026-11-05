@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#1FAE6F">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
 
 <!-- ============ FIREBASE (Realtime Database) ============ -->
 <script type="module">
@@ -3932,6 +3932,7 @@ function renderHomNay(){
 
   wrap.innerHTML = `
   <div class="hn-trai">
+    <div class="hn-hoa" aria-hidden="true"><span>Mùa cưới · ${dangCham.length} cặp đôi đang chờ em</span></div>
     <div class="hn-chao"><h2>${buoi}, Trân</h2><p>${tong ? `${tong} việc cần làm${cho.length ? ` · ${cho.length} khách đang chờ em trả lời` : ''}` : 'Không còn việc gấp hôm nay'}</p></div>
     <div class="hn-so">
       <button type="button" class="card-moi hn-so-o rong" onclick="setView('dashboard')"><span class="l">Doanh thu kỳ ${ddmm(tu)} – ${ddmm(den)}</span><span class="v">${tienGon(doanhThu)} <small>/ ${tienGon(planRevenue)}</small></span><span class="bar"><i style="width:${pct}%"></i></span></button>

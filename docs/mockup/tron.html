@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kiểu trộn Notion + Editorial — demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0; font-family:'Inter',system-ui,sans-serif; background:#ECECEA; color:#18181B; -webkit-font-smoothing:antialiased}
+button{font:inherit; color:inherit}
+.top{position:sticky; top:0; z-index:20; background:rgba(236,236,234,.94); backdrop-filter:blur(10px); border-bottom:1px solid #DADAD6}
+.top-in{max-width:1260px; margin:0 auto; padding:10px 24px; display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.top b{font-size:15px}
+.nav{display:flex; gap:4px; flex-wrap:wrap}
+.nav a{text-decoration:none; color:#52525B; font-size:13px; font-weight:500; padding:6px 11px; border-radius:999px}
+.nav a:hover{background:#E0E0DC}
+.xem{margin-left:auto; display:flex; gap:2px; background:#E0E0DC; padding:3px; border-radius:999px}
+.xem button{border:0; background:none; padding:5px 12px; border-radius:999px; font-size:12.5px; font-weight:600; color:#52525B; cursor:pointer}
+.xem button.on{background:#fff; color:#18181B; box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.wrap{max-width:1260px; margin:0 auto; padding:24px}
+.man{margin-bottom:56px; scroll-margin-top:64px}
+.man > h2{margin:0 0 4px; font-size:21px}
+.man > p{margin:0 0 18px; color:#52525B; font-size:14px; max-width:900px; line-height:1.55}
+.cap{display:grid; gap:22px}
+
+.nhan{display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin:0 0 8px}
+.nhan i{width:12px; height:12px; border-radius:3px; display:inline-block}
+.khung{overflow-x:auto; border-radius:14px; box-shadow:0 24px 60px -30px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.06)}
+.ket{background:#fff; border:1px solid #DADAD6; border-radius:12px; padding:18px 22px; font-size:14px; line-height:1.6; color:#3F3F46}
+.ket table{border-collapse:collapse; width:100%; margin:8px 0 12px; font-size:13.5px}
+.ket th, .ket td{border-bottom:1px solid #EEE; padding:7px 8px; text-align:left; vertical-align:top}
+.ket th{color:#71717A; font-weight:600; font-size:12.5px}
+
+/* ============ BIẾN CỦA 2 PHONG CÁCH ============ */
+.t-notion{--font:'Inter',sans-serif; --font-h:'Inter',sans-serif; --font-so:'Inter',sans-serif; --h-w:700; --h-style:normal;
+  --bg:#FFFFFF; --tx:#37352F; --tx2:#5F5E5B; --tx3:#9B9A97; --side:#F7F7F5; --side-bd:0; --on:#EBEBEA;
+  --bd:#EDEDEB; --bd2:#F1F1EF; --card:#F7F7F5; --card-bd:0; --khoi:#fff; --khoi-bd:0 0 0 1px rgba(15,15,15,.08), 0 1px 2px rgba(15,15,15,.06);
+  --pri:#2E7D5B; --pri-nhat:#EAF4EE; --r:6px; --r-nut:5px; --hover:#F1F1EF; --in:#F1F1EF; --in-bd:0;
+  --av:#EFE7DC; --av-tx:#64473A; --tag:#F1F1EF; --tag-tx:#5F5E5B; --bubble:#F1F1EF; --bubble-em:#EAF4EE}
+.t-edit{--font:'Be Vietnam Pro',sans-serif; --font-h:'Playfair Display',serif; --font-so:'Playfair Display',serif; --h-w:600; --h-style:normal;
+  --bg:#FBF8F3; --tx:#2A2622; --tx2:#5C544C; --tx3:#958A7E; --side:#F4EFE6; --side-bd:1px solid #E7DECF; --on:#EAE2D3;
+  --bd:#E7DECF; --bd2:#EFE8DC; --card:#FFFDF9; --card-bd:1px solid #E7DECF; --khoi:#FFFDF9; --khoi-bd:0 0 0 1px #E7DECF;
+  --pri:#2F5D46; --pri-nhat:#E6EEE6; --r:4px; --r-nut:999px; --hover:#F4EFE6; --in:#FFFDF9; --in-bd:1px solid #E2D8C7;
+  --av:#EAD9C8; --av-tx:#7A4E2E; --tag:transparent; --tag-tx:#958A7E; --bubble:#FFFDF9; --bubble-em:#EEF2EA}
+
+/* ============ KHUNG APP CHUNG ============ */
+.app{min-width:1140px; height:620px; display:grid; grid-template-columns:224px 1fr; background:var(--bg); color:var(--tx); font-family:var(--font); font-size:13.5px; overflow:hidden; font-variant-numeric:lining-nums}
+.side{background:var(--side); border-right:var(--side-bd); padding:14px 10px; display:flex; flex-direction:column; gap:2px}
+.brand{display:flex; align-items:center; gap:9px; padding:2px 8px 14px; font-weight:600}
+.brand svg{width:24px; height:24px}
+.ni{display:flex; align-items:center; gap:10px; padding:6px 10px; border-radius:var(--r); color:var(--tx2); font-weight:500}
+.t-edit .ni{border-radius:999px; padding:7px 14px}
+.ni svg{width:16px; height:16px; color:var(--tx3)}
+.ni .c{margin-left:auto; font-size:12px; color:var(--tx3)} .ni .c.do{color:#D9434A}
+.ni.on{background:var(--on); color:var(--tx)}
+.main{display:flex; flex-direction:column; min-width:0; min-height:0}
+.bar{height:52px; flex:none; display:flex; align-items:center; gap:10px; padding:0 22px; border-bottom:1px solid var(--bd)}
+.t-notion .bar{border-bottom:0}
+.bar h1{margin:0; font-size:15px; font-weight:600; font-family:var(--font-h)}
+.t-edit .bar h1{font-size:18px}
+.bar .sub{color:var(--tx3); font-size:12.5px}
+.tim{margin-left:auto; width:230px; height:30px; border:var(--in-bd); background:var(--in); border-radius:var(--r-nut); color:var(--tx3); font-size:12.5px; display:flex; align-items:center; padding:0 12px}
+.nut{height:30px; padding:0 13px; border-radius:var(--r-nut); background:var(--pri); color:#fff; border:0; font-weight:600; font-size:12.5px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap}
+.nut.phu{background:transparent; color:var(--tx2); box-shadow:inset 0 0 0 1px var(--bd)}
+.seg{display:inline-flex; background:var(--in); border:var(--in-bd); border-radius:var(--r-nut); padding:2px}
+.seg span{padding:3px 11px; border-radius:var(--r-nut); font-size:12.5px; color:var(--tx2)}
+.seg span.on{background:var(--bg); color:var(--tx); font-weight:600; box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.than{flex:1; min-height:0; overflow:hidden}
+.av{width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:10.5px; font-weight:600; flex:none; background:var(--av); color:var(--av-tx)}
+.av.to{width:36px; height:36px; font-size:13px}
+.tag{font-size:11.5px; padding:1px 7px; border-radius:4px; background:var(--tag); color:var(--tag-tx); font-weight:500; white-space:nowrap}
+.dot{width:7px; height:7px; border-radius:50%; display:inline-block; flex:none}
+.st{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--tx2); white-space:nowrap}
+.h-to{font-family:var(--font-h); font-weight:var(--h-w); letter-spacing:-.015em}
+.muc{font-size:12px; color:var(--tx3); font-weight:500}
+.t-edit .muc-nghieng{font-family:'Playfair Display',serif; font-style:italic; font-size:14px; color:var(--tx); font-weight:500}
+.t-notion .muc-nghieng{font-weight:600; color:var(--tx); font-size:13px}
+
+/* ---- Hôm nay ---- */
+.hn{display:grid; grid-template-columns:minmax(0,1fr) 290px; gap:30px; padding:22px 30px; height:100%}
+.t-notion .hn{padding:26px 44px}
+.hoa{display:none}
+.t-notion .hoa-n{display:block; font-size:32px; margin-bottom:4px}
+.t-edit .hoa-e{display:block; height:84px; border-radius:4px; margin-bottom:12px; position:relative; overflow:hidden; background:linear-gradient(110deg,#E6EEE6,#F5EBE6 55%,#F3E3E3)}
+.hoa-e::after{content:""; position:absolute; right:22px; bottom:-6px; width:200px; height:82px; background:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 220 90%27%3E%3Cg fill=%27none%27 stroke=%27%237E9C86%27 stroke-width=%272%27%3E%3Cpath d=%27M40 90V40M110 90V30M180 90V44%27/%3E%3C/g%3E%3Cg fill=%27%23E39AAE%27%3E%3Cpath d=%27M28 22l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M98 12l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M168 26l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3C/g%3E%3C/svg%3E") no-repeat center/contain}
+.hoa-e span{position:absolute; left:18px; bottom:14px; font-family:'Playfair Display',serif; font-style:italic; color:#2F5D46; font-size:15px}
+.chao h2{margin:0; font-size:28px}
+.chao p{margin:4px 0 16px; color:var(--tx3)}
+.so{display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:12px; margin-bottom:18px}
+.t-edit .so{gap:0; border-top:1px solid var(--bd); border-bottom:1px solid var(--bd)}
+.so > div{padding:12px 14px; background:var(--card); border-radius:var(--r)}
+.t-edit .so > div{background:none; border-right:1px solid var(--bd); border-radius:0}
+.t-edit .so > div:last-child{border-right:0}
+.so .l{font-size:12px; color:var(--tx3)}
+.so .v{font-family:var(--font-so); font-size:22px; font-weight:600; margin:3px 0 4px}
+.t-edit .so .v{font-size:26px}
+.so .v small{font-size:12px; color:var(--tx3); font-weight:400; font-family:var(--font)}
+.so .d{font-size:12px; color:var(--tx2)}
+.so .t{height:3px; background:var(--bd); border-radius:9px} .so .t i{display:block; width:27%; height:100%; background:var(--pri); border-radius:9px}
+.dong{display:flex; align-items:center; gap:10px; padding:7px 8px; margin:0 -8px; border-radius:var(--r)}
+.t-edit .dong{border-bottom:1px solid var(--bd2); border-radius:0}
+.dong b{font-weight:500} .t-edit .dong b{font-weight:600}
+.dong .ly{flex:1; min-width:0; color:var(--tx3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dong .tien{width:40px; text-align:right; color:var(--tx2); font-size:12.5px}
+.nhom{display:flex; align-items:center; gap:7px; margin:14px 0 4px}
+.the{background:var(--khoi); box-shadow:var(--khoi-bd); border-radius:var(--r); padding:14px}
+.t-notion .the.nen{background:var(--card); box-shadow:none}
+.the h3{margin:0 0 10px; font-size:14px; font-family:var(--font-h); font-weight:600}
+.t-edit .the h3{font-size:15px}
+
+/* ---- Lead: bảng ---- */
+.bang{display:flex; gap:14px; padding:18px 22px; height:100%}
+.cot{width:250px; flex:none; display:flex; flex-direction:column; gap:8px}
+.t-notion .cot{background:var(--card); border-radius:6px; padding:8px}
+.cot-h{display:flex; align-items:baseline; gap:6px; padding:2px 2px 4px}
+.cot-h b{font-family:var(--font-h); font-weight:600; font-size:13.5px}
+.t-edit .cot-h b{font-size:15px}
+.cot-h span{color:var(--tx3); font-size:12px}
+.cot-h .tong{margin-left:auto}
+.t-edit .cot-h{border-bottom:1px solid var(--bd); padding-bottom:8px; margin-bottom:4px}
+.lc{background:var(--khoi); box-shadow:var(--khoi-bd); border-radius:var(--r); padding:10px 11px}
+.lc .a{display:flex; align-items:center; gap:7px; font-weight:500}
+.t-edit .lc .a{font-weight:600}
+.lc .b{display:flex; font-size:12px; color:var(--tx3); margin:3px 0 7px}
+.lc .b span:last-child{margin-left:auto; color:var(--tx2); font-weight:500; font-family:var(--font-so)}
+.t-edit .lc .b span:last-child{font-size:14px}
+.t-notion .lc .nhan-goi{display:inline-block; margin-bottom:6px}
+
+/* ---- Chi tiết lead ---- */
+.ct{display:grid; grid-template-columns:minmax(0,1fr) 300px; height:100%}
+.ct-chinh{display:flex; flex-direction:column; min-height:0; overflow:hidden}
+.ct-dau{padding:16px 24px 0}
+.t-notion .ct-dau{padding:22px 40px 0}
+.ct-dau .ten{display:flex; align-items:center; gap:12px}
+.ct-dau h2{margin:0; font-size:24px}
+.t-edit .ct-dau h2{font-size:28px}
+.ct-dau .mo{color:var(--tx3); font-size:13px; margin:2px 0 0}
+.buoc{display:flex; gap:4px; margin:14px 0 0}
+.buoc span{flex:1; font-size:11.5px; color:var(--tx3); padding-top:7px; border-top:2px solid var(--bd)}
+.buoc span.xong{border-top-color:var(--tx3); color:var(--tx2)}
+.buoc span.dang{border-top-color:var(--pri); color:var(--tx); font-weight:600}
+.t-edit .buoc span.dang{font-family:'Playfair Display',serif; font-style:italic; font-size:13px}
+.tab{display:flex; gap:20px; margin-top:10px; border-bottom:1px solid var(--bd)}
+.tab span{padding:9px 0; font-size:13px; color:var(--tx3); border-bottom:2px solid transparent}
+.tab span.on{color:var(--tx); border-color:var(--tx); font-weight:500}
+.tl{flex:1; overflow:hidden; padding:14px 24px; display:flex; flex-direction:column; gap:10px}
+.t-notion .tl{padding:16px 40px}
+.ngay{align-self:center; font-size:11.5px; color:var(--tx3); font-weight:500}
+.t-edit .ngay{font-family:'Playfair Display',serif; font-style:italic; font-size:13px}
+.zl{background:var(--khoi); box-shadow:var(--khoi-bd); border-radius:var(--r); overflow:hidden}
+.t-notion .zl{box-shadow:none; background:var(--card)}
+.zl-h{display:flex; align-items:center; gap:8px; padding:8px 12px; font-size:12px; color:var(--tx3); border-bottom:1px solid var(--bd2)}
+.zl-h .x{margin-left:auto; color:var(--tx2); font-weight:500}
+.zm{display:flex; gap:12px; padding:5px 12px; font-size:13px}
+.zm:last-child{padding-bottom:9px}
+.zm span:first-child{width:78px; flex:none; font-size:11.5px; color:var(--tx3)}
+.zm b{color:var(--tx); font-weight:600; margin-right:4px}
+.gc{display:flex; gap:10px; padding:10px 12px; border-radius:var(--r); background:var(--khoi); box-shadow:var(--khoi-bd)}
+.t-notion .gc{background:#FBF3DB; box-shadow:none}
+.t-edit .gc{border-left:3px solid #C9A26B; border-radius:0 4px 4px 0}
+.gc .x{font-size:13px} .gc small{display:block; color:var(--tx3); font-size:11.5px; margin-bottom:2px}
+.soan{margin:0 24px 14px; padding:10px 12px; border-radius:var(--r); background:var(--in); box-shadow:inset 0 0 0 1px var(--bd); color:var(--tx3); font-size:13px; display:flex; align-items:center}
+.t-notion .soan{margin:0 40px 16px}
+.soan .nut{margin-left:auto}
+.ct-phu{border-left:1px solid var(--bd); padding:18px; display:flex; flex-direction:column; gap:16px; background:var(--side)}
+.t-notion .ct-phu{background:#fff; border-left:1px solid var(--bd2)}
+.ct-phu h4{margin:0 0 8px; font-size:12px; color:var(--tx3); font-weight:500}
+.t-edit .ct-phu h4{font-family:'Playfair Display',serif; font-style:italic; font-size:14px; color:var(--tx); font-weight:500}
+.viec{display:flex; align-items:center; gap:8px; font-size:13px; padding:5px 0}
+.viec .bx{width:15px; height:15px; border-radius:4px; box-shadow:inset 0 0 0 1.5px var(--tx3); flex:none}
+.viec .st{margin-left:auto}
+.kv{display:grid; grid-template-columns:86px 1fr; gap:6px 10px; font-size:13px}
+.kv dt{color:var(--tx3)} .kv dd{margin:0}
+.tien-to{font-family:var(--font-so); font-size:22px; font-weight:600}
+.t-edit .tien-to{font-size:26px}
+
+/* ---- Hội thoại ---- */
+.ht{display:grid; grid-template-columns:290px minmax(0,1fr) 260px; height:100%}
+.ht-ds{border-right:1px solid var(--bd); overflow:hidden}
+.ht-loc{display:flex; gap:6px; padding:12px 14px}
+.ht-loc span{font-size:12px; padding:3px 10px; border-radius:var(--r-nut); background:var(--in); color:var(--tx2); box-shadow:inset 0 0 0 1px var(--bd)}
+.ht-loc span.on{background:var(--pri-nhat); color:var(--pri); box-shadow:none; font-weight:600}
+.hti{display:flex; gap:10px; padding:10px 14px; border-top:1px solid var(--bd2)}
+.hti.on{background:var(--hover)}
+.hti .t{flex:1; min-width:0}
+.hti .t div{display:flex; gap:6px; align-items:baseline}
+.hti .t b{font-weight:600; font-size:13px; flex:1}
+.hti .t small{color:var(--tx3); font-size:11.5px}
+.hti .t p{margin:2px 0 4px; font-size:12.5px; color:var(--tx3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ht-chat{display:flex; flex-direction:column; min-height:0; background:var(--bg)}
+.ht-dau{display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid var(--bd)}
+.ht-dau b{font-family:var(--font-h); font-size:15px; font-weight:600}
+.ht-cho{margin:10px 16px 0; padding:8px 12px; border-radius:var(--r); font-size:12.5px; display:flex; gap:8px; align-items:center; box-shadow:inset 0 0 0 1px var(--bd); background:var(--khoi)}
+.ht-tin{flex:1; padding:12px 16px; display:flex; flex-direction:column; gap:8px; overflow:hidden}
+.bb{max-width:72%; padding:8px 12px; border-radius:12px; font-size:13px; background:var(--bubble); box-shadow:inset 0 0 0 1px var(--bd2)}
+.t-edit .bb{border-radius:4px}
+.bb.em{align-self:flex-end; background:var(--bubble-em)}
+.bb small{display:block; font-size:11px; color:var(--tx3); margin-top:3px}
+.ht-chan{display:flex; align-items:center; gap:10px; padding:10px 16px; border-top:1px solid var(--bd); font-size:12.5px; color:var(--tx3)}
+.ht-chan .nut{margin-left:auto}
+.ht-phu{border-left:1px solid var(--bd); padding:16px; background:var(--side); display:flex; flex-direction:column; gap:14px}
+.t-notion .ht-phu{background:#fff}
+.tomtat{font-size:12.5px; line-height:1.55; color:var(--tx2); padding:12px; border-radius:var(--r); background:var(--card); box-shadow:var(--khoi-bd)}
+.t-notion .tomtat{box-shadow:none; background:#F1F8F4}
+.tomtat b{display:block; color:var(--tx); margin-bottom:4px; font-family:var(--font-h)}
+
+/* ---- Điện thoại ---- */
+.dt-hang{display:flex; gap:28px; justify-content:center; padding:26px 0; background:linear-gradient(180deg,#E6E6E2,#DCDCD7); border-radius:14px}
+.dt{width:340px; height:700px; border-radius:44px; background:#1b1b1b; padding:10px; box-shadow:0 20px 50px -20px rgba(0,0,0,.5)}
+.dt-man{width:100%; height:100%; border-radius:35px; overflow:hidden; background:var(--bg); color:var(--tx); font-family:var(--font); display:flex; flex-direction:column; font-variant-numeric:lining-nums}
+.dt-tt{height:40px; flex:none; display:flex; align-items:center; justify-content:space-between; padding:0 26px; font-size:13px; font-weight:600; position:relative}
+.dt-tt::after{content:""; position:absolute; left:50%; top:9px; transform:translateX(-50%); width:96px; height:26px; background:#000; border-radius:16px}
+.dt-than{flex:1; overflow:hidden; padding:6px 16px; display:flex; flex-direction:column; gap:12px}
+.dt-than h2{margin:0; font-size:26px}
+.t-edit .dt-than h2{font-size:30px}
+.dt-tab{flex:none; height:74px; display:grid; grid-template-columns:repeat(5,1fr); padding:8px 4px 0; border-top:1px solid var(--bd); background:var(--bg)}
+.dt-tab div{display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; color:var(--tx3)}
+.dt-tab svg{width:21px; height:21px}
+.dt-tab .on{color:var(--pri)}
+.dt-tab .cong{width:42px; height:42px; border-radius:var(--r-nut); background:var(--pri); color:#fff; display:grid; place-items:center; margin-top:-4px}
+.t-notion .dt-tab .cong{border-radius:12px}
+
+/* ============ KIỂU TRỘN: khung Notion + màu, tiêu đề, con số của Editorial ============ */
+.t-tron{--font:'Inter',sans-serif; --font-h:'Playfair Display',serif; --font-so:'Playfair Display',serif; --h-w:600;
+  --bg:#FBF8F3; --tx:#2A2622; --tx2:#5C544C; --tx3:#958A7E; --side:#F4EFE6; --side-bd:0; --on:#EAE2D3;
+  --bd:#ECE4D7; --bd2:#F2ECE2; --card:#F5F0E7; --card-bd:0; --khoi:#FFFDF9; --khoi-bd:0 0 0 1px rgba(60,40,20,.08), 0 1px 2px rgba(60,40,20,.05);
+  --pri:#2F5D46; --pri-nhat:#E6EEE6; --r:6px; --r-nut:6px; --hover:#F2ECE2; --in:#F2ECE2; --in-bd:0;
+  --av:#EAD9C8; --av-tx:#7A4E2E; --tag:#F2ECE2; --tag-tx:#5C544C; --bubble:#F5F0E7; --bubble-em:#E6EEE6}
+/* Khung Notion: không viền thanh trên, lề rộng, khối nền nhạt */
+.t-tron .bar{border-bottom:0}
+.t-tron .bar h1{font-size:18px}
+.t-tron .hn{padding:22px 40px}
+.t-tron .so > div{background:var(--card)}
+.t-tron .so .v{font-size:25px}
+.t-tron .the.nen{background:var(--card); box-shadow:none}
+.t-tron .the h3{font-size:15px}
+.t-tron .cot{background:var(--card); border-radius:6px; padding:8px}
+.t-tron .cot-h b{font-size:15px}
+.t-tron .lc .b span:last-child{font-size:14px}
+.t-tron .ct-dau{padding:20px 36px 0}
+.t-tron .tl{padding:16px 36px}
+.t-tron .soan{margin:0 36px 16px}
+.t-tron .ct-dau h2{font-size:28px}
+.t-tron .zl{box-shadow:none; background:var(--card)}
+.t-tron .ct-phu{background:#FFFDF9; border-left:1px solid var(--bd2)}
+.t-tron .ht-phu{background:#FFFDF9}
+.t-tron .tomtat{box-shadow:none; background:var(--pri-nhat)}
+/* Chất Editorial: dải hoa CHỈ ở Hôm nay, nhóm việc + ngày viết nghiêng có chân, ghi chú vạch đồng */
+.t-tron .hoa-e{display:block; height:84px; border-radius:6px; margin-bottom:12px; position:relative; overflow:hidden; background:linear-gradient(110deg,#E6EEE6,#F5EBE6 55%,#F3E3E3)}
+.t-tron .muc-nghieng, .t-tron .ngay{font-family:'Playfair Display',serif; font-style:italic; font-size:14px; color:var(--tx); font-weight:500}
+.t-tron .ngay{font-size:13px; color:var(--tx3)}
+.t-tron .buoc span.dang{font-family:'Playfair Display',serif; font-style:italic; font-size:13px}
+.t-tron .gc{background:#FFFDF9; box-shadow:var(--khoi-bd); border-left:3px solid #C9A26B; border-radius:0 6px 6px 0}
+.t-tron .ct-phu h4{font-family:'Playfair Display',serif; font-style:italic; font-size:14px; color:var(--tx); font-weight:500}
+.t-tron .tien-to{font-size:26px}
+.t-tron .ht-dau b{font-size:16px}
+.t-tron .dt-than h2{font-size:30px}
+.t-tron .dt-tab .cong{border-radius:12px}
+body.v-tron .ban:not(.t-tron), body.v-n .ban.t-edit, body.v-e .ban.t-notion{display:none}
+</style>
+</head>
+<body class="v-tron">
+<header class="top"><div class="top-in">
+  <b>Kiểu trộn: Notion + Editorial</b>
+  <nav class="nav"><a href="#homnay">Hôm nay</a><a href="#lead">Lead</a><a href="#chitiet">Chi tiết lead</a><a href="#hoithoai">Hội thoại</a><a href="#dienthoai">Điện thoại</a><a href="#ket">Tóm lại</a></nav>
+  <div class="xem" role="group" aria-label="Xem phong cách"><button class="on" data-x="v-tron">Kiểu trộn</button><button data-x="v-n">So với Notion</button><button data-x="v-e">So với Editorial</button><button data-x="">Cả ba</button></div>
+</div></header>
+<main class="wrap" id="wrap"></main>
+
+<script>
+const P = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>', lead:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v7M12 7v4M16 7v9"/>',
+  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>', chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+  lock:'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>', back:'<path d="m15 18-6-6 6-6"/>',
+};
+const ic = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+const LOGO = `<svg viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#1F8F6A"/><path d="M32 38v15" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M32 51c-7 0-11.5-4.2-13-10.5 6.6.2 11 3.8 13 10.5z" fill="#fff"/><path d="M19 17 L25.5 23 L32 13.5 L38.5 23 L45 17 C47.5 30 42.5 39 32 39 C21.5 39 16.5 30 19 17 Z" fill="#E8789A"/></svg>`;
+const D = { do:'#D9434A', vang:'#E39A2B', xanh:'#2E7D5B', xam:'#9B9A97' };
+const st = (mau, chu) => `<span class="st"><span class="dot" style="background:${D[mau]}"></span>${chu}</span>`;
+const side = on => `<aside class="side"><div class="brand">${LOGO}CRM của Huyền Trân</div>
+  ${[['home','Hôm nay','6'],['lead','Lead','47'],['chat','Hội thoại','3','do'],['chart','Báo cáo'],['pin','Venue']].map(([i,t,c,k]) => `<div class="ni ${t===on?'on':''}">${ic(i)}${t}${c?`<span class="c ${k||''}">${c}</span>`:''}</div>`).join('')}</aside>`;
+const app = (on, tieuDe, phu, giua, than) => `<div class="app">${side(on)}<div class="main">
+  <div class="bar"><h1>${tieuDe}</h1>${phu ? `<span class="sub">${phu}</span>` : ''}${giua || ''}<div class="tim">Tìm khách, số điện thoại…</div><button class="nut">${ic('plus').replace('<svg','<svg width="14" height="14"')}Thêm lead</button></div>
+  <div class="than">${than}</div></div></div>`;
+
+/* ---- Màn: Hôm nay ---- */
+const dong = (av, ten, ly, gd, tien) => `<div class="dong"><span class="av">${av}</span><b>${ten}</b><span class="ly">${ly}</span><span class="tag">${gd}</span><span class="tien">${tien}</span></div>`;
+const homNay = app('Hôm nay', 'Hôm nay', 'Thứ năm, 05/11', '', `<div class="hn"><div>
+  <div class="hoa hoa-n">🌷</div><div class="hoa hoa-e"><span>Mùa cưới 2026 · 47 cặp đôi đang chờ em</span></div>
+  <div class="chao"><h2 class="h-to">Chào buổi chiều, Trân</h2><p>6 việc cần làm · 3 khách đang chờ em trả lời</p></div>
+  <div class="so"><div><div class="l">Doanh thu kỳ 06/10 – 05/11</div><div class="v">80tr <small>/ 300tr</small></div><div class="t"><i></i></div></div>
+    <div><div class="l">Lead mới</div><div class="v">13</div><div class="d">kế hoạch 30</div></div>
+    <div><div class="l">Đang chăm sóc</div><div class="v">358tr</div><div class="d">11 lead</div></div>
+    <div><div class="l">Tỉ lệ chốt</div><div class="v">15%</div><div class="d">2 / 13 lead</div></div></div>
+  <div class="nhom"><span class="dot" style="background:${D.do}"></span><span class="muc-nghieng">Khách đang chờ trả lời</span></div>
+  ${dong('VY','Võ Hoàng Yến','Khách nhắn 4 giờ trước','Follow up 3','60tr')}${dong('NL','Nguyễn Thị Lan','“Gói này có quay flycam không em?”','Báo giá','45tr')}
+  <div class="nhom"><span class="dot" style="background:${D.vang}"></span><span class="muc-nghieng">Trễ hẹn</span></div>
+  ${dong('TH','Trần Ngọc Hân','Gọi lại tư vấn ưu đãi · trễ 2 ngày','Follow up 1','32tr')}
+  </div><div style="display:flex; flex-direction:column; gap:14px">
+  <div class="the nen"><h3>Claude đề xuất</h3><div style="font-size:13px; color:var(--tx2)">Nguyễn Thị Lan · Doanh thu → <b style="color:var(--tx)">48.000.000</b></div><div style="display:flex; gap:6px; margin-top:10px"><button class="nut">Duyệt</button><button class="nut phu">Bỏ qua</button></div></div>
+  <div class="the nen"><h3>Khách vừa mở link</h3>${[['BT','Bùi Anh Thư','Album Gem Center','3 lần'],['LN','Lý Kim Ngân','Phóng sự White Palace','1 lần']].map(([a,t,s,n]) => `<div class="dong"><span class="av">${a}</span><b>${t}</b><span class="ly">${s}</span><span class="tien">${n}</span></div>`).join('')}</div>
+  </div></div>`);
+
+/* ---- Màn: Lead (bảng) ---- */
+const the = (ten, goi, ngay, tien, mau, chu, lua) => `<div class="lc"><div class="a">${lua ? '<span style="color:#E0663D">●</span>' : ''}${ten}</div><div class="b"><span>${goi} · ${ngay}</span><span>${tien}</span></div>${st(mau, chu)}</div>`;
+const COT = [
+  ['Lead in','3','46tr',[the('Lê Minh Tuấn','Standard','04/04/27','18tr','xam','Còn 1 ngày'),the('Huỳnh Gia Hân','Gói lẻ','05/12/26','8tr','xanh','Hẹn hôm nay'),the('Mai Phương Thảo','Standard','04/05/27','20tr','xam','Còn 4 ngày')]],
+  ['Báo giá','3','128tr',[the('Nguyễn Thị Lan','Signature','31/01/27','45tr','do','Chờ trả lời · 1 giờ',1),the('Bùi Anh Thư','Signature','08/02/27','48tr','do','Chờ trả lời · 40 phút',1),the('Lý Kim Ngân','Unique','19/01/27','35tr','vang','Trễ 1 ngày')]],
+  ['Follow up 1','2','72tr',[the('Trần Ngọc Hân','Unique','05/03/27','32tr','vang','Trễ 2 ngày'),the('Đỗ Thùy Trang','Signature','23/02/27','40tr','xam','Còn 2 ngày')]],
+  ['Follow up 2','1','22tr',[the('Phạm Thảo Vy','Standard','08/01/27','22tr','xam','Khách im 5 ngày')]],
+];
+const leadBang = app('Lead', 'Lead', '', '<span class="seg" style="margin-left:6px"><span class="on">Bảng</span><span>Danh sách</span></span>',
+  `<div class="bang">${COT.map(([t,n,s,ds]) => `<div class="cot"><div class="cot-h"><b>${t}</b><span>${n}</span><span class="tong">${s}</span></div>${ds.join('')}</div>`).join('')}</div>`);
+
+/* ---- Màn: Chi tiết lead ---- */
+const chiTiet = app('Lead', '', '', '', `<div class="ct"><div class="ct-chinh">
+  <div class="ct-dau"><div class="ten">${ic('back').replace('<svg','<svg width="18" height="18" style="color:var(--tx3)"')}<span class="av to">NL</span><div><h2 class="h-to">Nguyễn Thị Lan</h2><p class="mo">Signature · cưới 31/01/2027 · White Palace</p></div>
+    <div style="margin-left:auto; display:flex; gap:6px"><button class="nut phu">Lost</button><button class="nut">Chốt Won</button></div></div>
+    <div class="buoc"><span class="xong">Lead in</span><span class="dang">Báo giá</span><span>Follow up 1</span><span>Follow up 2</span><span>Follow up 3</span><span>Nuôi dài hạn</span><span>Won</span></div>
+    <div class="tab"><span class="on">Dòng thời gian</span><span>Hội thoại Zalo</span><span>Hồ sơ AI</span><span>Báo giá & sản phẩm</span></div></div>
+  <div class="tl">
+    <div class="ngay">Hôm qua · 04/11</div>
+    <div class="gc"><div><small>Ghi chú · 15:20</small><div class="x">Hẹn gửi báo giá chi tiết gói Signature kèm flycam.</div></div></div>
+    <div class="ngay">Hôm nay · 05/11</div>
+    <div class="zl"><div class="zl-h">${ic('chat').replace('<svg','<svg width="14" height="14"')}Zalo · Lan Nguyễn · 3 tin ${st('do','Khách chờ 1 giờ')}<span class="x">Xem cả hội thoại</span></div>
+      <div class="zm"><span><b>Em</b>12:55</span>Em gửi chị bảng giá gói Signature ạ, gói này đã gồm chụp lễ + tiệc</div>
+      <div class="zm"><span><b>Khách</b>16:00</span>Gói này có quay flycam không em?</div>
+      <div class="zm"><span><b>Khách</b>16:06</span>Chị muốn concept giống ảnh này, em báo giá lại giúp chị nhé</div></div>
+  </div>
+  <div class="soan">Ghi chú nội bộ, khách không thấy…<button class="nut">Lưu</button></div>
+  </div><aside class="ct-phu">
+    <div><h4>Việc cần làm</h4><div class="viec"><span class="bx"></span>Trả lời lịch trống 31/1${st('do','Hôm nay')}</div><div class="viec"><span class="bx"></span>Nhắc hạn ưu đãi${st('xam','10/11')}</div></div>
+    <div><h4>Doanh thu dự kiến</h4><div class="tien-to">45.000.000</div></div>
+    <div><h4>Thông tin</h4><dl class="kv"><dt>Điện thoại</dt><dd>0901 234 567</dd><dt>Venue</dt><dd>White Palace</dd><dt>Lịch trình</dt><dd>Lễ sáng · tiệc tối</dd><dt>Băn khoăn</dt><dd>Giá flycam</dd></dl></div>
+  </aside></div>`);
+
+/* ---- Màn: Hội thoại ---- */
+const hoiThoai = app('Hội thoại', 'Hội thoại', 'Tin Zalo đồng bộ · chỉ xem', '', `<div class="ht"><div class="ht-ds">
+  <div class="ht-loc"><span class="on">Tất cả 7</span><span>Chờ trả lời 3</span><span>Khách im 2</span></div>
+  ${[['AT','Anh Thư','17:25','Em gửi chị hợp đồng mẫu xem trước được không?','do','Chờ trả lời · 40 phút'],['LN','Lan Nguyễn','16:06','Chị muốn concept giống ảnh này…','do','Chờ trả lời · 1 giờ',1],['HY','Hoàng Yến','14:05','Ok em, thứ 7 chị qua','do','Chờ trả lời · 4 giờ'],['NH','Ngọc Hân','01-11','Để chị bàn với chồng rồi báo em nha','xam','Khách im 3 ngày']].map(([a,t,g,p,m,c,on]) => `<div class="hti ${on?'on':''}"><span class="av">${a}</span><div class="t"><div><b>${t}</b><small>${g}</small></div><p>${p}</p>${st(m,c)}</div></div>`).join('')}
+  </div><div class="ht-chat">
+    <div class="ht-dau"><span class="av">LN</span><div><b>Lan Nguyễn</b><div style="font-size:12px; color:var(--tx3)">Lead: Nguyễn Thị Lan · Báo giá</div></div><button class="nut" style="margin-left:auto">Mở Zalo web</button></div>
+    <div class="ht-cho"><span class="dot" style="background:${D.do}"></span><b>Khách chờ trả lời 1 giờ</b><span style="margin-left:auto; color:var(--tx2)">Tới tin chưa trả lời</span></div>
+    <div class="ht-tin"><div class="bb em">Em gửi chị bảng giá gói Signature ạ<small>12:55</small></div><div class="bb">Gói này có quay flycam không em?<small>16:00</small></div><div class="bb">Chị muốn concept giống ảnh này, em báo giá lại giúp chị nhé<small>16:06</small></div></div>
+    <div class="ht-chan">${ic('lock').replace('<svg','<svg width="15" height="15"')}Chỉ xem · trả lời trên Zalo, tin mới tự về đây<button class="nut phu">Mở Zalo web</button></div>
+  </div><aside class="ht-phu">
+    <div style="display:flex; gap:10px; align-items:center"><span class="av to">NL</span><div><b>Nguyễn Thị Lan</b><div style="font-size:12px; color:var(--tx3)">Signature · 31/01/2027</div></div></div>
+    <div class="tomtat"><b>Claude tóm tắt</b>Chọn phương án 2 (45tr), hỏi lịch trống 31/1, băn khoăn giá flycam ở Gem Center.</div>
+    <div><div class="muc" style="margin-bottom:6px">Việc kế tiếp</div><div class="viec"><span class="bx"></span>Trả lời lịch trống${st('do','Hôm nay')}</div></div>
+  </aside></div>`);
+
+/* ---- Màn: Điện thoại ---- */
+const tabDt = on => `<div class="dt-tab">${[['home','Hôm nay'],['lead','Lead'],['plus',''],['chat','Hội thoại'],['chart','Báo cáo']].map(([i,t],k) => k === 2 ? `<div><span class="cong">${ic('plus')}</span></div>` : `<div class="${k===on?'on':''}">${ic(i)}${t}</div>`).join('')}</div>`;
+const dienThoai = `<div class="dt-hang">
+  <div class="dt"><div class="dt-man"><div class="dt-tt"><span>9:41</span><span>●●●</span></div><div class="dt-than">
+    <div class="hoa hoa-n" style="margin:0">🌷</div><div class="hoa hoa-e" style="margin:0; height:70px"><span style="font-size:13px">47 cặp đôi đang chờ em</span></div>
+    <h2 class="h-to">Hôm nay</h2>
+    <div class="so" style="grid-template-columns:1fr 1fr; margin:0"><div><div class="l">Doanh thu kỳ</div><div class="v">80tr <small>/300tr</small></div></div><div><div class="l">Tỉ lệ chốt</div><div class="v">15%</div></div></div>
+    <div class="nhom" style="margin:2px 0 0"><span class="dot" style="background:${D.do}"></span><span class="muc-nghieng">Khách đang chờ trả lời</span></div>
+    ${[['VY','Võ Hoàng Yến','Khách nhắn 4 giờ trước'],['NL','Nguyễn Thị Lan','“Gói này có flycam không em?”'],['BT','Bùi Anh Thư','Hỏi hợp đồng mẫu']].map(([a,t,s]) => `<div class="dong" style="margin:0"><span class="av">${a}</span><div style="min-width:0"><b>${t}</b><div style="font-size:12px; color:var(--tx3)">${s}</div></div></div>`).join('')}
+  </div>${tabDt(0)}</div></div>
+  <div class="dt"><div class="dt-man"><div class="dt-tt"><span>9:41</span><span>●●●</span></div><div class="dt-than">
+    <div style="display:flex; gap:10px; align-items:center">${ic('back').replace('<svg','<svg width="18" height="18"')}<span class="av to">NL</span><div><h2 class="h-to" style="font-size:20px">Nguyễn Thị Lan</h2><div style="font-size:12px; color:var(--tx3)">Signature · 31/01/2027</div></div></div>
+    <div class="buoc" style="margin:0"><span class="xong">Lead in</span><span class="dang">Báo giá</span><span>FU</span><span>Won</span></div>
+    <div class="the"><h3>Việc cần làm</h3><div class="viec"><span class="bx"></span>Trả lời lịch trống${st('do','Hôm nay')}</div><div class="viec"><span class="bx"></span>Nhắc hạn ưu đãi${st('xam','10/11')}</div></div>
+    <div class="zl"><div class="zl-h">Zalo · khách chờ 1 giờ<span class="x">Mở Zalo</span></div><div class="zm" style="flex-direction:column; gap:1px"><span style="width:auto"><b>Khách</b>16:00</span>Gói này có quay flycam không em?</div><div class="zm" style="flex-direction:column; gap:1px"><span style="width:auto"><b>Khách</b>16:06</span>Chị muốn concept giống ảnh này nhé</div></div>
+  </div>${tabDt(1)}</div></div>
+</div>`;
+
+const MAN = [
+  ['homnay','Hôm nay','Màn mở app. Notion: tiêu đề to + bông tulip nhỏ, các ô số nền xám ngà, không viền. Editorial: dải hoa ở đầu, số liệu font có chân, các nhóm việc viết nghiêng.', homNay],
+  ['lead','Lead · Bảng','Kanban. Notion: mỗi cột là một khối nền xám nhạt, thẻ trắng nổi nhẹ. Editorial: cột không nền, tên cột font có chân và gạch chân mảnh, thẻ màu kem có viền.', leadBang],
+  ['chitiet','Chi tiết lead','Notion: lề rộng như trang tài liệu, ghi chú nền vàng nhạt như "callout". Editorial: tên khách và giai đoạn đang ở dùng font có chân, ghi chú có vạch màu đồng bên trái.', chiTiet],
+  ['hoithoai','Hội thoại','Notion: bong bóng bo tròn, tóm tắt Claude nền xanh rất nhạt. Editorial: bong bóng góc vuông nhẹ như mẩu giấy, cột phải nền kem.', hoiThoai],
+];
+document.getElementById('wrap').innerHTML = MAN.map(([id, t, p, html]) => `
+  <section class="man" id="${id}"><h2>${t}</h2><p>${p}</p><div class="cap">
+    <div class="ban t-tron"><div class="nhan"><i style="background:linear-gradient(135deg,#F5F0E7 50%,#2F5D46 50%)"></i>Kiểu trộn</div><div class="khung t-tron">${html}</div></div>
+    <div class="ban t-notion"><div class="nhan"><i style="background:#F1F1EF; box-shadow:inset 0 0 0 1px #ccc"></i>Notion</div><div class="khung t-notion">${html}</div></div>
+    <div class="ban t-edit"><div class="nhan"><i style="background:#2F5D46"></i>Editorial</div><div class="khung t-edit">${html}</div></div>
+  </div></section>`).join('') + `
+  <section class="man" id="dienthoai"><h2>Điện thoại</h2><p>Màn Hôm nay và trang một lead trên iPhone. Editorial giữ dải hoa và font có chân; Notion gọn hơn, nhiều chỗ cho nội dung.</p><div class="cap">
+    <div class="ban t-tron"><div class="nhan"><i style="background:linear-gradient(135deg,#F5F0E7 50%,#2F5D46 50%)"></i>Kiểu trộn</div><div class="t-tron">${dienThoai}</div></div>
+    <div class="ban t-notion"><div class="nhan"><i style="background:#F1F1EF; box-shadow:inset 0 0 0 1px #ccc"></i>Notion</div><div class="t-notion">${dienThoai}</div></div>
+    <div class="ban t-edit"><div class="nhan"><i style="background:#2F5D46"></i>Editorial</div><div class="t-edit">${dienThoai}</div></div>
+  </div></section>
+  <section class="man" id="ket"><h2>Tóm lại</h2><div class="ket"><p style="margin:0 0 10px"><b>Kiểu trộn lấy gì từ đâu:</b> khung của Notion (không viền thanh trên, lề rộng, khối nền nhạt, cột Lead là khối, bong bóng bo tròn, chữ thân Inter dễ đọc) · từ Editorial: nền kem, màu chính xanh rêu, tiêu đề và con số font có chân, nhóm việc và ngày viết nghiêng, ghi chú vạch màu đồng, dải hoa <b>chỉ ở Hôm nay</b>.</p>
+    <table><tr><th></th><th>Notion</th><th>Editorial</th></tr>
+      <tr><td>Cảm giác</td><td>Sổ tay ấm, nhẹ nhàng, "của mình"</td><td>Tạp chí cưới, sang, có thương hiệu</td></tr>
+      <tr><td>Đọc số liệu</td><td>Nhanh, rõ</td><td>Đẹp nhưng chậm hơn một nhịp (font có chân)</td></tr>
+      <tr><td>Khi nhiều dữ liệu</td><td>Giữ gọn tốt</td><td>Dễ rối nếu bảng dài</td></tr>
+      <tr><td>Trên điện thoại</td><td>Nhiều chỗ cho nội dung</td><td>Dải hoa chiếm chỗ, nhưng mở app thấy vui</td></tr>
+      <tr><td>Hợp với</td><td>Dùng cả ngày, làm việc nhanh</td><td>Mở lên thấy thích, hợp gu studio cưới</td></tr></table>
+    <b>Có thể trộn:</b> khung và bảng của Notion (đọc nhanh), nhưng lấy <b>tiêu đề font có chân + màu kem + xanh rêu</b> của Editorial và chỉ để dải hoa ở màn Hôm nay. Như vậy vẫn dễ làm việc mà có chất HayDay.
+  </div></section>`;
+document.querySelectorAll('.xem button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.xem button').forEach(x => x.classList.toggle('on', x === b));
+  document.body.className = b.dataset.x;
+}));
+</script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 // Server xem giao diện với DỮ LIỆU GIẢ: phục vụ index.html thật nhưng thay khối module Firebase
 // bằng bản giả lập trong bộ nhớ (scripts/demo/du-lieu-gia.js). Không đăng nhập, không chạm Firebase.
-// Chạy: node scripts/demo/server.mjs  ->  http://localhost:5182  (?view=dashboard, &lead=L01, &conv=c01, &theme=toi, ?lock=1)
+// Chạy: node scripts/demo/server.mjs  ->  http://localhost:5182  (?view=dashboard, &lead=L01, &tab=hoso, &conv=c01, &vtab=sp, &theme=toi, ?lock=1, &add=1, &nhacnho=1, &dexuat=1)
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
@@ -68,6 +68,10 @@ setTimeout(() => {
   if (P.get('view') && window.setView) setView(P.get('view'));
   if (P.get('conv') && window.openConversation) openConversation(P.get('conv'));
   if (P.get('lead') && window.openLead) openLead(P.get('lead'));
+  if (P.get('tab') && window.chonTabChiTiet) chonTabChiTiet(P.get('tab'));
+  if (P.get('vtab') && window.doiTabVenue) doiTabVenue(P.get('vtab'));
+  if (P.get('nhacnho') && window.openRemindersModal) openRemindersModal();
+  if (P.get('dexuat') && window.moModalDeXuat) moModalDeXuat();
   if (P.get('add') && window.openAddLead) openAddLead();
 }, 600);
 </script>
