@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CRM của Trân — chọn phong cách giao diện</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0; font-family:'Inter',system-ui,sans-serif; background:#EDEEEC; color:#18181B; -webkit-font-smoothing:antialiased}
+button{font:inherit; color:inherit; cursor:pointer}
+.top{position:sticky; top:0; z-index:20; background:rgba(237,238,236,.92); backdrop-filter:blur(10px); border-bottom:1px solid #DCDDDA}
+.top-in{max-width:1240px; margin:0 auto; padding:12px 24px; display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+.top b{font-size:15px}
+.top small{color:#71717A}
+.tabs{display:flex; gap:4px; margin-left:auto; flex-wrap:wrap}
+.tabs a{text-decoration:none; color:#52525B; font-size:13px; font-weight:500; padding:6px 12px; border-radius:999px}
+.tabs a:hover{background:#E1E2DF}
+.wrap{max-width:1240px; margin:0 auto; padding:24px}
+.style{margin-bottom:48px; scroll-margin-top:70px}
+.style-h{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.style-h h2{margin:0; font-size:20px}
+.style-h .so{font-size:12px; font-weight:700; color:#fff; background:#1A7F5E; border-radius:6px; padding:2px 8px}
+.style-p{margin:0 0 14px; color:#52525B; font-size:14px; max-width:900px; line-height:1.55}
+.style-p b{color:#18181B}
+.hop{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 14px}
+.hop span{font-size:12.5px; background:#fff; border:1px solid #DCDDDA; border-radius:999px; padding:3px 10px; color:#3F3F46}
+.hop span.tru{color:#9F1239; border-color:#F5C2CF}
+.scroller{overflow-x:auto; border-radius:14px; box-shadow:0 24px 60px -28px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.06)}
+.pick{background:#fff; border-radius:12px; padding:16px 20px; font-size:14px; color:#3F3F46; line-height:1.6; border:1px solid #DCDDDA}
+
+/* ================= KHUNG CHUNG (màu/hình lấy từ biến của từng phong cách) ================= */
+.app{min-width:1120px; height:640px; display:grid; grid-template-columns:var(--side-w,216px) 1fr; background:var(--bg); color:var(--tx); font-family:var(--font); font-size:var(--fs,13.5px); overflow:hidden}
+.side{background:var(--side-bg); border-right:var(--side-bd); padding:var(--side-pad,14px 10px); display:flex; flex-direction:column; gap:2px}
+.brand{display:flex; align-items:center; gap:9px; padding:2px 8px 14px; font-weight:600; font-size:13.5px}
+.brand svg{width:var(--logo,24px); height:var(--logo,24px); flex:none}
+.ni{display:flex; align-items:center; gap:10px; padding:var(--ni-pad,6px 9px); border-radius:var(--ni-r,6px); color:var(--tx2); font-weight:500}
+.ni svg{width:16px; height:16px; color:var(--tx3); flex:none}
+.ni .c{margin-left:auto; font-size:12px; color:var(--tx3)}
+.ni .c.do{color:#E5484D}
+.ni.on{background:var(--ni-on); color:var(--ni-on-tx,var(--tx))}
+.ni.on svg{color:var(--ni-on-tx,var(--tx))}
+.main{display:flex; flex-direction:column; min-width:0}
+.bar{height:var(--bar-h,48px); display:flex; align-items:center; gap:10px; padding:0 22px; border-bottom:var(--bar-bd); background:var(--bar-bg,var(--bg))}
+.bar h1{margin:0; font-size:var(--h1,14px); font-weight:600; font-family:var(--font-h,var(--font))}
+.bar .sub{color:var(--tx3); font-size:12.5px}
+.bar .tim{margin-left:auto; width:240px; height:30px; border:var(--in-bd); border-radius:var(--r-in,6px); background:var(--in-bg); color:var(--tx3); font-size:12.5px; display:flex; align-items:center; padding:0 10px}
+.btn{height:var(--btn-h,30px); padding:0 12px; border-radius:var(--r-btn,6px); background:var(--pri); color:#fff; border:0; font-weight:600; font-size:13px; display:inline-flex; align-items:center; gap:6px; white-space:nowrap}
+.body{flex:1; display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:var(--gap,22px); padding:var(--pad,20px 22px); overflow:hidden}
+.col{display:flex; flex-direction:column; gap:var(--gap2,14px); min-width:0}
+.chao h2{margin:0; font-family:var(--font-h,var(--font)); font-size:var(--h2,18px); font-weight:var(--h2-w,600); letter-spacing:var(--h2-ls,-.01em)}
+.chao p{margin:3px 0 0; color:var(--tx3); font-size:13px}
+.so{display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:var(--so-gap,0); border:var(--so-bd); border-radius:var(--r-card,8px); overflow:hidden; background:var(--so-bg,transparent)}
+.o{padding:12px 14px; border-right:var(--so-div); background:var(--o-bg,transparent); border-radius:var(--o-r,0)}
+.o:last-child{border-right:0}
+.o .l{font-size:12px; color:var(--tx3)}
+.o .v{font-size:var(--v,19px); font-weight:600; margin:3px 0 6px; font-variant-numeric:tabular-nums; font-family:var(--font-v,var(--font))}
+.o .v small{font-size:12px; color:var(--tx3); font-weight:500}
+.o .d{font-size:12px; color:var(--tx2)}
+.o .t{height:var(--t-h,3px); background:var(--track); border-radius:9px; overflow:hidden}
+.o .t i{display:block; height:100%; width:27%; background:var(--pri); border-radius:9px}
+.viec{background:var(--viec-bg,transparent); border:var(--viec-bd,0); border-radius:var(--r-card,8px); padding:var(--viec-pad,0)}
+.viec-h{display:flex; align-items:baseline; gap:8px; margin-bottom:4px}
+.viec-h b{font-size:13.5px}
+.viec-h span{color:var(--tx3); font-size:12.5px}
+.nhom{font-size:12px; color:var(--tx3); font-weight:500; margin:12px 0 4px; display:flex; align-items:center; gap:7px}
+.dot{width:7px; height:7px; border-radius:50%; flex:none; display:inline-block}
+.dong{display:flex; align-items:center; gap:10px; padding:var(--dong-pad,7px 8px); margin:0 -8px; border-radius:var(--r-dong,6px); border-bottom:var(--dong-bd,0)}
+.dong:hover{background:var(--hover)}
+.av{width:var(--av,24px); height:var(--av,24px); border-radius:50%; display:grid; place-items:center; font-size:10.5px; font-weight:600; flex:none; background:var(--av-bg); color:var(--av-tx)}
+.dong b{font-weight:500; font-size:13px}
+.dong .ly{color:var(--tx3); font-size:13px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.tag{font-size:11.5px; padding:1px 7px; border-radius:var(--r-tag,4px); background:var(--tag-bg,transparent); color:var(--tag-tx,var(--tx3)); font-weight:500; white-space:nowrap}
+.tien{width:44px; text-align:right; font-size:12.5px; color:var(--tx2); font-variant-numeric:tabular-nums}
+.st{display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--tx2); white-space:nowrap}
+.card{background:var(--card-bg); border:var(--card-bd); border-radius:var(--r-card,8px); box-shadow:var(--card-sh,none); padding:var(--card-pad,14px)}
+.card h3{margin:0 0 10px; font-size:13.5px; font-family:var(--font-h3,var(--font)); font-weight:600}
+.lead{background:var(--lead-bg,var(--card-bg)); border:var(--card-bd); border-radius:var(--r-lead,6px); padding:10px 11px; margin-bottom:8px; box-shadow:var(--lead-sh,none)}
+.lead .a{display:flex; align-items:center; gap:7px; font-weight:500; font-size:13px}
+.lead .b{display:flex; font-size:12px; color:var(--tx3); margin:3px 0 6px}
+.lead .b span:last-child{margin-left:auto; color:var(--tx2); font-weight:500}
+.cot{font-size:12px; color:var(--tx3); font-weight:500; margin:2px 0 8px; display:flex; gap:6px}
+.cot b{color:var(--tx); font-weight:600}
+.anh{display:none}
+svg.logo{display:block}
+
+/* ================= 1. LINEAR (hiện tại) ================= */
+.t-linear{--font:'Inter',sans-serif; --bg:#fff; --tx:#18181B; --tx2:#5F6068; --tx3:#8B8D96; --side-bg:#FAFAFA; --side-bd:1px solid #E8E8EA;
+  --ni-on:#EFEFF1; --bar-bd:1px solid #E8E8EA; --in-bd:1px solid #E8E8EA; --in-bg:#fff; --pri:#1A7F5E; --so-bd:1px solid #E8E8EA; --so-div:1px solid #E8E8EA;
+  --track:#F0F0F2; --hover:#F4F4F5; --av-bg:#F0F0F2; --av-tx:#3F3F46; --card-bg:#fff; --card-bd:1px solid #E8E8EA}
+
+/* ================= 2. NOTION (ấm, nhẹ, không viền) ================= */
+.t-notion{--font:'Inter',sans-serif; --font-h:'Inter',sans-serif; --bg:#FFFFFF; --tx:#37352F; --tx2:#5F5E5B; --tx3:#9B9A97; --side-bg:#F7F7F5; --side-bd:0; --side-w:232px;
+  --ni-on:#EBEBEA; --ni-pad:5px 10px; --ni-r:5px; --bar-bd:0; --bar-h:52px; --in-bd:0; --in-bg:#F1F1EF; --pri:#2E7D5B; --r-btn:5px;
+  --so-bd:0; --so-div:0; --so-gap:12px; --o-bg:#F7F7F5; --o-r:6px; --track:#E3E2E0; --hover:#F1F1EF; --av-bg:#EFE7DC; --av-tx:#64473A;
+  --card-bg:#F7F7F5; --card-bd:0; --r-card:6px; --lead-bg:#fff; --lead-sh:0 0 0 1px rgba(15,15,15,.08), 0 1px 2px rgba(15,15,15,.06);
+  --h2:30px; --h2-w:700; --h2-ls:-.02em; --pad:28px 44px; --gap:36px; --fs:14px; --dong-pad:6px 8px; --tag-bg:#F1F1EF; --tag-tx:#5F5E5B}
+.t-notion .chao::before{content:"🌷"; display:block; font-size:34px; margin-bottom:6px}
+.t-notion .nhom{color:#37352F; font-weight:600; font-size:13px; margin-top:16px}
+
+/* ================= 3. ATTIO (CRM thuần, dày thông tin) ================= */
+.t-attio{--font:'Inter',sans-serif; --bg:#FBFBFB; --tx:#1C1D1F; --tx2:#4B4D52; --tx3:#8C8F96; --side-bg:#fff; --side-bd:1px solid #EBEBED; --side-w:200px;
+  --ni-on:#F2F4FF; --ni-on-tx:#3554E6; --bar-bd:1px solid #EBEBED; --bar-bg:#fff; --in-bd:1px solid #E3E4E8; --in-bg:#fff; --pri:#3554E6; --r-btn:7px;
+  --so-bd:1px solid #EBEBED; --so-div:1px solid #EBEBED; --so-bg:#fff; --track:#ECEEF5; --hover:#F5F6FA;
+  --av-bg:#E8EDFF; --av-tx:#3554E6; --card-bg:#fff; --card-bd:1px solid #EBEBED; --r-card:10px; --card-sh:0 1px 2px rgba(16,24,40,.04);
+  --viec-bg:#fff; --viec-bd:1px solid #EBEBED; --viec-pad:12px 16px; --dong-bd:1px solid #F2F2F4; --r-dong:0; --dong-pad:8px 8px;
+  --tag-bg:#F2F4FF; --tag-tx:#3554E6; --r-tag:5px; --fs:13px}
+.t-attio .dong .tag.g-sig{background:#FFF1E6; color:#C2410C}
+.t-attio .dong .tag.g-uni{background:#F3E8FF; color:#7E22CE}
+.t-attio .dong .tag.g-std{background:#E8F7EF; color:#15803D}
+.t-attio .av{border-radius:6px}
+
+/* ================= 4. iOS (mềm, to, dễ chạm) ================= */
+.t-ios{--font:'Inter',sans-serif; --font-h:'Inter',sans-serif; --bg:#F2F2F7; --tx:#1C1C1E; --tx2:#3A3A3C; --tx3:#8E8E93; --side-bg:#F2F2F7; --side-bd:1px solid #E5E5EA; --side-w:236px;
+  --ni-on:#fff; --ni-on-tx:#1F8F6A; --ni-pad:9px 12px; --ni-r:10px; --bar-bd:0; --bar-h:60px; --in-bd:0; --in-bg:#E3E3E8; --r-in:10px; --pri:#1F8F6A; --r-btn:12px; --btn-h:36px;
+  --so-bd:0; --so-div:0; --so-gap:12px; --o-bg:#fff; --o-r:16px; --track:#E5E5EA; --t-h:5px; --hover:#F2F2F7;
+  --av:32px; --av-bg:#E5F4EE; --av-tx:#1F8F6A; --card-bg:#fff; --card-bd:0; --r-card:18px; --card-pad:16px; --lead-bg:#fff; --r-lead:14px;
+  --viec-bg:#fff; --viec-pad:12px 16px; --dong-bd:1px solid #EFEFF4; --r-dong:0; --dong-pad:11px 8px;
+  --h1:20px; --h2:28px; --h2-w:700; --v:22px; --fs:15px; --tag-bg:#F2F2F7; --tag-tx:#3A3A3C; --r-tag:8px}
+.t-ios .ni{font-size:15px}
+.t-ios .bar h1{font-weight:700}
+.t-ios .o .v{font-weight:700}
+.t-ios .dong b{font-size:15px; font-weight:600}
+.t-ios .dong .ly{font-size:14px}
+.t-ios .so .o{box-shadow:0 1px 2px rgba(0,0,0,.04)}
+
+/* ================= 5. EDITORIAL / WEDDING ================= */
+.t-edit{--font:'Be Vietnam Pro',sans-serif; --font-h:'Playfair Display',serif; --font-h3:'Playfair Display',serif; --font-v:'Playfair Display',serif;
+  --bg:#FBF8F3; --tx:#2A2622; --tx2:#5C544C; --tx3:#958A7E; --side-bg:#F4EFE6; --side-bd:1px solid #E7DECF; --side-w:228px;
+  --ni-on:#EAE2D3; --ni-r:999px; --ni-pad:7px 14px; --bar-bd:1px solid #E7DECF; --bar-h:56px; --in-bd:1px solid #E2D8C7; --in-bg:#FFFDF9; --r-in:999px;
+  --pri:#2F5D46; --r-btn:999px; --so-bd:0; --so-div:1px solid #E7DECF; --track:#EAE2D3; --hover:#F4EFE6;
+  --av-bg:#EAD9C8; --av-tx:#7A4E2E; --card-bg:#FFFDF9; --card-bd:1px solid #E7DECF; --r-card:4px; --lead-bg:#FFFDF9; --r-lead:4px;
+  --h1:18px; --h2:30px; --h2-w:600; --v:26px; --tag-tx:#958A7E}
+.t-edit .bar h1{font-weight:600}
+.t-edit .anh{display:block; height:92px; border-radius:4px; margin-bottom:4px; position:relative; overflow:hidden; background:linear-gradient(110deg,#E6EEE6 0%,#F5EBE6 55%,#F3E3E3 100%)}
+.t-edit .anh::after{content:""; position:absolute; right:18px; bottom:-6px; width:220px; height:90px; background:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 220 90%27%3E%3Cg fill=%27none%27 stroke=%27%237E9C86%27 stroke-width=%272%27%3E%3Cpath d=%27M40 90V40M110 90V30M180 90V44%27/%3E%3C/g%3E%3Cg fill=%27%23E39AAE%27%3E%3Cpath d=%27M28 22l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M98 12l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3Cpath d=%27M168 26l6 6 6-9 6 9 6-6c2 12-3 20-12 20s-14-8-12-20z%27/%3E%3C/g%3E%3C/svg%3E") no-repeat center/contain}
+.t-edit .anh span{position:absolute; left:18px; bottom:14px; font-family:'Playfair Display',serif; font-style:italic; color:#2F5D46; font-size:15px}
+.t-edit .so{border-top:1px solid #E7DECF; border-bottom:1px solid #E7DECF; border-radius:0}
+.t-edit .o .v{font-weight:600; font-variant-numeric:lining-nums tabular-nums}
+.t-edit .nhom{font-family:'Playfair Display',serif; font-style:italic; font-size:14px; color:#2A2622; font-weight:500}
+.t-edit .dong{border-bottom:1px solid #EFE8DC; border-radius:0}
+.t-edit .dong b{font-weight:600}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <div><b>Chọn phong cách giao diện</b> <small>· cùng màn Hôm nay, dữ liệu giả</small></div>
+  <nav class="tabs" id="tabs"></nav>
+</div></header>
+<main class="wrap" id="wrap"></main>
+
+<script>
+const P = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
+  lead:'<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v7M12 7v4M16 7v9"/>',
+  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  chart:'<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+};
+const ic = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+const logo = `<svg class="logo" viewBox="0 0 64 64"><defs><linearGradient id="gA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DB386"/><stop offset="1" stop-color="#0F6B50"/></linearGradient><linearGradient id="gP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A8BE"/><stop offset="1" stop-color="#DC5F84"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#gA)"/><path d="M32 38v15" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M32 51c-7 0-11.5-4.2-13-10.5 6.6.2 11 3.8 13 10.5z" fill="#fff"/><path d="M19 17 L25.5 23 L32 13.5 L38.5 23 L45 17 C47.5 30 42.5 39 32 39 C21.5 39 16.5 30 19 17 Z" fill="url(#gP)"/></svg>`;
+const ROWS = {
+  cho: [['VY','Võ Hoàng Yến','Khách nhắn 4 giờ trước','Follow up 3','60tr','HayDay','g-sig'],['NL','Nguyễn Thị Lan','“Gói này có quay flycam không em?”','Báo giá','45tr','Signature','g-sig'],['BT','Bùi Anh Thư','Hỏi hợp đồng mẫu · 40 phút','Báo giá','48tr','Signature','g-sig']],
+  tre: [['TH','Trần Ngọc Hân','Gọi lại tư vấn ưu đãi · trễ 2 ngày','Follow up 1','32tr','Unique','g-uni'],['LN','Lý Kim Ngân','Gửi lại báo giá · trễ 1 ngày','Báo giá','35tr','Unique','g-uni']],
+  nay: [['HH','Huỳnh Gia Hân','Hẹn đi xem Gem Center','Lead in','8tr','Gói lẻ','g-std']],
+};
+const dong = (r, mau) => `<div class="dong"><span class="av">${r[0]}</span><b>${r[1]}</b><span class="ly">${r[2]}</span><span class="tag ${r[6]}">${r[5]}</span><span class="tag">${r[3]}</span><span class="tien">${r[4]}</span></div>`;
+const app = () => `<div class="app">
+  <aside class="side">
+    <div class="brand">${logo}CRM của Huyền Trân</div>
+    <div class="ni on">${ic('home')}Hôm nay<span class="c">6</span></div>
+    <div class="ni">${ic('lead')}Lead<span class="c">47</span></div>
+    <div class="ni">${ic('chat')}Hội thoại<span class="c do">3</span></div>
+    <div class="ni">${ic('chart')}Báo cáo</div>
+    <div class="ni">${ic('pin')}Venue</div>
+  </aside>
+  <div class="main">
+    <div class="bar"><h1>Hôm nay</h1><span class="sub">Thứ năm, 05/11</span><div class="tim">Tìm khách, số điện thoại…</div><button class="btn">${ic('plus')}Thêm lead</button></div>
+    <div class="body">
+      <div class="col">
+        <div class="anh"><span>Mùa cưới 2026 · 47 cặp đôi đang chờ em</span></div>
+        <div class="chao"><h2>Chào buổi chiều, Trân</h2><p>6 việc cần làm · 3 khách đang chờ em trả lời</p></div>
+        <div class="so">
+          <div class="o"><div class="l">Doanh thu kỳ 06/10 – 05/11</div><div class="v">80tr <small>/ 300tr</small></div><div class="t"><i></i></div></div>
+          <div class="o"><div class="l">Lead mới</div><div class="v">13</div><div class="d">kế hoạch 30</div></div>
+          <div class="o"><div class="l">Đang chăm sóc</div><div class="v">358tr</div><div class="d">11 lead</div></div>
+          <div class="o"><div class="l">Tỉ lệ chốt</div><div class="v">15%</div><div class="d">2 / 13 lead</div></div>
+        </div>
+        <div class="viec">
+          <div class="viec-h"><b>Cần làm</b><span>6 việc</span></div>
+          <div class="nhom"><span class="dot" style="background:#E5484D"></span>Khách đang chờ trả lời</div>${ROWS.cho.map(dong).join('')}
+          <div class="nhom"><span class="dot" style="background:#F5A524"></span>Trễ hẹn</div>${ROWS.tre.map(dong).join('')}
+          <div class="nhom"><span class="dot" style="background:#8B8D96"></span>Hạn hôm nay</div>${ROWS.nay.map(dong).join('')}
+        </div>
+      </div>
+      <div class="col">
+        <div class="card"><h3>Thẻ lead trong cột Báo giá</h3>
+          <div class="cot"><b>Báo giá</b>3 · 128tr</div>
+          <div class="lead"><div class="a"><span style="color:#E0663D">●</span>Nguyễn Thị Lan</div><div class="b"><span>Signature · 31/01/27</span><span>45tr</span></div><span class="st"><span class="dot" style="background:#E5484D"></span>Chờ trả lời · 1 giờ</span></div>
+          <div class="lead"><div class="a">Lý Kim Ngân</div><div class="b"><span>Unique · 19/01/27</span><span>35tr</span></div><span class="st"><span class="dot" style="background:#F5A524"></span>Trễ 1 ngày</span></div>
+        </div>
+        <div class="card"><h3>Claude đề xuất</h3>
+          <div style="font-size:13px; color:var(--tx2)">Nguyễn Thị Lan · Doanh thu → <b style="color:var(--tx)">48.000.000</b></div>
+          <div style="display:flex; gap:6px; margin-top:10px"><button class="btn">Duyệt</button><button class="btn" style="background:transparent; color:var(--tx2); border:var(--in-bd)">Bỏ qua</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+const STYLES = [
+  ['linear','Linear (đang có trong PR)','Gọn, phẳng, viền mảnh, chữ nhỏ. Số liệu đọc nhanh, nhìn chuyên nghiệp như công cụ làm việc.',['Gọn, đọc số nhanh','Hợp máy tính'],['Hơi lạnh, ít cảm xúc']],
+  ['notion','Notion — ấm, nhẹ','Nền trắng, chữ nâu đen ấm, gần như không có viền, tách khối bằng khoảng trắng. Tiêu đề to như trang sổ tay, có tulip ở đầu trang.',['Dễ chịu khi đọc lâu','Thoáng'],['Số liệu ít nổi bật','Tốn chỗ hơn']],
+  ['attio','Attio — CRM thuần','Dày thông tin, mỗi gói một màu chip, ảnh đại diện vuông, màu nhấn xanh dương. Giống CRM chuyên nghiệp (Attio, HubSpot mới).',['Nhiều thông tin một màn','Phân biệt gói bằng màu'],['Trông "công cụ"','Đổi màu nhấn khỏi xanh lá']],
+  ['ios','iOS — mềm, dễ chạm','Bo góc lớn, khối trắng trên nền xám nhạt, chữ to, nút to. Cảm giác như app trên iPhone.',['Rất dễ dùng trên điện thoại','Thân thiện'],['Trên máy tính hơi thưa','Ít dòng mỗi màn']],
+  ['edit','Editorial — chất ngành cưới','Màu kem + xanh rêu, tiêu đề và con số dùng font có chân (Playfair), dải ảnh hoa ở đầu Hôm nay. Mang thương hiệu HayDay nhất.',['Đẹp, có cá tính','Hợp studio cưới'],['Đọc số chậm hơn','Khó giữ gọn khi nhiều dữ liệu']],
+];
+document.getElementById('tabs').innerHTML = STYLES.map(([id, t], i) => `<a href="#${id}">${i + 1}. ${t.split(' —')[0].split(' (')[0]}</a>`).join('');
+document.getElementById('wrap').innerHTML = STYLES.map(([id, t, p, cong, tru], i) => `
+  <section class="style" id="${id}">
+    <div class="style-h"><span class="so">${i + 1}</span><h2>${t}</h2></div>
+    <p class="style-p">${p}</p>
+    <div class="hop">${cong.map(x => `<span>+ ${x}</span>`).join('')}${tru.map(x => `<span class="tru">− ${x}</span>`).join('')}</div>
+    <div class="scroller t-${id}">${app()}</div>
+  </section>`).join('') + `<div class="pick"><b>Gợi ý:</b> giữ <b>1 Linear</b> làm nền và thêm chút ấm của <b>2 Notion</b> (nền ngà, tiêu đề to hơn) — vẫn gọn, dễ đọc số mà bớt khô. Nếu Trân dùng điện thoại là chính thì chọn <b>4 iOS</b>. Có thể trộn: ví dụ khung của 1, màu và tiêu đề của 5.</div>`;
+</script>
+</body>
+</html>

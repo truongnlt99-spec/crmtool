@@ -51,6 +51,16 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và phân quyền tài kh
   sắp xếp, dòng tổng, dòng xuất Excel, đọc cài đặt. `index.html` nạp bằng `<script type="module">`
   (`window.BangLead`); phần giao diện nằm ở khối `RENDER: DANH SÁCH` trong `index.html`. Thêm cột mới:
   thêm vào `COT` ở đây, rồi (nếu cần hiển thị đặc biệt) vào `oBangHtml()`.
+- **`web/giao-dien-moi.css`** — lớp giao diện mới (11/2026), nạp bằng `<link>` NGAY SAU khối `<style>` của `index.html` nên
+  thắng các lớp cũ. Trong file các lớp xếp chồng; lớp CUỐI ("KIỂU TRỘN": khung Notion + nền kem, xanh rêu, tiêu đề/con số
+  Playfair Display) là kiểu đang dùng — sửa giao diện thì sửa ở lớp cuối. Bản vẽ: `docs/mockup/tron.html`.
+  Menu: Hôm nay (`renderHomNay`, màn mặc định) · Lead (Bảng = `pipeline` / Danh sách = `list`, chuyển bằng nút trên thanh trên) ·
+  Hội thoại (chỉ xem, không gửi tin) · Báo cáo (`dashboard`) · Venue. Chi tiết lead: cột chính là dòng thời gian
+  (`renderDongThoiGian`: tin Zalo + ghi chú + báo giá + link + log), cột phải là việc cần làm và thông tin.
+- **`scripts/demo/server.mjs`** — xem app với DỮ LIỆU GIẢ (`scripts/demo/du-lieu-gia.js`), không đăng nhập, không chạm Firebase:
+  `node scripts/demo/server.mjs` → `http://localhost:5182` (`?view=dashboard`, `&lead=L01`, `&conv=c01`, `&theme=toi`, `?lock=1`).
+  Thêm nhánh dữ liệu mới vào app thì bổ sung dữ liệu giả ở đây để còn xem được. Khi server demo đang chạy,
+  `node scripts/demo/chup-man.mjs` chụp mọi màn (máy tính/điện thoại, sáng/tối) vào `ban-phat-hanh/anh-giao-dien/` kèm trang xem.
 - **`firebase-rules.json`** (có `_huong_dan`) và **`firebase-rules-deploy.json`** (chỉ `rules`) —
   Security Rules sống trong repo để đọc/ghi chú. **Phải dán tay** `firebase-rules-deploy.json` vào
   Firebase Console → Realtime Database → Rules → Publish; đổi rules trong repo KHÔNG tự có hiệu lực.

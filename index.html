@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM của Huyền Trân</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%23FBEAEE%22%2F%3E%3Cpath%20d%3D%22M9%2011.6c0-3.4%201.9-5.7%203.5-5.7%201%200%201.7%201%202%202.3.3-1.4.7-2.3%201.5-2.3s1.2.9%201.5%202.3c.3-1.3%201-2.3%202-2.3%201.6%200%203.5%202.3%203.5%205.7v1.2c0%204.6-3%207.5-6.7%207.5S9%2017.4%209%2012.8z%22%20fill%3D%22%23E8899B%22%2F%3E%3Cpath%20d%3D%22M15.2%2019h1.6v7.4h-1.6z%22%20fill%3D%22%231FAE6F%22%2F%3E%3Cpath%20d%3D%22M15.2%2025.6c-2.6-.1-4.5-1.4-5-3.5%202.5-.3%204.5%201%205%203.5z%22%20fill%3D%22%231FAE6F%22%2F%3E%3C%2Fsvg%3E">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <meta name="theme-color" content="#1FAE6F">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500&display=swap" rel="stylesheet">
 
 <!-- ============ FIREBASE (Realtime Database) ============ -->
 <script type="module">
@@ -186,6 +187,7 @@
   import * as LinkGui from './web/link-gui.js';
   window.LinkGui = LinkGui;
   if (window.renderVenue) window.renderVenue();
+  if (window.renderHomNay) try { window.renderHomNay(); } catch(e){}
 </script>
 <script>
 /* Chạy NGAY trong <head>, trước khi trang vẽ. Đặt ở cuối trang thì màn hình sẽ loé
@@ -1942,8 +1944,8 @@
   @media (prefers-reduced-motion: reduce){ .lock-photos img{transition:none;} }
   .lock-hero{position:absolute; inset:0; z-index:1; padding:40px; display:flex; flex-direction:column; justify-content:space-between; color:#fff;}
   .lock-hero-brand{display:flex; align-items:center; gap:11px; font:700 19px/1.1 var(--font-head); color:#fff;}
-  .lock-hero-mark{width:36px; height:36px; border-radius:13px; background:rgba(255,255,255,.9); display:flex; align-items:center; justify-content:center; font-size:18px;}
-  html[data-theme="dark"] .lock-hero-mark{background:rgba(58,35,48,.85);}
+  .lock-hero-mark{width:36px; height:36px; border-radius:9px; overflow:hidden; display:flex; flex:none; box-shadow:0 2px 8px rgba(0,0,0,.18);}
+  
   .lock-hero-bottom{display:flex; flex-direction:column; gap:12px; max-width:440px;}
   .lock-hero .lock-quote{font:500 26px/1.3 var(--font-head); font-style:normal; color:#fff; margin:0; padding:0; text-wrap:pretty; text-shadow:0 1px 12px rgba(0,0,0,.25);}
   .lock-credit{position:static; font-size:11px; font-weight:400; line-height:1.5; color:rgba(255,255,255,.88);}
@@ -2188,8 +2190,9 @@
   body.an-ai .detail-tab[data-tab="hoso"], body.an-ai .block-hoso, body.an-ai .block-dexuat,
   body.an-ai #navDeXuat, body.an-ai #menuKhacDeXuat{display:none !important;}
 </style>
+<link rel="stylesheet" href="web/giao-dien-moi.css">
 </head>
-<body>
+<body data-view="homnay">
 
 <!-- Kho hình lá/hoa dùng chung cho toàn app (menu bên, pipeline, chi tiết lead...) -->
 <!-- Đặt ngoài màn khoá vì màn khoá sẽ bị xoá khỏi trang sau khi mở khoá -->
@@ -2297,7 +2300,7 @@
   <div class="lock-visual">
     <div class="lock-photos" id="lockPhotos" aria-hidden="true"></div>
     <div class="lock-hero">
-      <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true">🌷</span>CRM của Huyền Trân</div>
+      <div class="lock-hero-brand"><span class="lock-hero-mark" aria-hidden="true"><svg width="36" height="36" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lkA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DB386"/><stop offset=".55" stop-color="#21946C"/><stop offset="1" stop-color="#0F6B50"/></linearGradient><linearGradient id="lkP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A8BE"/><stop offset="1" stop-color="#DC5F84"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lkA)"/><path d="M32 38v15" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M32 51c-7 0-11.5-4.2-13-10.5 6.6.2 11 3.8 13 10.5z" fill="#fff"/><path d="M32 47.5c5.2-.2 8.6-3.2 9.8-7.8-5 .3-8.3 3-9.8 7.8z" fill="#fff" opacity=".85"/><path d="M19 17 L25.5 23 L32 13.5 L38.5 23 L45 17 C47.5 30 42.5 39 32 39 C21.5 39 16.5 30 19 17 Z" fill="url(#lkP)"/><path d="M32 13.5 L28.6 23.4 C29.8 30 31 34.5 32 39 C33 34.5 34.2 30 35.4 23.4 Z" fill="#fff" opacity=".22"/></svg></span>CRM của Huyền Trân</div>
       <div class="lock-hero-bottom">
         <div class="lock-quote" id="lockQuote"></div>
       </div>
@@ -2339,7 +2342,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
     </button>
     <div class="brand">
-      <img class="brand-mark" src="data:image/jpeg;base64,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" alt="Huyền Trân">
+      <svg class="brand-logo" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="sbA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DB386"/><stop offset=".55" stop-color="#21946C"/><stop offset="1" stop-color="#0F6B50"/></linearGradient><linearGradient id="sbP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7A8BE"/><stop offset="1" stop-color="#DC5F84"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#sbA)"/><path d="M32 38v15" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/><path d="M32 51c-7 0-11.5-4.2-13-10.5 6.6.2 11 3.8 13 10.5z" fill="#fff"/><path d="M32 47.5c5.2-.2 8.6-3.2 9.8-7.8-5 .3-8.3 3-9.8 7.8z" fill="#fff" opacity=".85"/><path d="M19 17 L25.5 23 L32 13.5 L38.5 23 L45 17 C47.5 30 42.5 39 32 39 C21.5 39 16.5 30 19 17 Z" fill="url(#sbP)"/><path d="M32 13.5 L28.6 23.4 C29.8 30 31 34.5 32 39 C33 34.5 34.2 30 35.4 23.4 Z" fill="#fff" opacity=".22"/></svg>
       <div class="brand-text">
         <div class="brand-title">CRM của Huyền Trân</div>
         <div class="brand-sub">Quản lý khách cưới</div>
@@ -2352,31 +2355,37 @@
       <select class="select-pill chon-kho" id="chonKho" onchange="window.__firebase.chuyenKho(this.value)"></select>
     </div>
     <nav class="nav">
-      <button class="nav-item active" id="navPipeline" onclick="setView('pipeline')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18M6 4v5.5a2 2 0 0 0 .59 1.41L11 15v5M18 4v5.5a2 2 0 0 1-.59 1.41L13 15"/></svg>
-        <span>Pipeline</span>
+      <button class="nav-item active" id="navHomNay" onclick="setView('homnay')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+        <span>Hôm nay</span>
+        <span class="nav-badge" id="navHomNayBadge" hidden>0</span>
+      </button>
+      <button class="nav-item" id="navPipeline" onclick="setView('pipeline')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v7M12 7v4M16 7v9"/></svg>
+        <span>Lead</span>
       </button>
       <button class="nav-item" id="navList" onclick="setView('list')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg>
         <span>Danh sách</span>
-      </button>
-      <button class="nav-item" id="navVenue" onclick="setView('venue')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
-        <span>Venue &amp; sản phẩm</span>
-      </button>
-      <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
-        <span>Dashboard</span>
       </button>
       <button class="nav-item" id="navConversations" onclick="setView('conversations')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Hội thoại</span>
         <span class="nav-badge" id="navConvBadge" hidden>0</span>
       </button>
+      <button class="nav-item" id="navDashboard" onclick="setView('dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M8 17V10M13 17V6M18 17v-4"/></svg>
+        <span>Báo cáo</span>
+      </button>
+      <button class="nav-item" id="navVenue" onclick="setView('venue')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>
+        <span>Venue</span>
+      </button>
+      <div class="nav-nhom" id="navNhomClaude" aria-hidden="true">Claude</div>
       <!-- Hàng chờ đề xuất của Claude (hồ sơ khách AI). Điện thoại: nằm trong tấm "Khác" -->
       <button class="nav-item" id="navDeXuat" onclick="moModalDeXuat()" hidden>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>
-        <span>Claude đề xuất</span>
+        <span>Đề xuất</span>
         <span class="nav-badge" id="navDeXuatBadge" hidden>0</span>
       </button>
       <!-- Chỉ hiện trên điện thoại: gom Nhắc nhở, giao diện, Claude, đăng xuất vào một tấm trượt -->
@@ -2426,7 +2435,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
       <span class="sidebar-logout-text">Đăng xuất</span>
     </button>
-
+    <div class="sidebar-user">
+      <img class="brand-mark" src="data:image/jpeg;base64,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" alt="Huyền Trân">
+      <div class="sidebar-user-text"><b>Huyền Trân</b><small>HayDay Wedding</small></div>
+    </div>
   </aside>
 
   <!-- ============ MAIN ============ -->
@@ -2442,13 +2454,17 @@
     </div>
     <header class="topbar">
       <div>
-        <div class="page-title" id="pageTitle">Pipeline</div>
-        <div class="page-title-sub" id="pageTitleSub">Theo dõi lead theo từng giai đoạn</div>
+        <div class="page-title" id="pageTitle">Hôm nay</div>
+        <div class="page-title-sub" id="pageTitleSub"></div>
+      </div>
+      <div class="seg seg-lead" role="tablist" aria-label="Kiểu xem lead">
+        <button type="button" role="tab" id="segBang" onclick="setView('pipeline')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 7v7M12 7v4M16 7v9"/></svg>Bảng</button>
+        <button type="button" role="tab" id="segDanhSach" onclick="setView('list')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Danh sách</button>
       </div>
 
       <div class="topbar-search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="searchInput" placeholder="Tìm theo tên khách..." oninput="onSearch(this.value)">
+        <input type="text" id="searchInput" placeholder="Tìm khách, số điện thoại…" oninput="onSearch(this.value)">
       </div>
 
       <select class="select-pill" id="filterPackage" onchange="onFilterPackage(this.value)">
@@ -2488,7 +2504,12 @@
     </div>
 
     <!-- ============ PIPELINE VIEW ============ -->
-    <section class="view active" id="viewPipeline">
+    <!-- ============ HÔM NAY VIEW (việc cần làm, xếp theo độ gấp) ============ -->
+    <section class="view active" id="viewHomNay">
+      <div class="hn-wrap" id="hnWrap"><div class="list-empty" style="padding:40px;">Đang tải dữ liệu…</div></div>
+    </section>
+
+    <section class="view" id="viewPipeline">
       <div class="board-wrap">
         <div class="pipeline-chips" id="pipelineChips" role="group" aria-label="Lọc nhanh"></div>
         <div class="board" id="board" aria-busy="true">
@@ -2528,6 +2549,7 @@
           <div class="conv-items" id="convItems"></div>
         </div>
         <div class="conv-chatcol" id="convChat"></div>
+        <aside class="conv-sidecol" id="convSide" aria-label="Thông tin lead của hội thoại"></aside>
       </div>
     </section>
 
@@ -3758,23 +3780,177 @@ function toggleSidebar(){
   document.body.classList.toggle('sidebar-collapsed');
 }
 const VIEWS = {
-  pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Pipeline',  sub:'Theo dõi lead theo từng giai đoạn' },
-  list:          { el:'viewList',          nav:'navList',          title:'Danh sách', sub:'Tất cả lead dạng bảng' },
-  venue:         { el:'viewVenue',         nav:'navVenue',         title:'Venue & sản phẩm', sub:'Số liệu link đã gửi, tra sản phẩm theo venue và tone màu' },
-  dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Dashboard', sub:'Báo cáo tổng quan theo tháng' },
-  conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tất cả hội thoại Zalo đã gắn lead' },
+  homnay:        { el:'viewHomNay',        nav:'navHomNay',        title:'Hôm nay',   sub:'' },
+  pipeline:      { el:'viewPipeline',      nav:'navPipeline',      title:'Lead',      sub:'' },
+  list:          { el:'viewList',          nav:'navPipeline',      title:'Lead',      sub:'' },
+  venue:         { el:'viewVenue',         nav:'navVenue',         title:'Venue',     sub:'Venue, sản phẩm theo tone và số liệu link đã gửi' },
+  dashboard:     { el:'viewDashboard',     nav:'navDashboard',     title:'Báo cáo',   sub:'' },
+  conversations: { el:'viewConversations', nav:'navConversations', title:'Hội thoại', sub:'Tin Zalo đồng bộ từ extension · chỉ xem' },
 };
 function setView(view){
-  if (!VIEWS[view]) view = 'pipeline';
+  if (!VIEWS[view]) view = 'homnay';
   if (view === 'conversations' && !khoCoNhom('zalo')) view = 'pipeline';
   document.body.dataset.view = view;   // CSS dựa vào đây để ẩn bộ lọc Pipeline ở tab Hội thoại
   Object.entries(VIEWS).forEach(([k, v]) => {
     document.getElementById(v.el).classList.toggle('active', k === view);
-    document.getElementById(v.nav).classList.toggle('active', k === view);
   });
+  // Bảng và Danh sách là hai kiểu xem của cùng mục "Lead"
+  new Set(Object.values(VIEWS).map(v => v.nav)).forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.toggle('active', id === VIEWS[view].nav);
+  });
+  document.getElementById('segBang').classList.toggle('on', view === 'pipeline');
+  document.getElementById('segDanhSach').classList.toggle('on', view === 'list');
   document.getElementById('pageTitle').textContent = VIEWS[view].title;
-  document.getElementById('pageTitleSub').textContent = VIEWS[view].sub;
+  document.getElementById('pageTitleSub').textContent = view === 'homnay' ? ngayHomNayDaiDong() : VIEWS[view].sub;
+  try { window.scrollTo(0, 0); } catch(e){}
   renderAll();
+}
+
+/* ======================= RENDER: HÔM NAY ======================= */
+// Mở app là thấy việc phải làm, xếp theo độ gấp: khách đang chờ trả lời Zalo, việc/hẹn trễ,
+// việc/hẹn hôm nay. Bên phải: đề xuất của Claude chờ duyệt và khách vừa mở link sản phẩm.
+function ngayHomNayDaiDong(){
+  const d = new Date();
+  const thu = ['Chủ nhật','Thứ hai','Thứ ba','Thứ tư','Thứ năm','Thứ sáu','Thứ bảy'][d.getDay()];
+  return `${thu}, ${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+// Kỳ "tháng" hiện tại (ngày 6 đến ngày 5 tháng sau), không phụ thuộc kỳ đang xem ở Báo cáo
+function kyThangNay(){
+  const h = todayISO();
+  let nam = Number(h.slice(0,4)), t = Number(h.slice(5,7));
+  if (Number(h.slice(8,10)) < NGAY_DAU_KY){ t -= 1; if (t < 1){ t = 12; nam -= 1; } }
+  const tu = ghepNgayISO(nam, t, NGAY_DAU_KY);
+  const nam2 = t === 12 ? nam + 1 : nam, t2 = t === 12 ? 1 : t + 1;
+  const den = congNgayISO(ghepNgayISO(nam2, t2, NGAY_DAU_KY), -1);
+  return { tu, den };
+}
+function tienGon(n){
+  n = Number(n) || 0;
+  if (Math.abs(n) >= 1e9) return (Math.round(n / 1e8) / 10).toString().replace('.', ',') + ' tỷ';
+  if (Math.abs(n) >= 1e6) return Math.round(n / 1e6) + 'tr';
+  return formatMoney(n);
+}
+function chuCaiTen(ten){
+  const w = String(ten || '').trim().split(/\s+/).filter(Boolean);
+  if (!w.length) return '?';
+  return (w.length > 1 ? w[0][0] + w[w.length - 1][0] : w[0].slice(0, 2)).toUpperCase();
+}
+function avatarHtml(lead, cls = ''){
+  const mau = ['a','b','c','d','e'][[...String(lead && lead.id || '')].reduce((s, c) => s + c.charCodeAt(0), 0) % 5];
+  return `<span class="av av-${mau} ${cls}" aria-hidden="true">${esc(chuCaiTen(lead && lead.name))}</span>`;
+}
+// Danh sách việc cần làm của màn Hôm nay. Mỗi dòng: lead + lý do + trạng thái.
+function viecHomNay(){
+  const mo = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const cho = [], tre = [], homNay = [];
+  const now = Date.now();
+  mo.forEach(l => {
+    if (window.ZaloMap && khoCoNhom('zalo')){
+      const metas = zaloConvsOf(l.id).map(c => zaloMeta[c.convId]).filter(Boolean);
+      const st = metas.length ? window.ZaloMap.waitingState(metas, now) : null;
+      if (st && st.type === 'waiting'){
+        const cuoi = Math.max(...metas.map(m => m.lastCustomerAt || 0));
+        cho.push({ lead: l, text: st.label.replace('Khách chờ trả lời · ', 'Khách nhắn ') + ' trước', at: cuoi });
+      }
+    }
+    (l.todos || []).forEach(t => {
+      if (t.done || !t.dueDate) return;
+      const d = daysDiff(t.dueDate);
+      const muc = { lead: l, text: t.text, todoId: t.id, han: d };
+      if (d < 0) tre.push(muc); else if (d === 0) homNay.push(muc);
+    });
+    // Hạn liên hệ của lead (khi không có việc nào cùng hạn thì vẫn phải nhắc)
+    if (l.deadline){
+      const d = daysDiff(l.deadline);
+      const coViec = (l.todos || []).some(t => !t.done && t.dueDate && daysDiff(t.dueDate) <= 0);
+      if (!coViec && d < 0) tre.push({ lead: l, text: 'Hạn liên hệ lại', han: d });
+      if (!coViec && d === 0) homNay.push({ lead: l, text: 'Hạn liên hệ lại', han: d });
+    }
+  });
+  cho.sort((a, b) => a.at - b.at);          // chờ lâu nhất lên trước
+  tre.sort((a, b) => a.han - b.han);         // trễ lâu nhất lên trước
+  return { cho, tre, homNay };
+}
+function hnDong(m, kieu){
+  const l = m.lead;
+  const st = STAGE_MAP[l.stage] ? STAGE_MAP[l.stage].name : '';
+  const nhan = kieu === 'tre' ? `<span class="pill pill-warn">Trễ ${Math.abs(m.han)} ngày</span>` : '';
+  const check = m.todoId && !window.__chiXem
+    ? `<button type="button" class="hn-check" title="Đánh dấu xong" aria-label="Đánh dấu xong: ${esc(m.text)}" onclick="event.stopPropagation(); toggleReminderItem('${l.id}', '${m.todoId}')"></button>`
+    : '<span class="hn-check-cho" aria-hidden="true"></span>';
+  return `<div class="hn-dong" role="button" tabindex="0" onclick="openLead('${l.id}')" onkeydown="if(event.key==='Enter') openLead('${l.id}')">
+    ${check}${avatarHtml(l)}
+    <div class="hn-dong-chu"><b>${esc(l.name)}</b><span>${esc(m.text)}</span></div>
+    ${nhan}<span class="pill">${esc(st)}</span>
+    <span class="hn-tien">${l.revenueExpected ? tienGon(l.revenueExpected) : ''}</span>
+  </div>`;
+}
+function renderHomNay(){
+  const wrap = document.getElementById('hnWrap');
+  if (!wrap) return;
+  const { cho, tre, homNay } = viecHomNay();
+  const tong = cho.length + tre.length + homNay.length;
+  const badge = document.getElementById('navHomNayBadge');
+  if (badge){ badge.textContent = tong; badge.hidden = !tong; }
+  if (document.body.dataset.view === 'homnay') document.getElementById('pageTitleSub').textContent = ngayHomNayDaiDong();
+  if (!cloudLoaded) return;
+
+  // Số liệu kỳ tháng hiện tại (6 -> 5)
+  const { tu, den } = kyThangNay();
+  const won = leads.filter(l => l.stage === 'won' && trongKhoang(l.wonAt, tu, den));
+  const moi = leads.filter(l => trongKhoang(l.createdAt, tu, den));
+  const dangCham = leads.filter(l => l.stage !== 'won' && l.stage !== 'lost');
+  const doanhThu = won.reduce((s, l) => s + (l.revenueActual || 0), 0);
+  const pct = Math.min(100, Math.round(doanhThu / (planRevenue || 1) * 100));
+  const cr = moi.length ? Math.round(won.length / moi.length * 100) : 0;
+  const ddmm = iso => `${iso.slice(8,10)}/${iso.slice(5,7)}`;
+  const gio = new Date().getHours();
+  const buoi = gio < 11 ? 'Chào buổi sáng' : gio < 14 ? 'Chào buổi trưa' : gio < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+
+  const nhom = (ten, mau, ds, kieu) => ds.length ? `<div class="hn-nhom"><h4><span class="dot ${mau}"></span>${ten}<span class="hn-dem">${ds.length}</span></h4>${ds.map(m => hnDong(m, kieu)).join('')}</div>` : '';
+  const viec = tong ? nhom('Khách đang chờ trả lời', 'do', cho, 'cho') + nhom('Trễ hẹn', 'vang', tre, 'tre') + nhom('Hạn hôm nay', 'xam', homNay, 'nay')
+    : `<div class="empty-state hn-trong"><div class="empty-title">Hôm nay không còn việc gấp 🌷</div><div class="empty-sub">Không có khách chờ trả lời, không có việc trễ hay đến hạn.</div></div>`;
+
+  // Đề xuất của Claude chờ duyệt, gom theo lead
+  let dx = '';
+  if (window.HoSoAI && aiDocDuoc && khoCoNhom('ai')){
+    const theoLead = leads.map(l => ({ l, ds: deXuatCuaLead(l.id) })).filter(x => x.ds.length);
+    const n = theoLead.reduce((s, x) => s + x.ds.length, 0);
+    dx = `<div class="card-moi hn-dx"><div class="card-moi-h"><h3>Claude đề xuất</h3>${n ? `<span class="pill pill-xanh">${n} chờ duyệt</span>` : ''}${n > 4 ? '<button type="button" class="link-nut" onclick="moModalDeXuat()">Tất cả</button>' : ''}</div>
+      ${n ? theoLead.slice(0, 3).map(x => `<div class="hn-dx-lead"><div class="hn-dx-ten" role="button" tabindex="0" onclick="openLead('${x.l.id}')">${avatarHtml(x.l, 'nho')}<b>${esc(x.l.name)}</b></div>${x.ds.map(p => HoSoAI.veTheDeXuat(p, x.l)).join('')}</div>`).join('')
+        : '<div class="hn-rong">Không có đề xuất nào đang chờ.</div>'}</div>`;
+  }
+  // Khách vừa mở link sản phẩm
+  let lk = '';
+  if (window.LinkGui){
+    const ds = LinkGui.hoatDongGanDay(linkGuiData || {}, 5).filter(x => leads.some(l => l.id === x.leadId));
+    lk = `<div class="card-moi hn-link"><div class="card-moi-h"><h3>Khách vừa mở link</h3><button type="button" class="link-nut" onclick="venueTab='langui'; setView('venue')">Tất cả</button></div>
+      ${ds.length ? ds.map(x => { const l = leads.find(y => y.id === x.leadId); return `<div class="hn-lk" role="button" tabindex="0" onclick="openLead('${l.id}')">${avatarHtml(l, 'nho')}<div class="hn-dong-chu"><b>${esc(l.name)}</b><span>${esc(x.tenSp || '')}</span></div><div class="hn-lk-so"><b>${x.soLanMo} lần</b><span>${esc(thoiGianTruocNgan(x.lanCuoi))}</span></div></div>`; }).join('')
+        : '<div class="hn-rong">Chưa có khách nào mở link gần đây.</div>'}</div>`;
+  }
+
+  wrap.innerHTML = `
+  <div class="hn-trai">
+    <div class="hn-hoa" aria-hidden="true"><span>Mùa cưới · ${dangCham.length} cặp đôi đang chờ em</span></div>
+    <div class="hn-chao"><h2>${buoi}, Trân</h2><p>${tong ? `${tong} việc cần làm${cho.length ? ` · ${cho.length} khách đang chờ em trả lời` : ''}` : 'Không còn việc gấp hôm nay'}</p></div>
+    <div class="hn-so">
+      <button type="button" class="card-moi hn-so-o rong" onclick="setView('dashboard')"><span class="l">Doanh thu kỳ ${ddmm(tu)} – ${ddmm(den)}</span><span class="v">${tienGon(doanhThu)} <small>/ ${tienGon(planRevenue)}</small></span><span class="bar"><i style="width:${pct}%"></i></span></button>
+      <button type="button" class="card-moi hn-so-o" onclick="setView('list')"><span class="l">Lead mới trong kỳ</span><span class="v">${moi.length}</span><span class="d">kế hoạch ${planLeads || 0}</span></button>
+      <button type="button" class="card-moi hn-so-o" onclick="setView('pipeline')"><span class="l">Đang chăm sóc</span><span class="v">${tienGon(dangCham.reduce((s, l) => s + (l.revenueExpected || 0), 0))}</span><span class="d">${dangCham.length} lead</span></button>
+      <button type="button" class="card-moi hn-so-o" onclick="setView('dashboard')"><span class="l">Tỉ lệ chốt trong kỳ</span><span class="v">${cr}%</span><span class="d">${won.length} won / ${moi.length} lead mới</span></button>
+    </div>
+    <div class="card-moi hn-viec"><div class="card-moi-h"><h3>Cần làm</h3><span class="muted">${tong} việc</span><button type="button" class="link-nut" onclick="openRemindersModal()">Lịch 7 ngày tới</button></div>${viec}</div>
+  </div>
+  <div class="hn-phai">${dx}${lk}</div>`;
+}
+function thoiGianTruocNgan(ms){
+  if (!ms) return '';
+  const phut = Math.max(0, Math.round((Date.now() - ms) / 60000));
+  if (phut < 60) return `${Math.max(1, phut)} phút trước`;
+  const g = Math.round(phut / 60);
+  if (g < 24) return `${g} giờ trước`;
+  return `${Math.round(g / 24)} ngày trước`;
 }
 
 /* ======================= RENDER: VENUE ======================= */
@@ -3782,7 +3958,7 @@ function setView(view){
 // <kho>/toneMau. KHÁC lead: app ghi venue NGAY khi bấm, theo đường dẫn nhỏ nhất (venues/<id>/sanPham/<spId>),
 // không đi qua diff tinhThayDoiCucBo — để không đè sản phẩm Claude vừa thêm vào cùng venue.
 let venues = {}, toneMau = {};
-let venueTab = 'thongke';    // 'thongke' = thống kê link gửi, 'sp' = bảng sản phẩm
+let venueTab = 'venue';      // 'venue' = thẻ venue, 'thongke' = thống kê link gửi, 'sp' = bảng sản phẩm, 'langui' = lần gửi
 let venueLocMo = false, venueLocTim = '';   // hộp lọc venue đang mở + chữ đang gõ trong hộp
 let venueDangChon = '';      // lọc sản phẩm theo venue ('' = tất cả)
 let venueTim = '', venueTone = '';   // venueTone: id một tone ('' = tất cả)
@@ -3838,11 +4014,31 @@ function renderVenue(){
   const dangGo = ['vnTim', 'vnLocTim'].find(id => document.activeElement && document.activeElement.id === id);
 
   const tab = (ma, ten) => `<button type="button" role="tab" class="vn-tab ${venueTab === ma ? 'on' : ''}" aria-selected="${venueTab === ma}" onclick="doiTabVenue('${ma}')">${ten}</button>`;
-  const tabs = `<div class="vn-tabs" role="tablist">${tab('thongke', 'Thống kê')}${tab('sp', 'Sản phẩm')}${tab('langui', 'Lần gửi')}</div>`;
+  const tabs = `<div class="vn-tabs" role="tablist">${tab('venue', 'Venue')}${tab('sp', 'Sản phẩm')}${tab('thongke', 'Thống kê')}${tab('langui', 'Lần gửi')}</div>`;
 
   let toolbar, than;
   const tenKhach = id => (leads.find(l => l.id === id) || {}).name || '';
-  if (venueTab === 'thongke'){
+  if (venueTab === 'venue'){
+    // Thẻ venue: màu nền lấy từ các tone của sản phẩm, bấm thẻ -> bảng sản phẩm của venue đó
+    const theoId = Object.fromEntries(tones.map(t => [t.id, t]));
+    const q = (venueTim || '').trim().toLowerCase();
+    const dsLoc = ds.filter(v => !q || String(v.ten || '').toLowerCase().includes(q));
+    toolbar = `<div class="vn-hang">${tabs}
+        <input class="field-input vn-tim" id="vnTim" type="search" value="${esc(venueTim)}" placeholder="Tìm venue…" aria-label="Tìm venue" oninput="venueTim=this.value; renderVenue()">
+        <span class="vn-dem">${ds.length} venue · ${tongSp} sản phẩm</span>
+        <span class="vn-cach"></span>${chiXem ? '' : '<button type="button" class="btn btn-ghost" onclick="moGoiYVenue()">Gợi ý từ lead</button><button type="button" class="btn btn-primary" onclick="moThemVenue()">+ Thêm venue</button>'}</div>`;
+    than = dsLoc.length ? `<div class="vn-the-luoi">${dsLoc.map(v => {
+      const toneIds = [...new Set(Object.values(v.sanPham || {}).flatMap(sp => Array.isArray(sp.tone) ? sp.tone : []))];
+      const mau = toneIds.map(id => theoId[id]).filter(Boolean).map(t => V.mauAnToan(t.mau));
+      const nen = mau.length >= 2 ? `linear-gradient(135deg, ${mau[0]}, ${mau[1]})` : mau.length ? `linear-gradient(135deg, ${mau[0]}, var(--surface))` : 'var(--grad-nhat)';
+      const idOk = Venue.ID_HOP_LE.test(v.id);
+      return `<button type="button" class="vn-the" ${idOk ? `onclick="venueDangChon='${v.id}'; doiTabVenue('sp')"` : 'disabled'} aria-label="Xem sản phẩm của ${esc(v.ten)}">
+        <span class="vn-the-anh" style="background:${nen}"><span class="vn-the-tone">${mau.slice(0, 5).map(m => `<i style="background:${m}"></i>`).join('')}</span></span>
+        <span class="vn-the-than"><b>${esc(v.ten)}</b>
+          <span class="vn-the-so"><span>${soSp(v)} sản phẩm</span><span>${soLead[v.id] || 0} lead</span></span></span>
+      </button>`; }).join('')}</div>`
+      : `<div class="empty-state"><div class="empty-title">${ds.length ? 'Không có venue nào khớp' : 'Chưa có venue nào'}</div>${chiXem || ds.length ? '' : '<button type="button" class="btn btn-primary" onclick="moThemVenue()">+ Thêm venue</button>'}</div>`;
+  } else if (venueTab === 'thongke'){
     toolbar = `<div class="vn-hang">${tabs}</div>`;
     than = LinkGui.veThongKe({ linkGui: linkGuiData, linkGuiNgay, homNay: todayISO(), tenKhach, chiXem });
   } else if (venueTab === 'langui'){
@@ -3965,6 +4161,7 @@ function initLinkGui(){
   f.onValue(f.refAt(f.aiBase() + '/linkGui'), s => {
     linkGuiData = s.val() || {};
     if (!uiIsBusy()) renderVenue();
+    try { renderHomNay(); } catch(e){ console.error('renderHomNay', e); }
     const khoi = document.getElementById('lgKhoiDaGui');
     if (khoi) khoi.innerHTML = LinkGui.veKhoiDaGui(LinkGui.dsTheoLead(linkGuiData, khoi.dataset.lead));
   }, e => { console.warn('Không đọc được số liệu link:', e); linkGuiData = {}; });
@@ -4816,42 +5013,54 @@ function xoaBoLocPipeline(){
   renderPipeline();
 }
 
+// Một nhãn trạng thái quan trọng nhất cho thẻ lead:
+// khách chờ trả lời Zalo > trễ hẹn > hẹn hôm nay > khách im lâu > còn N ngày / chưa hẹn.
+function nhanTheLead(lead){
+  const st = leadStatus(lead);
+  if (st.type === 'won') return { cls:'st-won', icon:'check', label:'Đã chốt' };
+  if (st.type === 'lost') return { cls:'st-lost', icon:'x', label:'Đã đóng' };
+  let z = null;
+  if (window.ZaloMap && khoCoNhom('zalo')){
+    const metas = zaloConvsOf(lead.id).map(c => zaloMeta[c.convId]).filter(Boolean);
+    if (metas.length) z = window.ZaloMap.waitingState(metas, Date.now());
+  }
+  if (z && z.type === 'waiting') return { cls:'st-cho', icon:'chat', label:z.label.replace('Khách chờ trả lời', 'Chờ trả lời') };
+  if (st.type === 'red') return { cls:'st-tre', icon:'alert', label:st.label };
+  if (st.type === 'green') return { cls:'st-nay', icon:'cal', label:'Hẹn hôm nay' };
+  if (z && z.type === 'silent') return { cls:'st-im', icon:'chat', label:z.label };
+  return { cls:'st-xa', icon:'cal', label:st.label };
+}
+const ICON_NHAN = {
+  check:'<path d="M20 6 9 17l-5-5"/>', x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+  alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+};
+const iconNhan = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON_NHAN[k]}</svg>`;
+const NGON_LUA = '<svg class="card-lua" viewBox="0 0 24 24" fill="currentColor" aria-label="Tiềm năng"><path d="M12 22c4 0 7-2.7 7-7 0-4-3-6.5-4-9-1 2-2 3-3.5 3.5C11 7 10 4.5 10 2 7 4 5 8 5 15c0 4.3 3 7 7 7z"/></svg>';
+function ngayNgan(iso){
+  if (!iso) return 'chưa có ngày cưới';
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : iso;
+}
 function cardHtml(lead){
   const status = leadStatus(lead);
-  const pkg = PACKAGE_STYLE[lead.package] || PACKAGE_STYLE['Standard'];
-  const lt = LEAD_TYPE_STYLE[leadTypeOf(lead)] || LEAD_TYPE_STYLE['Lead công ty'];
-  const todoCount = lead.todos && lead.todos.length ? `<span class="card-todo">✓ ${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '<span></span>';
-  const tag = (lead.tags && lead.tags[0]) ? `<span class="card-tag">🔥 ${esc(lead.tags[0])}</span>` : '';
+  const nhan = nhanTheLead(lead);
+  const viec = lead.todos && lead.todos.length ? `<span class="card-todo">${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '';
+  const tiemNang = (lead.tags || []).includes('Tiềm năng');
+  const tien = lead.stage === 'won' ? lead.revenueActual : lead.revenueExpected;
   return `
-    <div class="card status-${status.type}" draggable="${window.__chiXem ? 'false' : 'true'}" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')">
+    <div class="card card-gon status-${status.type}" draggable="${window.__chiXem ? 'false' : 'true'}" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')" title="${esc(leadTypeOf(lead))}">
       <div class="card-top">
-        <span class="card-dot"></span>
+        ${tiemNang ? NGON_LUA : ''}
         <div class="card-name">${esc(lead.name)}</div>
-        <div class="card-top-right">
-          ${tag}
-          ${deXuatCuaLead(lead.id).length ? '<span class="card-dx" title="Có đề xuất của Claude chờ duyệt">✦</span>' : ''}
-          <button class="card-move-btn" onclick="event.stopPropagation(); openQuickMove('${lead.id}')" title="Chuyển giai đoạn nhanh">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>
-          </button>
-        </div>
+        ${deXuatCuaLead(lead.id).length ? '<span class="card-dx" title="Có đề xuất của Claude chờ duyệt">✦</span>' : ''}
+        <button class="card-move-btn" onclick="event.stopPropagation(); openQuickMove('${lead.id}')" title="Chuyển giai đoạn nhanh" aria-label="Chuyển giai đoạn nhanh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="19" r="1.4"/></svg>
+        </button>
       </div>
-      <div class="card-date">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        ${formatDate(lead.weddingDate)}
-      </div>
-      <div class="card-badges">
-        <span class="badge-pkg" style="background:${pkg.bg}; color:${pkg.fg}">${esc(lead.package)}</span>
-        <span class="badge-pkg badge-leadtype" style="background:${lt.bg}; color:${lt.fg}">${esc(leadTypeOf(lead))}</span>
-      </div>
-      <div class="card-revenue">${formatMoney(lead.stage==='won' ? lead.revenueActual : lead.revenueExpected)}</div>
-      ${zaloChipHtml(lead)}
-      <div class="card-footer">
-        <div class="status-indicator">
-          <span class="status-circle ${status.type}">${statusIconSvg(status.type)}</span>
-          <span class="status-text ${status.type}">${status.label}</span>
-        </div>
-        ${todoCount}
-      </div>
+      <div class="card-meta"><span>${esc(lead.package || '')} · ${esc(ngayNgan(lead.weddingDate))}</span><span class="card-tien">${tien ? tienGon(tien) : '—'}</span></div>
+      <div class="card-foot"><span class="state-pill ${nhan.cls}">${iconNhan(nhan.icon)}${esc(nhan.label)}</span>${viec}</div>
     </div>
   `;
 }
@@ -5096,14 +5305,47 @@ function openLead(id){
   document.getElementById('drawerBody').innerHTML = `
     <div class="detail-grid">
       <div class="detail-tabs" role="tablist" aria-label="Phần của chi tiết lead">
-        <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')">Việc<span class="tab-dai"> &amp; ghi chú</span></button>
-        <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại</button>
+        <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')"><span class="tab-dai">Dòng thời gian</span><span class="tab-ngan">Việc &amp; Zalo</span></button>
+        <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại<span class="tab-dai">&nbsp;Zalo</span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ<span class="tab-dai"> AI</span><span class="tab-dem" id="tabDxDem"></span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="baogia" onclick="chonTabChiTiet('baogia')">Báo giá<span class="tab-dai"> &amp; sản phẩm</span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
       </div>
 
       <div class="detail-col detail-col-info">
+        <div class="detail-block block-todo" data-tab-of="viec">
+          <div class="block-head"><h3 class="block-title">Việc cần làm <span class="block-meta" id="drawerTodoMeta"></span></h3></div>
+          <div id="drawerTodos"></div>
+          <div class="add-todo-row">
+            <input class="field-input" id="newTodoInput" placeholder="Thêm việc cần làm..." onkeydown="if(event.key==='Enter') addTodo('${id}')">
+            <input type="date" class="todo-due" id="newTodoDue" title="Hạn riêng của việc này (bỏ trống = lấy theo hạn lead)">
+            <button class="btn btn-secondary" onclick="addTodo('${id}')">Thêm</button>
+          </div>
+        </div>
+
+        ${khoiHan}
+
+        <div class="detail-block block-package">
+          <div class="block-head"><h3 class="block-title">Gói &amp; doanh thu</h3></div>
+          <div class="field-group o-nua">
+            <label class="field-label">Loại lead</label>
+            <select class="field-input" onchange="onFieldChange('${id}','leadType', this.value)">${leadTypeOptions}</select>
+          </div>
+          <div class="field-group o-nua">
+            <label class="field-label">Gói dịch vụ</label>
+            <select class="field-input" onchange="onFieldChange('${id}','package', this.value)">${pkgOptions}</select>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Doanh thu dự kiến</label>
+            <input class="field-input" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" placeholder="0" oninput="formatMoneyInput(this); onFieldChange('${id}','revenueExpected', moneyInputValue(this))">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Tháng chốt dự kiến</label>
+            <input class="field-input" type="month" value="${lead.expectedCloseMonth||''}" oninput="onFieldChange('${id}','expectedCloseMonth', this.value)">
+          </div>
+          ${extra}
+        </div>
+
         <div class="detail-block block-customer">
           <div class="block-head">
             <h3 class="block-title">Thông tin khách</h3>
@@ -5131,27 +5373,6 @@ function openLead(id){
           </div>
         </div>
 
-        <div class="detail-block block-package">
-          <div class="block-head"><h3 class="block-title">Gói &amp; doanh thu</h3></div>
-          <div class="field-group o-nua">
-            <label class="field-label">Loại lead</label>
-            <select class="field-input" onchange="onFieldChange('${id}','leadType', this.value)">${leadTypeOptions}</select>
-          </div>
-          <div class="field-group o-nua">
-            <label class="field-label">Gói dịch vụ</label>
-            <select class="field-input" onchange="onFieldChange('${id}','package', this.value)">${pkgOptions}</select>
-          </div>
-          <div class="field-group">
-            <label class="field-label">Doanh thu dự kiến</label>
-            <input class="field-input" type="text" inputmode="numeric" value="${moneyDisplay(lead.revenueExpected)}" placeholder="0" oninput="formatMoneyInput(this); onFieldChange('${id}','revenueExpected', moneyInputValue(this))">
-          </div>
-          <div class="field-group">
-            <label class="field-label">Tháng chốt dự kiến</label>
-            <input class="field-input" type="month" value="${lead.expectedCloseMonth||''}" oninput="onFieldChange('${id}','expectedCloseMonth', this.value)">
-          </div>
-          ${extra}
-        </div>
-
         <div class="detail-block block-boi-canh">
           <div class="block-head"><h3 class="block-title">Lịch trình &amp; chân dung</h3></div>
           <div class="field-group">
@@ -5172,35 +5393,14 @@ function openLead(id){
       </div>
 
       <div class="detail-col detail-col-main">
-        ${khoiHan}
-
-        <div class="detail-block block-todo" data-tab-of="viec">
-          <div class="block-head"><h3 class="block-title">Việc cần làm <span class="block-meta" id="drawerTodoMeta"></span></h3></div>
-          <div id="drawerTodos"></div>
-          <div class="add-todo-row">
-            <input class="field-input" id="newTodoInput" placeholder="Thêm việc cần làm..." onkeydown="if(event.key==='Enter') addTodo('${id}')">
-            <input type="date" class="todo-due" id="newTodoDue" title="Hạn riêng của việc này (bỏ trống = lấy theo hạn lead)">
-            <button class="btn btn-secondary" onclick="addTodo('${id}')">Thêm</button>
-          </div>
+        <div class="detail-block block-dong-thoi-gian" data-tab-of="viec">
+          <div id="notesStreamBox">${renderDongThoiGian(lead)}</div>
         </div>
-
         <div class="detail-block block-notes" data-tab-of="viec">
-          <div class="block-head"><h3 class="block-title">Ghi chú</h3></div>
-          <textarea class="field-input" id="noteInput" style="min-height:64px" placeholder="Viết ghi chú mới... (Ctrl+Enter để lưu)" onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey)) saveNote('${id}')"></textarea>
+                    <textarea class="field-input" id="noteInput" style="min-height:44px" placeholder="Ghi chú nội bộ, khách không thấy… (Ctrl+Enter để lưu)" aria-label="Ghi chú mới" onkeydown="if(event.key==='Enter' && (event.ctrlKey || event.metaKey)) saveNote('${id}')"></textarea>
           <div class="note-actions">
             <button class="btn btn-secondary" id="noteCancelBtn" style="display:none" onclick="cancelNoteEdit('${id}')">Hủy</button>
             <button class="btn btn-primary" id="noteSaveBtn" onclick="saveNote('${id}')">Lưu ghi chú</button>
-          </div>
-          <div id="notesStreamBox">${renderNotesStream(lead)}</div>
-        </div>
-
-        <div class="detail-block block-log collapsed" data-tab-of="viec">
-          <div class="block-head">
-            <h3 class="block-title">Log hoạt động <span class="block-meta">· ${(lead.activityLog || []).length} mục</span></h3>
-            <button type="button" class="block-collapse" aria-expanded="false" onclick="toggleKhoiChiTiet(this)">Mở ▾</button>
-          </div>
-          <div class="block-content">
-          <div id="activityLogBox">${renderActivityLog(lead)}</div>
           </div>
         </div>
 
@@ -5240,6 +5440,7 @@ function openLead(id){
   khoaONhapChiXem(document.getElementById('drawerBody'));
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('open');
+  requestAnimationFrame(cuonDongThoiGianXuong);
 }
 
 // Chip trạng thái ngay dưới tên khách: Tiềm năng, hạn liên hệ, khách chờ trả lời Zalo
@@ -5255,7 +5456,7 @@ function veChipDauChiTiet(lead){
 
 /* Tab đổi cột giữa. Thông tin (từ 761px) và Hội thoại (từ 1280px) đã là cột luôn thấy nên không có tab. */
 let tabChiTiet = 'viec';
-const COT_THONG_TIN = matchMedia('(min-width:761px)'), COT_HOI_THOAI = matchMedia('(min-width:1280px)');
+const COT_THONG_TIN = matchMedia('(min-width:761px)'), COT_HOI_THOAI = { matches:false, addEventListener(){} };
 [COT_THONG_TIN, COT_HOI_THOAI].forEach(m => m.addEventListener('change', () => chonTabChiTiet(tabChiTiet)));
 function chonTabChiTiet(tab){
   if ((tab === 'thongtin' && COT_THONG_TIN.matches) || (tab === 'hoithoai' && COT_HOI_THOAI.matches)) tab = 'viec';
@@ -5353,6 +5554,113 @@ function changeStageFromDrawer(id, newStage){
 function refreshActivityLogBox(lead){
   const box = document.getElementById('activityLogBox');
   if (box) box.innerHTML = renderActivityLog(lead);
+  refreshNotesStreamBox(lead);
+}
+
+/* ======================= DÒNG THỜI GIAN (chi tiết lead) =======================
+   Gộp theo thời gian: tin Zalo (gom thành từng lượt, CHỈ XEM), ghi chú (sửa/xoá được), báo giá,
+   link sản phẩm đã gửi, log hoạt động. Cũ ở trên, mới ở dưới; ô ghi chú nằm cuối. */
+const ZALO_TOI_DA_DONG_THOI_GIAN = 60;   // chỉ hiện 60 tin gần nhất, đủ xem nhanh; xem hết ở tab Hội thoại Zalo
+function thoiDiemCua(v){
+  if (typeof v === 'number') return v;
+  if (!v) return 0;
+  const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/.exec(String(v));
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime();
+  const t = Date.parse(v);
+  return isFinite(t) ? t : 0;
+}
+function ngayDongThoiGian(ms){
+  const d = new Date(ms), h = new Date();
+  const dd = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  if (d.toDateString() === h.toDateString()) return 'Hôm nay · ' + dd;
+  const q = new Date(h); q.setDate(h.getDate() - 1);
+  if (d.toDateString() === q.toDateString()) return 'Hôm qua · ' + dd;
+  return d.toLocaleDateString('vi-VN', { weekday:'long' }) + ' · ' + dd + (d.getFullYear() !== h.getFullYear() ? '/' + d.getFullYear() : '');
+}
+const gioPhut = ms => new Date(ms).toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
+function renderDongThoiGian(lead){
+  const muc = [];
+  (lead.notesList || []).forEach(n => muc.push({ loai:'note', at: thoiDiemCua(n.createdAt), n }));
+  (lead.activityLog || []).forEach(e => muc.push({ loai:'log', at: thoiDiemCua(e.time), e }));
+  if (window.BaoGia) BaoGia.dsBaoGia(lead).forEach(b => muc.push({ loai:'baogia', at: thoiDiemCua(b.taoLuc), b }));
+  if (window.LinkGui) LinkGui.dsTheoLead(linkGuiData || {}, lead.id).forEach(x => muc.push({ loai:'link', at: x.guiLuc || 0, x }));
+  // Tin Zalo của mọi hội thoại đã gắn, gom các tin liền nhau cùng hội thoại thành một khối
+  let zalo = [];
+  if (khoCoNhom('zalo')){
+    Object.entries(zaloMsgs || {}).forEach(([convId, ds]) => { if (Array.isArray(ds)) ds.forEach(m => zalo.push({ ...m, convId })); });
+    zalo.sort((a, b) => (a.at || 0) - (b.at || 0));
+    zalo = zalo.slice(-ZALO_TOI_DA_DONG_THOI_GIAN);
+    zalo.forEach(m => muc.push({ loai:'zalo', at: m.at || 0, m }));
+  }
+  if (!muc.length) return '<div class="list-empty tl-trong">Chưa có gì ở đây. Ghi chú đầu tiên, tin Zalo, báo giá… sẽ hiện theo thời gian.</div>';
+  muc.sort((a, b) => a.at - b.at);
+  const nhieuHoiThoai = zaloConvsOf(lead.id).length > 1;
+  const metas = zaloConvsOf(lead.id).map(c => zaloMeta[c.convId]).filter(Boolean);
+  const choTraLoi = window.ZaloMap && metas.length ? window.ZaloMap.waitingState(metas, Date.now()) : null;
+  const hienThi = m => window.ZaloMap ? window.ZaloMap.hienThiTin(m) : { chip:null, text: typeof m.text === 'string' ? m.text : '' };
+  let html = '', ngayTruoc = '', khoi = null;
+  const dongKhoi = () => {
+    if (!khoi) return;
+    const cuoi = khoi === zaloCuoi;
+    const dangCho = cuoi && choTraLoi && choTraLoi.type === 'waiting';
+    const tenHt = nhieuHoiThoai ? ` · ${esc((zaloLinks[khoi.convId] || {}).name || '')}` : '';
+    html += `<div class="tl-zalo">
+      <div class="tl-zalo-h">${ICON_ZALO_NHO}Zalo${tenHt} · ${khoi.ds.length} tin${dangCho ? `<span class="state-pill st-cho">${esc(choTraLoi.label.replace('Khách chờ trả lời · ', 'Khách chờ '))}</span>` : ''}
+        <button type="button" class="link-nut" onclick="chonTabChiTiet('hoithoai')">Xem cả hội thoại</button></div>
+      ${khoi.ds.map(m => { const h = hienThi(m); const chu = h.thieu ? '<span class="zalo-missing">Chưa có nội dung — mở trên Zalo web</span>' : (h.chip ? `<span class="zalo-att">${esc(h.chip)}</span> ` : '') + linkify(esc(h.text || ''));
+        return `<div class="tl-zm ${m.fromMe ? 'em' : 'kh'}"><span class="tl-zm-w"><b>${m.fromMe ? 'Em' : 'Khách'}</b>${gioPhut(m.at)}</span><span class="tl-zm-t">${chu}</span></div>`; }).join('')}
+    </div>`;
+    khoi = null;
+  };
+  const zaloCuoiMuc = [...muc].reverse().find(x => x.loai === 'zalo');
+  let zaloCuoi = null;
+  muc.forEach((x, i) => {
+    const ngay = x.at ? ngayDongThoiGian(x.at) : 'Không rõ ngày';
+    if (ngay !== ngayTruoc){ dongKhoi(); html += `<div class="tl-ngay">${esc(ngay)}</div>`; ngayTruoc = ngay; }
+    if (x.loai === 'zalo'){
+      if (!khoi || khoi.convId !== x.m.convId){ dongKhoi(); khoi = { convId: x.m.convId, ds: [] }; }
+      khoi.ds.push(x.m);
+      if (x === zaloCuoiMuc) zaloCuoi = khoi;
+      return;
+    }
+    dongKhoi();
+    if (x.loai === 'note'){
+      const n = x.n;
+      html += `<div class="tl-su note-item ${editingNoteId===n.id ? 'editing' : ''}">
+        <span class="tl-ic tl-ic-note" aria-hidden="true">${ICON_GHI_CHU}</span>
+        <div class="tl-noi"><div class="tl-dau"><b>Ghi chú</b><span class="tl-gio">${esc(n.updatedAt || '')}${n.updatedAt !== n.createdAt ? ' (đã sửa)' : ''}</span>
+          <span class="note-item-actions">
+            <button class="icon-btn-mini" onclick="editNote('${lead.id}','${n.id}')" title="Sửa ghi chú" aria-label="Sửa ghi chú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            <button class="icon-btn-mini" onclick="removeNote('${lead.id}','${n.id}')" title="Xóa ghi chú" aria-label="Xóa ghi chú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </span></div>
+          <div class="note-item-text">${linkify(esc(n.text))}</div></div></div>`;
+    } else if (x.loai === 'baogia'){
+      const b = x.b;
+      const tong = b.tongSauUuDai ? formatMoney(b.tongSauUuDai) : (Array.isArray(b.phuongAn) ? b.phuongAn.length + ' phương án' : '');
+      html += `<div class="tl-su tl-su-bg"><span class="tl-ic tl-ic-bg" aria-hidden="true">${ICON_GHI_CHU}</span>
+        <div class="tl-noi"><div class="tl-dau"><b>Báo giá${b.tieuDe ? ' · ' + esc(b.tieuDe) : ''}</b><span class="tl-gio">${x.at ? gioPhut(x.at) : ''}</span></div>
+        <div class="tl-phu">${esc(tong)}${b.hanUuDai ? ' · ưu đãi đến ' + esc(formatDate(b.hanUuDai)) : ''}</div></div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="chonTabChiTiet('baogia')">Mở</button></div>`;
+    } else if (x.loai === 'link'){
+      const l = x.x;
+      html += `<div class="tl-su tl-su-nho"><span class="tl-ic tl-ic-link" aria-hidden="true">${ICON_LINK_NHO}</span>
+        <div class="tl-noi"><div class="tl-dau"><b>Đã gửi link: ${esc(l.tenSp || '')}</b><span class="tl-gio">${x.at ? gioPhut(x.at) : ''}</span></div>
+        <div class="tl-phu">${l.soLanMo ? `Khách đã mở ${l.soLanMo} lần` : 'Khách chưa mở'}</div></div></div>`;
+    } else {
+      html += `<div class="tl-log"><span class="tl-log-cham" aria-hidden="true"></span>${esc(x.e.text)}<span class="tl-gio">${x.e.isNow === false ? '' : esc(String(x.e.time || '').split(', ')[1] || '')}</span></div>`;
+    }
+  });
+  dongKhoi();
+  if (zalo.length >= ZALO_TOI_DA_DONG_THOI_GIAN) html = `<div class="tl-ghi-chu">Đang hiện ${ZALO_TOI_DA_DONG_THOI_GIAN} tin Zalo gần nhất · <button type="button" class="link-nut" onclick="chonTabChiTiet('hoithoai')">xem toàn bộ</button></div>` + html;
+  return `<div class="tl-ds">${html}</div>`;
+}
+const ICON_ZALO_NHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
+const ICON_GHI_CHU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>';
+const ICON_LINK_NHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
+// Cuộn dòng thời gian xuống tin mới nhất (gọi sau khi mở lead / vẽ lại)
+function cuonDongThoiGianXuong(){
+  const col = document.querySelector('#drawerBody .detail-col-main');
+  if (col && document.getElementById('drawerBody').dataset.tab === 'viec') col.scrollTop = col.scrollHeight;
 }
 
 /* ======================= NOTE STREAM (ghi chú nhiều dòng, sửa được từng cái) ======================= */
@@ -5379,7 +5687,13 @@ function renderNotesStream(lead){
 
 function refreshNotesStreamBox(lead){
   const box = document.getElementById('notesStreamBox');
-  if (box) box.innerHTML = renderNotesStream(lead);
+  if (!box) return;
+  // Đang ở gần cuối (hoặc mới mở) thì giữ ở cuối để thấy tin/ghi chú mới; đang kéo lên đọc thì không giật
+  const col = box.closest('.detail-col-main');
+  const oCuoi = !col || col.scrollHeight - col.scrollTop - col.clientHeight < 160 || !box.dataset.daVe;
+  box.innerHTML = renderDongThoiGian(lead);
+  box.dataset.daVe = '1';
+  if (oCuoi && !editingNoteId) cuonDongThoiGianXuong();
 }
 
 function resetNoteInputUI(){
@@ -5729,6 +6043,7 @@ function veLaiPhanDeXuat(ep){
   const ov = document.getElementById('deXuatOverlay');
   if (ov && ov.classList.contains('show')) veModalDeXuat(ep);
   if (typeof veKhoiHoSo === 'function' && currentLeadId) veKhoiHoSo(currentLeadId, ep);
+  try { renderHomNay(); } catch(e){ console.error('renderHomNay', e); }
 }
 
 
@@ -5892,6 +6207,7 @@ function openZaloChat(leadId){
     const un = f.onValue(q, s => {
       zaloMsgs[c.convId] = Object.entries(s.val() || {}).map(([id, m]) => ({ id, ...m })).sort((a, b) => (a.at || 0) - (b.at || 0));
       if (currentLeadId === leadId) renderZaloList();
+      if (currentLeadId === leadId){ const ld = leads.find(l => l.id === leadId); if (ld) refreshNotesStreamBox(ld); }
       if (currentLeadId === leadId && typeof veKhoiHoSo === 'function') veKhoiHoSo(leadId);
     }, e => {
       console.warn('Không tải được hội thoại Zalo:', e);
@@ -6031,6 +6347,7 @@ function renderConversations(){
           <span class="conv-item-chips">
             ${x.state ? `<span class="zalo-chip ${x.state.type}">${esc(x.state.label)}</span>` : (x.lastAt && !daDong(x) ? '<span class="state-chip st-ok">Đã trả lời</span>' : '')}
             <span class="conv-lead-chip">${esc(x.leadName)} · ${esc(x.stageName)}</span>
+            ${convCoTinMoi(x.convId) ? '<span class="conv-moi">Mới</span>' : ''}
           </span>
         </span>
       </button>`).join('')
@@ -6052,7 +6369,150 @@ function renderConversations(){
   }
   if (!convTabActive || !document.getElementById('convChatHead')) renderConvChat();
   else updateConvChatHead();   // chỉ cập nhật tiêu đề, giữ nguyên ô tìm đang gõ
+  renderConvSide();
 }
+
+/* ---- Đã xem tới đâu (chỉ trên máy này): đánh dấu "Mới" cho hội thoại khách nhắn thêm ---- */
+const CONV_DA_XEM_KEY = 'convDaXem';
+let convDaXem = (() => { try { return JSON.parse(localStorage.getItem(CONV_DA_XEM_KEY) || '{}') || {}; } catch(e){ return {}; } })();
+function convCoTinMoi(convId){
+  const m = zaloMeta[convId];
+  if (!m || !m.lastCustomerAt || convId === convTabActive) return false;
+  return m.lastCustomerAt > (convDaXem[convId] || 0) && m.lastCustomerAt > (m.lastMeAt || 0);
+}
+function danhDauDaXem(convId){
+  const m = zaloMeta[convId];
+  convDaXem[convId] = Math.max(Date.now(), (m && m.lastAt) || 0);
+  try { localStorage.setItem(CONV_DA_XEM_KEY, JSON.stringify(convDaXem)); } catch(e){}
+}
+
+/* ---- Cột phải: lead của hội thoại đang mở ---- */
+let convBriefUnsub = null, convBriefLead = null, convBrief = null;
+function nghBriefHoiThoai(leadId){
+  if (convBriefLead === leadId) return;
+  if (convBriefUnsub){ try { convBriefUnsub(); } catch(e){} }
+  convBriefUnsub = null; convBriefLead = leadId; convBrief = null;
+  if (!leadId || !khoCoNhom('ai') || !window.__firebase) return;
+  const f = window.__firebase;
+  convBriefUnsub = f.onValue(f.refAt(`${f.aiBase()}/briefs/${leadId}`), sn => {
+    convBrief = sn.val() || null;
+    renderConvSide();
+  }, () => { convBrief = null; });
+}
+function renderConvSide(){
+  const box = document.getElementById('convSide');
+  if (!box) return;
+  const link = convTabActive && zaloLinks[convTabActive];
+  const lead = link && leads.find(l => l.id === link.leadId);
+  if (!lead){ box.innerHTML = ''; nghBriefHoiThoai(null); return; }
+  nghBriefHoiThoai(lead.id);
+  const chiXem = !!window.__chiXem;
+  const viec = (lead.todos || []).filter(t => !t.done).sort((a, b) => String(a.dueDate || '9').localeCompare(String(b.dueDate || '9'))).slice(0, 4);
+  const b = convBrief;
+  const dong = [];
+  if (b){
+    if (b.nhuCau && b.nhuCau.text) dong.push(['Nhu cầu', b.nhuCau.text]);
+    if (b.nganSach && b.nganSach.text && b.nganSach.text !== 'chưa rõ') dong.push(['Ngân sách', b.nganSach.text]);
+    if (b.objection && b.objection.text && b.objection.text !== 'chưa rõ') dong.push(['Băn khoăn', b.objection.text]);
+    if (b.buocTiep) dong.push(['Bước tiếp', b.buocTiep]);
+  }
+  const tomTat = !khoCoNhom('ai') ? '' : `<div class="cs-tomtat"><b>Claude tóm tắt</b>${dong.length
+    ? `<ul>${dong.map(([k, v]) => `<li><span>${esc(k)}:</span> ${esc(v)}</li>`).join('')}</ul>${b.updatedAt ? `<div class="cs-nguon">Từ hồ sơ AI · ${esc(thoiGianTruocNgan(Date.parse(b.updatedAt)))}</div>` : ''}`
+    : '<div class="cs-nguon">Chưa có hồ sơ AI cho khách này.</div>'}</div>`;
+  const moGd = lead.stage !== 'won' && lead.stage !== 'lost';
+  const chonGd = STAGES.filter(s => s.id !== 'lost' && s.id !== 'won').map(s => `<option value="${s.id}" ${s.id === lead.stage ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+  box.innerHTML = `
+    <div class="cs-dau">${avatarHtml(lead, 'lon')}<div><b>${esc(lead.name)}</b><span>${esc(lead.package || '')}${lead.weddingDate ? ' · cưới ' + esc(formatDate(lead.weddingDate)) : ''}</span></div></div>
+    ${tomTat}
+    <div class="cs-khoi"><h4>Giai đoạn</h4>${moGd && !chiXem
+      ? `<select class="field-input" aria-label="Đổi giai đoạn" onchange="moveLeadToStage('${lead.id}', this.value)">${chonGd}</select>`
+      : `<span class="pill">${esc(STAGE_MAP[lead.stage] ? STAGE_MAP[lead.stage].name : lead.stage)}</span>`}</div>
+    <div class="cs-khoi"><h4>Việc kế tiếp</h4>${viec.length ? viec.map(t => { const st = todoStatus(t);
+        return `<div class="cs-viec">${chiXem ? '' : `<button type="button" class="hn-check" aria-label="Đánh dấu xong: ${esc(t.text)}" onclick="toggleReminderItem('${lead.id}', '${t.id}')"></button>`}<span>${esc(t.text)}</span><span class="state-pill ${st.type === 'red' ? 'st-tre' : st.type === 'green' ? 'st-nay' : ''}">${esc(st.label)}</span></div>`; }).join('')
+      : '<div class="cs-trong">Chưa có việc nào. Rê chuột vào một tin để tạo việc từ tin đó.</div>'}</div>
+    <div class="cs-khoi"><h4>Doanh thu dự kiến</h4><div class="cs-tien">${formatMoney(lead.revenueExpected)}</div></div>
+    <button type="button" class="btn btn-secondary cs-mo" onclick="openLead('${lead.id}')">Mở trang lead ›</button>`;
+}
+
+/* ---- Thao tác trên một tin (rê chuột): tạo việc, ghi chú, copy. CRM không gửi tin Zalo. ---- */
+function tinDangMo(msgId){
+  return Array.isArray(convTabMsgs) ? convTabMsgs.find(m => String(m.id) === String(msgId)) : null;
+}
+function chuCuaTin(m){
+  if (!m) return '';
+  const h = window.ZaloMap ? window.ZaloMap.hienThiTin(m) : { text: m.text };
+  return [h.chip, h.text, h.url].filter(Boolean).join(' ').trim();
+}
+function leadCuaHoiThoaiDangMo(){
+  const link = convTabActive && zaloLinks[convTabActive];
+  return link ? leads.find(l => l.id === link.leadId) : null;
+}
+function taoViecTuTin(msgId){
+  if (window.__chiXem) return;
+  const lead = leadCuaHoiThoaiDangMo(), m = tinDangMo(msgId);
+  if (!lead || !m) return;
+  const chu = chuCuaTin(m).replace(/\s+/g, ' ');
+  const text = (m.fromMe ? 'Theo dõi: ' : 'Trả lời khách: ') + '“' + (chu.length > 90 ? chu.slice(0, 90) + '…' : chu) + '”';
+  lead.todos = lead.todos || [];
+  lead.todos.push({ id:newTodoId(), text, done:false, dueDate: todayISO(), completedAt:null });
+  syncLeadDeadline(lead);
+  logActivity(lead, `Thêm việc cần làm từ tin Zalo: ${text}`);
+  renderAll();
+  scheduleSave();
+  baoNhanh('Đã tạo việc hạn hôm nay');
+}
+function ghiChuTuTin(msgId){
+  if (window.__chiXem) return;
+  const lead = leadCuaHoiThoaiDangMo(), m = tinDangMo(msgId);
+  if (!lead || !m) return;
+  const luc = new Date(m.at).toLocaleString('vi-VN', { hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit' });
+  lead.notesList = lead.notesList || [];
+  lead.notesList.push({ id:'n'+Date.now(), text: `Từ Zalo (${m.fromMe ? 'em' : 'khách'}, ${luc}): “${chuCuaTin(m)}”`, createdAt: nowLabel(), updatedAt: nowLabel() });
+  scheduleSave();
+  baoNhanh('Đã thêm vào ghi chú của lead');
+}
+function copyTin(msgId){
+  const chu = chuCuaTin(tinDangMo(msgId));
+  if (!chu) return;
+  (navigator.clipboard ? navigator.clipboard.writeText(chu) : Promise.reject()).then(() => baoNhanh('Đã copy'), () => baoNhanh('Không copy được'));
+}
+function baoNhanh(chu){
+  let t = document.getElementById('baoNhanh');
+  if (!t){ t = document.createElement('div'); t.id = 'baoNhanh'; t.className = 'bao-nhanh'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = chu;
+  t.classList.add('hien');
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('hien'), 1800);
+}
+// Gắn thanh thao tác khi rê chuột / chạm vào một tin (chỉ ở màn Hội thoại)
+function ganThaoTacTin(box){
+  if (box._daGan) return;
+  box._daGan = true;
+  const gan = e => {
+    const row = e.target.closest('.zalo-row');
+    if (!row || row.querySelector('.zm-acts') || !row.dataset.msgId) return;
+    const id = row.dataset.msgId;
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) return;   // id đi vào onclick: chỉ nhận ký tự an toàn
+    const acts = document.createElement('div');
+    acts.className = 'zm-acts';
+    acts.innerHTML = (window.__chiXem ? '' : `<button type="button" onclick="taoViecTuTin('${esc(id)}')">Tạo việc</button><button type="button" onclick="ghiChuTuTin('${esc(id)}')">Ghi chú</button>`)
+      + `<button type="button" onclick="copyTin('${esc(id)}')">Copy</button>`;
+    row.querySelector('.zalo-bubble').appendChild(acts);
+  };
+  box.addEventListener('mouseover', gan);
+  box.addEventListener('click', gan);
+}
+function toiTinChuaTraLoi(){
+  if (!Array.isArray(convTabMsgs)) return;
+  let cuoiCuaEm = -1;
+  convTabMsgs.forEach((m, i) => { if (m.fromMe) cuoiCuaEm = i; });
+  const m = convTabMsgs.slice(cuoiCuaEm + 1).find(x => !x.fromMe);
+  const row = m && document.querySelector(`#convMsgList .zalo-row[data-msg-id="${CSS.escape(String(m.id))}"]`);
+  if (!row) return;
+  row.scrollIntoView({ block:'center', behavior:'smooth' });
+  row.classList.add('nhay');
+  setTimeout(() => row.classList.remove('nhay'), 1600);
+}
+const ZALO_WEB = 'https://chat.zalo.me/';
 
 // Chữ cái đầu cho ảnh đại diện: "Lan Nguyễn" -> "LN", "Nhóm cưới Lan & Tuấn" -> "NC"
 function chuCaiDau(ten){
@@ -6077,6 +6537,7 @@ function openConversation(convId){
   convTabActive = convId;
   convTabMsgs = null;
   convTabMsgQuery = '';
+  danhDauDaXem(convId);
   document.getElementById('convWrap').classList.add('has-active');
   renderConvChat();
   const f = window.__firebase;
@@ -6105,9 +6566,13 @@ function renderConvChat(){
     return;
   }
   box.innerHTML = `<div class="conv-chat-head" id="convChatHead"></div>
-    <input class="field-input zalo-search conv-msg-search" placeholder="Tìm trong hội thoại…" oninput="convTabMsgQuery=this.value; renderConvMessages()">
+    <input class="field-input zalo-search conv-msg-search" placeholder="Tìm trong hội thoại…" aria-label="Tìm trong hội thoại" oninput="convTabMsgQuery=this.value; renderConvMessages()">
+    <div class="conv-cho" id="convCho" hidden></div>
     <div class="zalo-list conv-msg-list" id="convMsgList"></div>
-    <div class="conv-chat-foot">Chỉ đọc — hội thoại được đồng bộ từ Zalo web.</div>`;
+    <div class="conv-chat-foot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+      <span>Chỉ xem · trả lời khách trên Zalo, tin mới tự về đây sau vài giây</span>
+      <a class="btn btn-secondary btn-sm" href="${ZALO_WEB}" target="_blank" rel="noopener noreferrer">Mở Zalo web</a></div>`;
+  ganThaoTacTin(document.getElementById('convMsgList'));
   updateConvChatHead();
   renderConvMessages();
 }
@@ -6126,8 +6591,13 @@ function updateConvChatHead(){
       <div class="conv-item-name">${esc((link && link.name) || 'Hội thoại')}</div>
       <div class="conv-item-sub">${lead ? 'Lead: ' + esc(lead.name) + ' · ' + esc(giaiDoan) + (lead.weddingDate ? ' · cưới ' + formatDate(lead.weddingDate) : '') : 'Lead không còn tồn tại'}</div>
     </div>
-    ${trangThai ? `<span class="zalo-chip ${trangThai.type} conv-head-chip">${esc(trangThai.label)}</span>` : ''}
-    ${lead ? `<button class="btn btn-primary" onclick="openLead('${lead.id}')">Mở lead</button>` : ''}`;
+    <a class="btn btn-primary conv-mo-zalo" href="${ZALO_WEB}" target="_blank" rel="noopener noreferrer" title="Mở Zalo web để trả lời khách">Mở Zalo web</a>`;
+  const cho = document.getElementById('convCho');
+  if (cho){
+    const dangCho = trangThai && trangThai.type === 'waiting';
+    cho.hidden = !dangCho;
+    if (dangCho) cho.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span><b>${esc(trangThai.label)}</b></span><button type="button" class="link-nut" onclick="toiTinChuaTraLoi()">Tới tin chưa trả lời</button>`;
+  }
 }
 
 function renderConvMessages(){
@@ -6510,6 +6980,35 @@ function onFilterPackage(v){ filterPackage = v; renderPipeline(); }
 function onFilterStatus(v){ filterStatus = v; filterTag = ''; renderPipeline(); }
 
 /* ======================= DASHBOARD ======================= */
+// Doanh thu thực tế (lead Won, theo ngày chốt) của 6 kỳ tháng gần nhất, kỳ hiện tại tô đậm.
+function veBieuDoDoanhThu(ds){
+  const { tu } = kyThangNay();
+  const ky = [];
+  for (let i = 5; i >= 0; i--){
+    let nam = Number(tu.slice(0,4)), t = Number(tu.slice(5,7)) - i;
+    while (t < 1){ t += 12; nam -= 1; }
+    const a = ghepNgayISO(nam, t, NGAY_DAU_KY);
+    const nam2 = t === 12 ? nam + 1 : nam, t2 = t === 12 ? 1 : t + 1;
+    const b = congNgayISO(ghepNgayISO(nam2, t2, NGAY_DAU_KY), -1);
+    const tong = ds.filter(l => l.stage === 'won' && trongKhoang(l.wonAt, a, b)).reduce((x, l) => x + (l.revenueActual || 0), 0);
+    ky.push({ nhan: 'T' + t, tong, a, b });
+  }
+  const W = 1000, H = 200, dinh = Math.max(planRevenue || 0, ...ky.map(k => k.tong), 1) * 1.15;
+  const cot = 64, khe = (W - 40 - ky.length * cot) / ky.length;
+  const y = v => H - v / dinh * H + 8;
+  const luoi = [0, .25, .5, .75, 1].map(p => { const v = dinh / 1.15 * p; return `<line x1="40" x2="${W}" y1="${y(v)}" y2="${y(v)}" class="bd-luoi"/><text x="0" y="${y(v) + 4}" class="bd-truc">${esc(tienGon(v))}</text>`; }).join('');
+  const cots = ky.map((k, i) => {
+    const x = 40 + khe / 2 + i * (cot + khe), h = Math.max(2, k.tong / dinh * H), cuoi = i === ky.length - 1;
+    return `<g><title>${esc(k.nhan)}: ${esc(formatMoney(k.tong))} (${esc(formatDate(k.a))} – ${esc(formatDate(k.b))})</title>
+      <rect x="${x}" y="${H - h + 8}" width="${cot}" height="${h}" rx="7" class="${cuoi ? 'bd-cot-nay' : 'bd-cot'}"/>
+      <text x="${x + cot / 2}" y="${H - h + 1}" text-anchor="middle" class="bd-so${cuoi ? ' nay' : ''}">${k.tong ? esc(tienGon(k.tong)) : ''}</text>
+      <text x="${x + cot / 2}" y="${H + 28}" text-anchor="middle" class="bd-truc">${esc(k.nhan)}</text></g>`;
+  }).join('');
+  const kh = planRevenue ? `<line x1="40" x2="${W}" y1="${y(planRevenue)}" y2="${y(planRevenue)}" class="bd-ke-hoach"/><text x="${W}" y="${y(planRevenue) - 6}" text-anchor="end" class="bd-ke-hoach-chu">Kế hoạch ${esc(tienGon(planRevenue))}</text>` : '';
+  return `<svg class="bieu-do" viewBox="0 0 ${W} ${H + 36}" role="img" aria-label="Doanh thu 6 kỳ gần nhất">
+    <defs><linearGradient id="bdXanh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3DB386"/><stop offset="1" stop-color="#0F6B50"/></linearGradient></defs>
+    ${luoi}${cots}${kh}</svg>`;
+}
 function updatePlan(key, value){
   if (window.__chiXem) return;   // chỉ xem: không sửa gì
   const num = Number(value) || 0;
@@ -6733,6 +7232,10 @@ function renderDashboard(){
       <div class="box-sub">${overdueLeads.length ? '<span class="state-chip st-red">Cần xử lý</span> ' + overdueLeads.slice(0, 2).map(l => esc(l.name)).join(', ') : '<span class="state-chip st-ok">Ổn</span> Không có lead nào trễ hẹn'}</div>
     </div>
 
+    <div class="card-box span-12 chart-box">
+      <div class="box-head-row"><div class="box-label">Doanh thu 6 kỳ gần nhất</div><span class="box-sub">kỳ tính từ ngày ${NGAY_DAU_KY} đến ngày ${NGAY_DAU_KY - 1} tháng sau · nét đứt là kế hoạch</span></div>
+      ${veBieuDoDoanhThu(scoped)}
+    </div>
     <div class="card-box span-7 funnel-box">
       <div class="box-label">Tỉ lệ chuyển đổi theo phễu</div>
       <div class="kpi-row">
@@ -7165,6 +7668,7 @@ function renderSidebarStats(){
 
 /* ======================= MASTER RENDER ======================= */
 function renderAll(){
+  try { renderHomNay(); } catch(e){ console.error('renderHomNay', e); }
   renderPipeline();
   // Lỗi trong bảng không được chặn Dashboard/thanh bên/Hội thoại vẽ tiếp
   try { renderBangLead(); } catch(e){ console.error('renderBangLead', e); }

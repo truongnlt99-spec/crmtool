@@ -25,6 +25,8 @@ const hamMotDong = ten => giua(`function ${ten}(`, '\n');
 for (const m of src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
   const st = document.createElement('style'); st.textContent = m[1]; document.head.append(st);
 }
+// Lớp giao diện mới nạp SAU <style>, đúng thứ tự như index.html
+{ const st = document.createElement('style'); st.textContent = await (await fetch('../web/giao-dien-moi.css')).text(); document.head.append(st); }
 document.body.insertAdjacentHTML('beforeend', `<section class="view active" id="viewVenue">${giua('<div class="bang-wrap">\n        <div class="bang-toolbar" id="vnToolbar">', '</section>').replace('</section>', '')}</section>
   <div class="overlay" id="overlay"></div>${giua('<aside class="drawer" id="drawer">', '</aside>')}<div id="viewDashboard"></div><datalist id="dsVenueTen"></datalist>`);
 
@@ -46,12 +48,17 @@ nap.textContent = [
    const scheduleSave = () => { window.__ghi++; }, renderPipeline = () => {}, renderBangLead = () => {}, renderDashboard = () => {};
    const openZaloChat = () => { document.getElementById('zaloBlock').innerHTML = '<div class="drawer-section-title">Hội thoại Zalo</div><div>Tin nhắn mẫu</div>'; };
    const moHoSo = () => {}, zaloChipHtml = () => '', khoCoNhom = n => !window.__anNhom || window.__anNhom !== n;
-   const closeZaloChat = () => {}, dongHoSo = () => {};`,
+   const closeZaloChat = () => {}, dongHoSo = () => {};
+   let zaloMsgs = {}, zaloMeta = {}, zaloLinks = {};
+   const zaloConvsOf = () => [];`,
+  giua('const ZALO_TOI_DA_DONG_THOI_GIAN', '\n'), giua('const gioPhut', '\n'),
+  giua('const ICON_ZALO_NHO', '\n'), giua('const ICON_GHI_CHU', '\n'), giua('const ICON_LINK_NHO', '\n'),
   giua('// Tab Lần gửi:', '\n}'),
   ...['todayISO', 'congNgayISO', 'formatDate', 'daysDiff', 'esc', 'linkify', 'formatMoney', 'moneyDisplay',
     'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veDsLocVenue', 'moLocVenue', 'dongLocVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
     'openLead', 'veChipDauChiTiet', 'chonTabChiTiet', 'datHanNhanh', 'toggleKhoiChiTiet', 'renderDrawerTodos', 'khoaONhapChiXem',
-    'autoGrowTextarea', 'initAutoGrowTextareas', 'onFieldChange', 'renderNotesStream', 'closeDrawer'].map(ham),
+    'autoGrowTextarea', 'initAutoGrowTextareas', 'onFieldChange', 'renderNotesStream', 'closeDrawer',
+    'thoiDiemCua', 'ngayDongThoiGian', 'renderDongThoiGian', 'cuonDongThoiGianXuong'].map(ham),
   ...['leadTypeOf', 'tenVenueTheoId', 'doiTabVenue', 'xemSanPhamCuaVenue', 'boLocVenue', 'chonToneChip'].map(hamMotDong),
   giua("document.addEventListener('click', e => { if (venueLocMo", '\n'),
   ...['openLead', 'closeDrawer', 'renderVenue', 'moLocVenue', 'chonTabChiTiet', 'datHanNhanh', 'xemSanPhamCuaVenue', 'chonToneChip', 'doiTabVenue', 'onFieldChange']
@@ -130,7 +137,11 @@ closeDrawer();
 
 /* 6. Venue */
 renderVenue();
-check('mo man la tab Thong ke, dung truoc tab San pham, Lan gui cuoi', trangThai().venueTab === 'thongke' && $$('.vn-tab').map(b => b.textContent).join() === 'Thống kê,Sản phẩm,Lần gửi');
+check('mo man la tab Venue (the), roi San pham, Thong ke, Lan gui', trangThai().venueTab === 'venue' && $$('.vn-tab').map(b => b.textContent).join() === 'Venue,Sản phẩm,Thống kê,Lần gửi', $$('.vn-tab').map(b => b.textContent).join());
+check('the venue: du 3 venue, ten co ma doc khong chay', $$('.vn-the').length === 3 && !$('.vn-the img') && !window.__bi, $$('.vn-the').length);
+$('.vn-the').click();
+check('bam the venue -> bang san pham cua venue do', trangThai().venueTab === 'sp' && !!trangThai().venueDangChon, JSON.stringify(trangThai().venueTab));
+boLocVenue();
 
 /* 5b. Tab Lần gửi */
 window.eval(`linkGuiData = {
