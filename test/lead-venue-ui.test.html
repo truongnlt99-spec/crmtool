@@ -51,8 +51,7 @@ nap.textContent = [
    const closeZaloChat = () => {}, dongHoSo = () => {};
    let zaloMsgs = {}, zaloMeta = {}, zaloLinks = {};
    const zaloConvsOf = () => [];`,
-  giua('const ZALO_TOI_DA_DONG_THOI_GIAN', '\n'), giua('const gioPhut', '\n'),
-  giua('const ICON_ZALO_NHO', '\n'), giua('const ICON_GHI_CHU', '\n'), giua('const ICON_LINK_NHO', '\n'),
+  giua('const ICON_GHI_CHU', '\n'),
   giua('// Tab Lần gửi:', '\n}'),
   ...['todayISO', 'congNgayISO', 'formatDate', 'daysDiff', 'esc', 'linkify', 'formatMoney', 'moneyDisplay',
     'leadStatus', 'todoStatus', 'dsVenueSapXep', 'renderVenueDatalist', 'renderVenue', 'veDsLocVenue', 'moLocVenue', 'dongLocVenue', 'veThanhChon', 'renderStageStepper', 'renderActivityLog',
@@ -103,7 +102,7 @@ check('du o sua', ['name', 'weddingDate', 'phone', 'facebook', 'schedule', 'pers
 check('link goi + mo facebook', $('.field-lk[href="tel:0901234567"]') && $('.field-lk[href="https://facebook.com/maianh"]')?.rel.includes('noopener'));
 // Bo ba tab theo do rong cua cua so Chrome ngam; ca 3 do rong da xem tay tren trinh duyet
 const rong = innerWidth >= 1280, vua = innerWidth >= 761;
-check('tab dung theo do rong', tabHien() === ['viec', !rong && 'hoithoai', 'hoso', 'baogia', !vua && 'thongtin'].filter(Boolean).join(), `${innerWidth}: ${tabHien()}`);
+check('tab dung theo do rong', tabHien() === [!rong && 'hoithoai', 'viec', 'hoso', 'baogia', !vua && 'thongtin'].filter(Boolean).join(), `${innerWidth}: ${tabHien()}`);
 
 /* 2. Tab đổi đúng khối */
 chonTabChiTiet('baogia');

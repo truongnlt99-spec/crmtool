@@ -4921,7 +4921,7 @@ function renderPipeline(){
   // Ẩn cột "Lost" khỏi pipeline — lead lost vẫn đánh dấu được từ chi tiết lead & vẫn lên báo cáo ở Dashboard
   STAGES.filter(stage => stage.id !== 'lost').forEach(stage => {
     const stageLeads = leads.filter(l => l.stage === stage.id);
-    const visibleLeads = stageLeads.filter(matchesFilters);
+    const visibleLeads = stageLeads.filter(matchesFilters).sort(soUuTienLead);
     const sum = stageLeads.reduce((s,l) => s + (stage.id === 'won' ? (l.revenueActual||0) : (l.revenueExpected||0)), 0);
 
     const col = document.createElement('div');
@@ -5043,14 +5043,19 @@ function ngayNgan(iso){
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
   return m ? `${m[3]}/${m[2]}/${m[1].slice(2)}` : iso;
 }
+// Trong mỗi cột: trễ hẹn / khách chờ trả lời lên đầu, rồi hẹn hôm nay, rồi còn lại; cùng nhóm thì hạn sớm hơn lên trước
+const HANG_UU_TIEN = { 'st-tre':0, 'st-cho':0, 'st-nay':1 };
+function soUuTienLead(a, b){
+  const ha = HANG_UU_TIEN[nhanTheLead(a).cls] ?? 2, hb = HANG_UU_TIEN[nhanTheLead(b).cls] ?? 2;
+  return ha - hb || String(a.deadline || '9').localeCompare(String(b.deadline || '9'));
+}
 function cardHtml(lead){
   const status = leadStatus(lead);
   const nhan = nhanTheLead(lead);
-  const viec = lead.todos && lead.todos.length ? `<span class="card-todo">${lead.todos.filter(t=>t.done).length}/${lead.todos.length} việc</span>` : '';
   const tiemNang = (lead.tags || []).includes('Tiềm năng');
   const tien = lead.stage === 'won' ? lead.revenueActual : lead.revenueExpected;
   return `
-    <div class="card card-gon status-${status.type}" draggable="${window.__chiXem ? 'false' : 'true'}" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')" title="${esc(leadTypeOf(lead))}">
+    <div class="card card-gon status-${status.type} the-${nhan.cls}" draggable="${window.__chiXem ? 'false' : 'true'}" ondragstart="handleDragStart(event,'${lead.id}')" ondragend="handleDragEnd(event)" onclick="openLead('${lead.id}')" title="${esc(leadTypeOf(lead))}">
       <div class="card-top">
         ${tiemNang ? NGON_LUA : ''}
         <div class="card-name">${esc(lead.name)}</div>
@@ -5060,7 +5065,7 @@ function cardHtml(lead){
         </button>
       </div>
       <div class="card-meta"><span>${esc(lead.package || '')} · ${esc(ngayNgan(lead.weddingDate))}</span><span class="card-tien">${tien ? tienGon(tien) : '—'}</span></div>
-      <div class="card-foot"><span class="state-pill ${nhan.cls}">${iconNhan(nhan.icon)}${esc(nhan.label)}</span>${viec}</div>
+      <div class="card-foot"><span class="state-pill ${nhan.cls}">${iconNhan(nhan.icon)}${esc(nhan.label)}</span></div>
     </div>
   `;
 }
@@ -5305,14 +5310,15 @@ function openLead(id){
   document.getElementById('drawerBody').innerHTML = `
     <div class="detail-grid">
       <div class="detail-tabs" role="tablist" aria-label="Phần của chi tiết lead">
-        <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')"><span class="tab-dai">Dòng thời gian</span><span class="tab-ngan">Việc &amp; Zalo</span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="hoithoai" onclick="chonTabChiTiet('hoithoai')">Hội thoại<span class="tab-dai">&nbsp;Zalo</span></button>
+        <button type="button" role="tab" class="detail-tab" data-tab="viec" onclick="chonTabChiTiet('viec')"><span class="tab-dai">Ghi chú</span><span class="tab-ngan">Việc &amp; ghi chú</span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="hoso" onclick="chonTabChiTiet('hoso')">Hồ sơ<span class="tab-dai"> AI</span><span class="tab-dem" id="tabDxDem"></span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="baogia" onclick="chonTabChiTiet('baogia')">Báo giá<span class="tab-dai"> &amp; sản phẩm</span></button>
         <button type="button" role="tab" class="detail-tab" data-tab="thongtin" onclick="chonTabChiTiet('thongtin')">Thông tin</button>
       </div>
 
       <div class="detail-col detail-col-info">
+       <div class="info-cot info-cot-a">
         <div class="detail-block block-todo" data-tab-of="viec">
           <div class="block-head"><h3 class="block-title">Việc cần làm <span class="block-meta" id="drawerTodoMeta"></span></h3></div>
           <div id="drawerTodos"></div>
@@ -5345,7 +5351,8 @@ function openLead(id){
           </div>
           ${extra}
         </div>
-
+       </div>
+       <div class="info-cot info-cot-b">
         <div class="detail-block block-customer">
           <div class="block-head">
             <h3 class="block-title">Thông tin khách</h3>
@@ -5388,6 +5395,7 @@ function openLead(id){
             <textarea class="field-input auto-grow" oninput="onFieldChange('${id}','objection', this.value); autoGrowTextarea(this)">${esc(lead.objection)}</textarea>
           </div>
         </div>
+       </div>
 
         ${window.__chiXem ? '' : `<button class="btn btn-danger btn-delete-lead" onclick="deleteCurrentLead()">Xóa lead</button>`}
       </div>
@@ -5455,7 +5463,7 @@ function veChipDauChiTiet(lead){
 }
 
 /* Tab đổi cột giữa. Thông tin (từ 761px) và Hội thoại (từ 1280px) đã là cột luôn thấy nên không có tab. */
-let tabChiTiet = 'viec';
+let tabChiTiet = 'hoithoai';   // mở lead là thấy hội thoại Zalo; không có Zalo thì chonTabChiTiet tự về tab Ghi chú
 const COT_THONG_TIN = matchMedia('(min-width:761px)'), COT_HOI_THOAI = { matches:false, addEventListener(){} };
 [COT_THONG_TIN, COT_HOI_THOAI].forEach(m => m.addEventListener('change', () => chonTabChiTiet(tabChiTiet)));
 function chonTabChiTiet(tab){
@@ -5557,12 +5565,11 @@ function refreshActivityLogBox(lead){
   refreshNotesStreamBox(lead);
 }
 
-/* ======================= DÒNG THỜI GIAN (chi tiết lead) =======================
-   Gộp theo thời gian: tin Zalo (gom thành từng lượt, CHỈ XEM), ghi chú (sửa/xoá được), báo giá,
-   link sản phẩm đã gửi, log hoạt động. Cũ ở trên, mới ở dưới; ô ghi chú nằm cuối. */
-const ZALO_TOI_DA_DONG_THOI_GIAN = 60;   // chỉ hiện 60 tin gần nhất, đủ xem nhanh; xem hết ở tab Hội thoại Zalo
+/* ======================= GHI CHÚ (chi tiết lead) =======================
+   Tab "Ghi chú": chỉ ghi chú nội bộ (sửa/xoá được), cũ ở trên, mới ở dưới; ô ghi chú nằm cuối.
+   Tin Zalo xem ở tab Hội thoại, báo giá + link ở tab Báo giá (Trân thấy gộp chung là rối, 11/2026). */
 function thoiDiemCua(v){
-  if (typeof v === 'number') return v;
+  if (typeof v === "number") return v;
   if (!v) return 0;
   const m = /(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/.exec(String(v));
   if (m) return new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)).getTime();
@@ -5571,92 +5578,31 @@ function thoiDiemCua(v){
 }
 function ngayDongThoiGian(ms){
   const d = new Date(ms), h = new Date();
-  const dd = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
-  if (d.toDateString() === h.toDateString()) return 'Hôm nay · ' + dd;
+  const dd = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`;
+  if (d.toDateString() === h.toDateString()) return "Hôm nay · " + dd;
   const q = new Date(h); q.setDate(h.getDate() - 1);
-  if (d.toDateString() === q.toDateString()) return 'Hôm qua · ' + dd;
-  return d.toLocaleDateString('vi-VN', { weekday:'long' }) + ' · ' + dd + (d.getFullYear() !== h.getFullYear() ? '/' + d.getFullYear() : '');
+  if (d.toDateString() === q.toDateString()) return "Hôm qua · " + dd;
+  return d.toLocaleDateString("vi-VN", { weekday:"long" }) + " · " + dd + (d.getFullYear() !== h.getFullYear() ? "/" + d.getFullYear() : "");
 }
-const gioPhut = ms => new Date(ms).toLocaleTimeString('vi-VN', { hour:'2-digit', minute:'2-digit' });
 function renderDongThoiGian(lead){
-  const muc = [];
-  (lead.notesList || []).forEach(n => muc.push({ loai:'note', at: thoiDiemCua(n.createdAt), n }));
-  (lead.activityLog || []).forEach(e => muc.push({ loai:'log', at: thoiDiemCua(e.time), e }));
-  if (window.BaoGia) BaoGia.dsBaoGia(lead).forEach(b => muc.push({ loai:'baogia', at: thoiDiemCua(b.taoLuc), b }));
-  if (window.LinkGui) LinkGui.dsTheoLead(linkGuiData || {}, lead.id).forEach(x => muc.push({ loai:'link', at: x.guiLuc || 0, x }));
-  // Tin Zalo của mọi hội thoại đã gắn, gom các tin liền nhau cùng hội thoại thành một khối
-  let zalo = [];
-  if (khoCoNhom('zalo')){
-    Object.entries(zaloMsgs || {}).forEach(([convId, ds]) => { if (Array.isArray(ds)) ds.forEach(m => zalo.push({ ...m, convId })); });
-    zalo.sort((a, b) => (a.at || 0) - (b.at || 0));
-    zalo = zalo.slice(-ZALO_TOI_DA_DONG_THOI_GIAN);
-    zalo.forEach(m => muc.push({ loai:'zalo', at: m.at || 0, m }));
-  }
-  if (!muc.length) return '<div class="list-empty tl-trong">Chưa có gì ở đây. Ghi chú đầu tiên, tin Zalo, báo giá… sẽ hiện theo thời gian.</div>';
-  muc.sort((a, b) => a.at - b.at);
-  const nhieuHoiThoai = zaloConvsOf(lead.id).length > 1;
-  const metas = zaloConvsOf(lead.id).map(c => zaloMeta[c.convId]).filter(Boolean);
-  const choTraLoi = window.ZaloMap && metas.length ? window.ZaloMap.waitingState(metas, Date.now()) : null;
-  const hienThi = m => window.ZaloMap ? window.ZaloMap.hienThiTin(m) : { chip:null, text: typeof m.text === 'string' ? m.text : '' };
-  let html = '', ngayTruoc = '', khoi = null;
-  const dongKhoi = () => {
-    if (!khoi) return;
-    const cuoi = khoi === zaloCuoi;
-    const dangCho = cuoi && choTraLoi && choTraLoi.type === 'waiting';
-    const tenHt = nhieuHoiThoai ? ` · ${esc((zaloLinks[khoi.convId] || {}).name || '')}` : '';
-    html += `<div class="tl-zalo">
-      <div class="tl-zalo-h">${ICON_ZALO_NHO}Zalo${tenHt} · ${khoi.ds.length} tin${dangCho ? `<span class="state-pill st-cho">${esc(choTraLoi.label.replace('Khách chờ trả lời · ', 'Khách chờ '))}</span>` : ''}
-        <button type="button" class="link-nut" onclick="chonTabChiTiet('hoithoai')">Xem cả hội thoại</button></div>
-      ${khoi.ds.map(m => { const h = hienThi(m); const chu = h.thieu ? '<span class="zalo-missing">Chưa có nội dung — mở trên Zalo web</span>' : (h.chip ? `<span class="zalo-att">${esc(h.chip)}</span> ` : '') + linkify(esc(h.text || ''));
-        return `<div class="tl-zm ${m.fromMe ? 'em' : 'kh'}"><span class="tl-zm-w"><b>${m.fromMe ? 'Em' : 'Khách'}</b>${gioPhut(m.at)}</span><span class="tl-zm-t">${chu}</span></div>`; }).join('')}
-    </div>`;
-    khoi = null;
-  };
-  const zaloCuoiMuc = [...muc].reverse().find(x => x.loai === 'zalo');
-  let zaloCuoi = null;
-  muc.forEach((x, i) => {
-    const ngay = x.at ? ngayDongThoiGian(x.at) : 'Không rõ ngày';
-    if (ngay !== ngayTruoc){ dongKhoi(); html += `<div class="tl-ngay">${esc(ngay)}</div>`; ngayTruoc = ngay; }
-    if (x.loai === 'zalo'){
-      if (!khoi || khoi.convId !== x.m.convId){ dongKhoi(); khoi = { convId: x.m.convId, ds: [] }; }
-      khoi.ds.push(x.m);
-      if (x === zaloCuoiMuc) zaloCuoi = khoi;
-      return;
-    }
-    dongKhoi();
-    if (x.loai === 'note'){
-      const n = x.n;
-      html += `<div class="tl-su note-item ${editingNoteId===n.id ? 'editing' : ''}">
+  const ds = (lead.notesList || []).map(n => ({ at: thoiDiemCua(n.createdAt), n })).sort((a, b) => a.at - b.at);
+  if (!ds.length) return "<div class=\"list-empty tl-trong\">Chưa có ghi chú nào. Gõ ghi chú đầu tiên ở ô bên dưới.</div>";
+  let html = "", ngayTruoc = "";
+  ds.forEach(({ at, n }) => {
+    const ngay = at ? ngayDongThoiGian(at) : "Không rõ ngày";
+    if (ngay !== ngayTruoc){ html += `<div class="tl-ngay">${esc(ngay)}</div>`; ngayTruoc = ngay; }
+    html += `<div class="tl-su note-item ${editingNoteId===n.id ? "editing" : ""}">
         <span class="tl-ic tl-ic-note" aria-hidden="true">${ICON_GHI_CHU}</span>
-        <div class="tl-noi"><div class="tl-dau"><b>Ghi chú</b><span class="tl-gio">${esc(n.updatedAt || '')}${n.updatedAt !== n.createdAt ? ' (đã sửa)' : ''}</span>
+        <div class="tl-noi"><div class="tl-dau"><b>Ghi chú</b><span class="tl-gio">${esc(n.updatedAt || "")}${n.updatedAt !== n.createdAt ? " (đã sửa)" : ""}</span>
           <span class="note-item-actions">
             <button class="icon-btn-mini" onclick="editNote('${lead.id}','${n.id}')" title="Sửa ghi chú" aria-label="Sửa ghi chú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
             <button class="icon-btn-mini" onclick="removeNote('${lead.id}','${n.id}')" title="Xóa ghi chú" aria-label="Xóa ghi chú"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
           </span></div>
           <div class="note-item-text">${linkify(esc(n.text))}</div></div></div>`;
-    } else if (x.loai === 'baogia'){
-      const b = x.b;
-      const tong = b.tongSauUuDai ? formatMoney(b.tongSauUuDai) : (Array.isArray(b.phuongAn) ? b.phuongAn.length + ' phương án' : '');
-      html += `<div class="tl-su tl-su-bg"><span class="tl-ic tl-ic-bg" aria-hidden="true">${ICON_GHI_CHU}</span>
-        <div class="tl-noi"><div class="tl-dau"><b>Báo giá${b.tieuDe ? ' · ' + esc(b.tieuDe) : ''}</b><span class="tl-gio">${x.at ? gioPhut(x.at) : ''}</span></div>
-        <div class="tl-phu">${esc(tong)}${b.hanUuDai ? ' · ưu đãi đến ' + esc(formatDate(b.hanUuDai)) : ''}</div></div>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="chonTabChiTiet('baogia')">Mở</button></div>`;
-    } else if (x.loai === 'link'){
-      const l = x.x;
-      html += `<div class="tl-su tl-su-nho"><span class="tl-ic tl-ic-link" aria-hidden="true">${ICON_LINK_NHO}</span>
-        <div class="tl-noi"><div class="tl-dau"><b>Đã gửi link: ${esc(l.tenSp || '')}</b><span class="tl-gio">${x.at ? gioPhut(x.at) : ''}</span></div>
-        <div class="tl-phu">${l.soLanMo ? `Khách đã mở ${l.soLanMo} lần` : 'Khách chưa mở'}</div></div></div>`;
-    } else {
-      html += `<div class="tl-log"><span class="tl-log-cham" aria-hidden="true"></span>${esc(x.e.text)}<span class="tl-gio">${x.e.isNow === false ? '' : esc(String(x.e.time || '').split(', ')[1] || '')}</span></div>`;
-    }
   });
-  dongKhoi();
-  if (zalo.length >= ZALO_TOI_DA_DONG_THOI_GIAN) html = `<div class="tl-ghi-chu">Đang hiện ${ZALO_TOI_DA_DONG_THOI_GIAN} tin Zalo gần nhất · <button type="button" class="link-nut" onclick="chonTabChiTiet('hoithoai')">xem toàn bộ</button></div>` + html;
   return `<div class="tl-ds">${html}</div>`;
 }
-const ICON_ZALO_NHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>';
 const ICON_GHI_CHU = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg>';
-const ICON_LINK_NHO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>';
 // Cuộn dòng thời gian xuống tin mới nhất (gọi sau khi mở lead / vẽ lại)
 function cuonDongThoiGianXuong(){
   const col = document.querySelector('#drawerBody .detail-col-main');
