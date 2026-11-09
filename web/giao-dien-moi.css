@@ -833,7 +833,8 @@ html[data-theme="dark"] .step.current .step-label{color:#10140F !important;}
 .detail-col-info .field-label{font-size:12px !important; font-weight:600 !important; color:var(--text-2) !important;}
 .detail-col-info .field-input{background:var(--bg) !important; border:1px solid var(--border) !important; color:var(--text) !important; font-weight:500;}
 .detail-col-info .field-input:focus{border-color:var(--primary) !important; background:var(--surface) !important;}
-.detail-col-info .btn-delete-lead{background:none !important; border-top:0 !important; padding:8px 4px !important;}
+/* nút ghim đáy cột (sticky) nên phải có nền đặc, nếu không sẽ đè lên chữ khi cuộn */
+.detail-col-info .btn-delete-lead{background:var(--surface-2) !important; border-top:1px solid var(--border) !important; padding:10px 4px !important; margin:0 !important; width:100%;}
 /* Việc cần làm: khối nổi nhất của cột phải */
 .detail-col-info .block-todo{background:var(--primary-soft) !important; box-shadow:0 0 0 1px var(--ok-border) !important;}
 .detail-col-info .block-todo .block-title{color:var(--primary-ink) !important;}
