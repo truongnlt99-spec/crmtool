@@ -55,8 +55,10 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và phân quyền tài kh
   thắng các lớp cũ. Trong file các lớp xếp chồng; lớp CUỐI ("KIỂU TRỘN": khung Notion + nền kem, xanh rêu, tiêu đề/con số
   Playfair Display) là kiểu đang dùng — sửa giao diện thì sửa ở lớp cuối. Bản vẽ: `docs/mockup/tron.html`.
   Menu: Hôm nay (`renderHomNay`, màn mặc định) · Lead (Bảng = `pipeline` / Danh sách = `list`, chuyển bằng nút trên thanh trên) ·
-  Hội thoại (chỉ xem, không gửi tin) · Báo cáo (`dashboard`) · Venue. Chi tiết lead: cột chính là dòng thời gian
-  (`renderDongThoiGian`: tin Zalo + ghi chú + báo giá + link + log), cột phải là việc cần làm và thông tin.
+  Hội thoại (chỉ xem, không gửi tin) · Báo cáo (`dashboard`) · Venue. Chi tiết lead: mở vào tab Hội thoại Zalo; tab "Ghi chú"
+  (`renderDongThoiGian`, chỉ còn ghi chú — Trân không cần dòng thời gian gộp); cột phải (việc cần làm + thông tin) bọc 2 khối
+  `.info-cot`, màn ≥1280px chia 2 cột. Lớp CSS cuối "GÓP Ý CỦA TRÂN (09/11/2026)" đè lên KIỂU TRỘN. Thẻ lead trong cột
+  xếp theo `soUuTienLead` (trễ hẹn / chờ trả lời lên đầu).
 - **`scripts/demo/server.mjs`** — xem app với DỮ LIỆU GIẢ (`scripts/demo/du-lieu-gia.js`), không đăng nhập, không chạm Firebase:
   `node scripts/demo/server.mjs` → `http://localhost:5182` (`?view=dashboard`, `&lead=L01`, `&conv=c01`, `&theme=toi`, `?lock=1`).
   Thêm nhánh dữ liệu mới vào app thì bổ sung dữ liệu giả ở đây để còn xem được. Khi server demo đang chạy,
