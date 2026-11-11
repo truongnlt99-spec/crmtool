@@ -62,6 +62,15 @@ check('link la -> khac, khong goi mang', khac.nenTang === 'khac' && khac.linkGoc
 const fGia = (kich: Record<string, Response>) => async (u: string) => {
   const r = kich[u]; if (!r) throw new Error('la ' + u); return r;
 };
+const SHOTPIK = 'https://shotpik.com/show/albums/hayday-27102026-cdkimthoa-hinhphongsu';
+const htmlShotpik = () => new Response('<meta property="og:image" content="https://image.shotpik.com/1WDZ?w=1600&amp;v=1"/>' +
+  '<meta property="og:title" content="27102026 - CD Kim Thoa - H&#xec;nh ph&#xf3;ng s&#x1ef1;"/><meta property="og:description" content="27102026 - CD Kim Thoa"/>');
+const sp = await chuanHoaLink(SHOTPIK, fGia({ [SHOTPIK]: htmlShotpik() }));
+check('shotpik: lay anh, ten album, mo ta tu og', sp.nenTang === 'shotpik' && sp.linkGoc === SHOTPIK && sp.anh === 'https://image.shotpik.com/1WDZ?w=1600&v=1' &&
+  sp.tenPage === '27102026 - CD Kim Thoa - Hình phóng sự' && sp.moTa === '27102026 - CD Kim Thoa', sp);
+const spLoi = await chuanHoaLink(SHOTPIK, khongGoi);
+check('shotpik loi mang -> giu link, khong nem', spLoi.nenTang === 'shotpik' && spLoi.linkGoc === SHOTPIK && spLoi.anh === '', spLoi);
+check('shotpik gia mao -> khac', (await chuanHoaLink('https://notshotpik.com/show/albums/x', khongGoi)).nenTang === 'khac');
 const SHARE = 'https://www.facebook.com/share/p/1EYmDgqMRE/';
 const GOC = 'https://www.facebook.com/hayday.media/posts/pfbidX';
 const dLoi = await chuanHoaLink(SHARE, fGia({
@@ -245,6 +254,19 @@ try {
   const coThe = await dbJson(`linkXem/${lan3.token}`);
   check('link cu chua co noi dung: gui lai tu bo sung ten page + noi dung', coThe.tieuDe === 'HayDay Media' && coThe.moTa === 'Tiec cuoi dep', coThe);
 
+  console.log('\n>> Link Shotpik tao truoc khi nhan ra nen tang roi gui lai');
+  await db(`crmDataTest/venues/${VN}/sanPham/sp`, { method: 'PUT', body: JSON.stringify({ id: 'sp', ten: 'Hinh phong su', link: SHOTPIK, tone: [] }) });
+  const dsSp = [{ venueId: VN, spId: 'sp' }];
+  const spCu = (await mod.taoLinkGui('crmDataTest', LEAD, dsSp, 'https://x', fbLoi))[0];
+  tokens.push(spCu.token);
+  await db(`aiDataTest/linkGui/${spCu.token}`, { method: 'PATCH', body: JSON.stringify({ nenTang: 'khac' }) });
+  await db(`linkXem/${spCu.token}`, { method: 'PATCH', body: JSON.stringify({ nenTang: 'khac' }) });
+  await mod.taoLinkGui('crmDataTest', LEAD, dsSp, 'https://x', fGia({ [SHOTPIK]: htmlShotpik() }));
+  const spMoi = await dbJson(`linkXem/${spCu.token}`);
+  check('gui lai: link Shotpik cu co anh + tieu de', spMoi.anh === 'https://image.shotpik.com/1WDZ?w=1600&v=1' && spMoi.tieuDe === '27102026 - CD Kim Thoa - Hình phóng sự' &&
+    spMoi.moTa === '27102026 - CD Kim Thoa' && spMoi.nenTang === 'shotpik', spMoi);
+  check('gui lai: ban ghi doi nen tang sang shotpik', (await dbJson(`aiDataTest/linkGui/${spCu.token}/nenTang`)) === 'shotpik');
+
   console.log('\n>> /xem + su kien');
   const xem = async (t: string) => handler.fetch(new Request(`https://huyentran.vercel.app/api/mcp?mode=xem&t=${t}`));
   const suKien = async (body: unknown) => (await handler.fetch(new Request('https://huyentran.vercel.app/api/mcp?mode=xemSuKien', {
@@ -312,7 +334,7 @@ try {
 
   const theoKhach = await callTool('get_link_stats', { lead: LEAD });
   const dongYt = theoKhach.json?.links?.find((d: any) => d.soLanMo === 3);
-  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 3 && dongYt?.nhan === 'quanTam', theoKhach.text);
+  check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 4 && dongYt?.nhan === 'quanTam', theoKhach.text);
   check('co ten khach', dongYt?.khach === `Khach LG ${rand}`, dongYt);
   const theoSp = await callTool('get_link_stats', { venueId: VN, id: 'khac' });
   check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);
@@ -323,8 +345,8 @@ try {
   const homNay = mod.ngayVN(Date.now()), homSau = mod.ngayVN(Date.now() + 864e5), homQua = mod.ngayVN(Date.now() - 864e5);
   check('moi dong co ngay gui', theoKhach.json?.links?.every((d: any) => d.ngayGui === homNay), theoKhach.text);
   const soDong = async (a: Record<string, unknown>) => (await callTool('get_link_stats', { lead: LEAD, ...a })).json?.links?.length;
-  check('loc tu hom nay: du link', (await soDong({ tu: homNay })) === 3);
-  check('loc den hom nay: du link', (await soDong({ den: homNay })) === 3);
+  check('loc tu hom nay: du link', (await soDong({ tu: homNay })) === 4);
+  check('loc den hom nay: du link', (await soDong({ den: homNay })) === 4);
   check('loc tu ngay mai: khong co', (await soDong({ tu: homSau })) === 0);
   check('loc den hom qua: khong co', (await soDong({ den: homQua })) === 0);
   const theoNgay = (await callTool('get_link_stats', { lead: LEAD })).json?.clickTheoNgayToanKho;
