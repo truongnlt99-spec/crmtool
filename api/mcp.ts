@@ -3058,7 +3058,7 @@ const ID_DUONG_DAN = /^[A-Za-z0-9_-]{1,80}$/;
 const TOKEN_XEM = /^[A-Za-z0-9]{10}$/;
 const HET_GIO_LINK_MS = 5000;
 
-type LinkDaChuanHoa = { linkGoc: string; anh: string; nenTang: 'facebook' | 'youtube' | 'khac'; ytId: string | null; tenPage: string; moTa: string };
+type LinkDaChuanHoa = { linkGoc: string; anh: string; nenTang: 'facebook' | 'youtube' | 'shotpik' | 'khac'; ytId: string | null; tenPage: string; moTa: string };
 type KetQuaLink =
   | { token: string; url: string; tenSp: string; venueId: string; spId: string; daCo: boolean; soLanMo: number }
   | { venueId: string; spId: string; loi: string };
@@ -3094,11 +3094,16 @@ export function layYoutubeId(link: string): string | null {
 }
 
 const laFacebook = (u: URL) => /(^|\.)(facebook\.com|fb\.com|fb\.watch)$/.test(u.hostname);
+const laShotpik = (u: URL) => /(^|\.)shotpik\.com$/.test(u.hostname);
 
 const giaiMaHtml = (s: string) => s
   .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
   .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(Number(d)))
   .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+const docOg = (html: string, ten: string) => {
+  const m = new RegExp(`<meta[^>]+property="og:${ten}"[^>]+content="([^"]+)"`).exec(html);
+  return m ? giaiMaHtml(m[1]) : '';
+};
 const chuThuan = (html: string) => giaiMaHtml(html.replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
 const catNgan = (s: string, n = 200) => (s.length > n ? `${s.slice(0, n).trimEnd()}…` : s);
 
@@ -3134,6 +3139,19 @@ export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promi
     return kq;
   }
   const u = urlHopLe(link);
+  if (u && laShotpik(u)) {
+    // Album Shotpik có sẵn og:title (tên album), og:description, og:image: thẻ Zalo giống hệt dán link gốc
+    const kq: LinkDaChuanHoa = { linkGoc: link, anh: '', nenTang: 'shotpik', ytId: null, tenPage: '', moTa: '' };
+    try {
+      const html = await (await f(link, { signal: AbortSignal.timeout(HET_GIO_LINK_MS) })).text();
+      kq.anh = docOg(html, 'image');
+      kq.tenPage = docOg(html, 'title');
+      kq.moTa = catNgan(docOg(html, 'description'));
+    } catch (e) {
+      console.warn('Khong lay duoc thong tin album Shotpik:', e);
+    }
+    return kq;
+  }
   if (!u || !laFacebook(u)) return { linkGoc: link, anh: '', nenTang: 'khac', ytId: null, tenPage: '', moTa: '' };
 
   const kq: LinkDaChuanHoa = { linkGoc: link, anh: '', nenTang: 'facebook', ytId: null, tenPage: '', moTa: '' };
@@ -3151,10 +3169,8 @@ export async function chuanHoaLink(link: string, f: typeof fetch = fetch): Promi
       }
     }
     const html = await (await f(kq.linkGoc, tuyChon)).text();
-    const m = /<meta[^>]+property="og:image"[^>]+content="([^"]+)"/.exec(html);
-    if (m) kq.anh = giaiMaHtml(m[1]);
-    const ogTen = /<meta[^>]+property="og:title"[^>]+content="([^"]+)"/.exec(html);
-    if (ogTen) kq.tenPage = giaiMaHtml(ogTen[1]);
+    kq.anh = docOg(html, 'image');
+    kq.tenPage = docOg(html, 'title');
     // Facebook không có og:description, link /photo/ còn thiếu cả og:image; trang plugin nhúng có đủ.
     const plugin = `https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(kq.linkGoc)}&show_text=true&width=500`;
     const p = docPluginFacebook(await (await f(plugin, tuyChon)).text());
@@ -3192,15 +3208,17 @@ export async function taoLinkGui(root: string, leadId: string, dsSp: Array<{ ven
     if (cu) { patch[`${ai}/linkGui/${token}/soLanGui`] = { '.sv': { increment: 1 } }; patch[`${ai}/linkGui/${token}/guiLuc`] = { '.sv': 'timestamp' }; }
     // Trân sửa link sản phẩm rồi gửi lại thì link đã gửi phải trỏ sang link mới
     const doiLink = !cu || cu[1].linkNguon !== link;
-    // Lần trước nền tảng lỗi tạm thời, hoặc link cũ chưa có nội dung: gửi lại là dịp lấy thông tin thẻ lần nữa
-    const thieuThe = !doiLink && cu![1].nenTang !== 'khac' && !(await readPath(`linkXem/${token}/moTa`));
+    // Lần trước nền tảng lỗi tạm thời, link cũ chưa có nội dung, hoặc tạo trước khi nhận ra nền tảng (Shotpik từng là 'khac'):
+    // gửi lại là dịp lấy thông tin thẻ lần nữa. Link 'khac' thật thì chuanHoaLink không gọi mạng và không ghi gì.
+    const thieuThe = !doiLink && !(await readPath(`linkXem/${token}/moTa`));
     if (doiLink || thieuThe) {
       const c = await chuanHoaLink(link, f);
       if (doiLink || c.anh || c.tenPage || c.linkGoc !== link) {
         const tieuDe = c.tenPage ? (c.moTa ? c.tenPage : `${c.tenPage} - ${sp.ten}`) : sp.ten;
         patch[`linkXem/${token}`] = { aiRoot: ai, tieuDe, moTa: c.moTa, anh: c.anh, linkGoc: c.linkGoc, nenTang: c.nenTang };
       }
-      if (cu && doiLink) { patch[`${ai}/linkGui/${token}/linkNguon`] = link; patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang; }
+      if (cu && doiLink) patch[`${ai}/linkGui/${token}/linkNguon`] = link;
+      if (cu) patch[`${ai}/linkGui/${token}/nenTang`] = c.nenTang;
       if (!cu) patch[`${ai}/linkGui/${token}`] = {
         leadId, venueId, spId, tenSp: sp.ten, nenTang: c.nenTang, linkNguon: link,
         taoLuc: Date.now(), guiLuc: Date.now(), soLanGui: 1, soLanMo: 0,
