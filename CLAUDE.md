@@ -61,7 +61,8 @@ Có thêm kết nối MCP để Claude đọc/ghi CRM, và phân quyền tài kh
   Hội thoại (chỉ xem, không gửi tin) · Báo cáo (`dashboard`) · Venue. Chi tiết lead: mở vào tab Hội thoại Zalo; tab "Ghi chú"
   (`renderDongThoiGian`, chỉ còn ghi chú — Trân không cần dòng thời gian gộp); cột phải (việc cần làm + thông tin) bọc 2 khối
   `.info-cot`, màn ≥1280px chia 2 cột. Lớp CSS cuối "GÓP Ý CỦA TRÂN (09/11/2026)" đè lên KIỂU TRỘN. Thẻ lead trong cột
-  xếp theo `soUuTienLead` (trễ hẹn / chờ trả lời lên đầu).
+  xếp theo `soUuTienLead` (trễ hẹn / chờ trả lời lên đầu). Câu ở dải hoa màn Hôm nay và màn đăng nhập là `cauHomNay()`
+  (mảng `CAU_HOM_NAY` trong `index.html`, mỗi ngày một câu); màn đăng nhập theo kiểu trộn nằm ở lớp CSS "ĐĂNG NHẬP (13/11/2026)".
 - **`scripts/demo/server.mjs`** — xem app với DỮ LIỆU GIẢ (`scripts/demo/du-lieu-gia.js`), không đăng nhập, không chạm Firebase:
   `node scripts/demo/server.mjs` → `http://localhost:5182` (`?view=dashboard`, `&lead=L01`, `&conv=c01`, `&theme=toi`, `?lock=1`).
   Thêm nhánh dữ liệu mới vào app thì bổ sung dữ liệu giả ở đây để còn xem được. Khi server demo đang chạy,
