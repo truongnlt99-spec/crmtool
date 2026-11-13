@@ -302,6 +302,22 @@ try {
   const sau3 = await dbJson(`aiDataTest/linkGui/${kq.token}`);
   check('lanDau giu nguyen, lanCuoi moi hon', sau3.lanDau === sau2.lanDau && sau3.lanCuoi > sau2.lanCuoi, sau3);
 
+  console.log('\n>> Nguoi xem theo thiet bi');
+  const thietBiCu = Object.values(sau3.nguoiXem || {}) as any[];
+  check('khong co ma thiet bi: gom ve 1 thiet bi theo mang + trinh duyet', thietBiCu.length === 1 && thietBiCu[0].soLan === 3 && thietBiCu[0].dau > 0, sau3.nguoiXem);
+  const moTuMay = async (tb: string, ua: string, ip: string, tp: string) => (await handler.fetch(new Request('https://huyentran.vercel.app/api/mcp?mode=xemSuKien', {
+    method: 'POST', body: JSON.stringify({ t: kq.token, loai: 'mo', tb }),
+    headers: { 'Content-Type': 'text/plain', 'User-Agent': ua, 'X-Forwarded-For': `${ip}, 10.0.0.1`, 'X-Vercel-IP-City': tp },
+  }))).status;
+  const IPHONE_ZALO = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile ZaloTheme/light ZaloLanguage/vi';
+  check('mo co ma thiet bi -> 204', (await moTuMay('AbCdEf123456', IPHONE_ZALO, '113.161.1.2', 'Ho%20Chi%20Minh%20City')) === 204);
+  await moTuMay('AbCdEf123456', IPHONE_ZALO, '113.161.1.2', 'Ho%20Chi%20Minh%20City');
+  const may1 = await dbJson(`aiDataTest/linkGui/${kq.token}/nguoiXem/AbCdEf123456`);
+  check('ghi thiet bi: so lan, app, may, thanh pho, ma mang (khong luu IP)', may1.soLan === 2 && may1.app === 'zalo' && may1.may === 'iPhone' &&
+    may1.tp === 'Ho Chi Minh City' && /^[0-9a-f]{10}$/.test(may1.mang) && !JSON.stringify(may1).includes('113.161') && may1.cuoi >= may1.dau, may1);
+  check('ma thiet bi sai dang khong thanh khoa', (await moTuMay('../../x', IPHONE_ZALO, '113.161.1.2', '')) === 204 &&
+    !JSON.stringify(await dbJson(`aiDataTest/linkGui/${kq.token}/nguoiXem`)).includes('..'));
+
   console.log('\n>> Tool MCP');
   const callTool = async (name: string, args: Record<string, unknown>) => {
     const res = await handler.fetch(new Request('http://localhost/api/mcp', {
@@ -333,8 +349,9 @@ try {
   check('11 san pham -> loi', (await callTool('create_product_links', { lead: LEAD, sanPham: Array(11).fill(sp1) })).isError);
 
   const theoKhach = await callTool('get_link_stats', { lead: LEAD });
-  const dongYt = theoKhach.json?.links?.find((d: any) => d.soLanMo === 3);
+  const dongYt = theoKhach.json?.links?.find((d: any) => d.soLanMo === 6);
   check('get_link_stats theo khach co nhan', theoKhach.json?.links?.length === 4 && dongYt?.nhan === 'quanTam', theoKhach.text);
+  check('get_link_stats tra thiet bi da mo', dongYt?.thietBi?.some((x: any) => x.app === 'zalo' && x.may === 'iPhone' && x.thanhPho === 'Ho Chi Minh City' && x.soLan === 2), dongYt);
   check('co ten khach', dongYt?.khach === `Khach LG ${rand}`, dongYt);
   const theoSp = await callTool('get_link_stats', { venueId: VN, id: 'khac' });
   check('get_link_stats theo san pham', theoSp.json?.links?.length === 1 && theoSp.json.links[0].nhan === 'chuaMo', theoSp.text);

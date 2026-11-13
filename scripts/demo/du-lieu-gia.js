@@ -151,9 +151,12 @@ function taoDuLieuGia(now) {
   function themAi() {
     const ev = (quote) => ({ convId: 'c01', msgId: Object.keys(msgs.c01)[5], quote });
     const linkGui = {
-      tk1: { leadId: 'L08', venueId: 'v1', spId: 's1', tenSp: 'Album Gem Center tone pastel', guiLuc: t - 2 * DAY, soLanGui: 1, soLanMo: 3, lanCuoi: t - 12 * MIN },
+      tk1: { leadId: 'L08', venueId: 'v1', spId: 's1', tenSp: 'Album Gem Center tone pastel', guiLuc: t - 2 * DAY, soLanGui: 1, soLanMo: 3, lanCuoi: t - 12 * MIN,
+        nguoiXem: { a1: { soLan: 2, dau: t - DAY, cuoi: t - 12 * MIN, app: 'zalo', may: 'iPhone', tp: 'Ho Chi Minh City', mang: 'm1' },
+          b2: { soLan: 1, dau: t - 3 * HOUR, cuoi: t - 3 * HOUR, app: 'facebook', may: 'Android', tp: 'Can Tho', mang: 'm2' } } },
       tk2: { leadId: 'L14', venueId: 'v2', spId: 's3', tenSp: 'Phóng sự White Palace', guiLuc: t - 3 * DAY, soLanGui: 1, soLanMo: 1, lanCuoi: t - 2 * HOUR },
-      tk3: { leadId: 'L13', venueId: 'v1', spId: 's2', tenSp: 'Bảng giá Signature 2027', guiLuc: t - 4 * DAY, soLanGui: 2, soLanMo: 2, lanCuoi: t - 26 * HOUR },
+      tk3: { leadId: 'L13', venueId: 'v1', spId: 's2', tenSp: 'Bảng giá Signature 2027', guiLuc: t - 4 * DAY, soLanGui: 2, soLanMo: 2, lanCuoi: t - 26 * HOUR,
+        nguoiXem: { c3: { soLan: 2, dau: t - 2 * DAY, cuoi: t - 26 * HOUR, app: 'zalo', may: 'Android', tp: 'Ho Chi Minh City', mang: 'm3' } } },
       tk4: { leadId: 'L01', venueId: 'v2', spId: 's3', tenSp: 'Phóng sự White Palace', guiLuc: t - 1 * DAY, soLanGui: 1 },
     };
     const linkGuiNgay = {}; for (let i = 0; i < 14; i++) { const d = new Date(t - i * DAY); linkGuiNgay[iso(d)] = { mo: (i * 7) % 5 }; }

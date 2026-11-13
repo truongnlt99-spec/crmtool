@@ -1,7 +1,8 @@
 // Logic thuần cho việc theo dõi link sản phẩm gửi khách (bảng Sản phẩm + chi tiết lead trong index.html).
 // KHÔNG chạm DOM / Firebase để test được bằng Node (test/link-gui.test.ts) và Chrome (test/link-gui-ui.test.html).
 // Spec: docs/superpowers/specs/2026-10-31-theo-doi-link-san-pham-design.md
-// Dữ liệu: <aiRoot>/linkGui/<token> = { leadId, venueId, spId, tenSp, nenTang, taoLuc, guiLuc, soLanGui, soLanMo, lanDau, lanCuoi }
+// Dữ liệu: <aiRoot>/linkGui/<token> = { leadId, venueId, spId, tenSp, nenTang, taoLuc, guiLuc, soLanGui, soLanMo, lanDau, lanCuoi,
+//            nguoiXem: { <mãThiếtBị>: { soLan, dau, cuoi, app, may, tp, mang } } } — nguoiXem có từ 13/11/2026
 //          <aiRoot>/linkGuiNgay/<yyyy-mm-dd>/mo = lượt click trong ngày (giờ Việt Nam)
 
 import { boDau } from './bang-lead.js';
@@ -17,6 +18,34 @@ export const TEN_NHAN = { quanTam: 'Quan tâm', xemQua: 'Đã mở', chuaMo: 'Ch
 export function nhanLink(s){
   if (!s || !s.soLanMo) return 'chuaMo';
   return s.soLanMo >= 2 ? 'quanTam' : 'xemQua';
+}
+
+export const TEN_NGUOI_XEM = { motLan: '1 người, xem 1 lần', xemLai: '1 người, xem lại', coThe: 'Có thể đã chia sẻ', chiaSe: 'Đã chia sẻ' };
+const TEN_APP = { zalo: 'Zalo', facebook: 'Messenger/Facebook', instagram: 'Instagram', trinhDuyet: 'trình duyệt' };
+const TEN_MAY = { iPhone: 'iPhone', Android: 'Android', mayTinh: 'Máy tính' };
+const dsThietBi = nguoiXem => Object.values(nguoiXem || {}).filter(x => x && typeof x === 'object');
+
+/**
+ * Khách tự xem hay đã chuyển cho người khác, theo các thiết bị đã mở link. '' khi chưa có dữ liệu thiết bị.
+ * Chắc là người khác: khác thành phố, mở trong Messenger/Facebook (Trân gửi qua Zalo), có cả iPhone lẫn Android, hoặc từ 3 thiết bị.
+ * Còn lại 2 thiết bị là "có thể": một người mở bằng Zalo rồi mở lại bằng trình duyệt cũng thành 2 thiết bị.
+ */
+export function loaiNguoiXem(nguoiXem){
+  const ds = dsThietBi(nguoiXem);
+  if (!ds.length) return '';
+  if (ds.length === 1) return ds[0].soLan > 1 ? 'xemLai' : 'motLan';
+  const co = k => new Set(ds.map(x => x[k]).filter(Boolean));
+  const may = co('may');
+  return co('tp').size > 1 || ds.some(x => x.app === 'facebook' || x.app === 'instagram') || (may.has('iPhone') && may.has('Android')) || ds.length >= 3
+    ? 'chiaSe' : 'coThe';
+}
+
+/** Một dòng mô tả các thiết bị, vd "iPhone · Zalo · 3 lần · TP HCM; Máy tính · trình duyệt · 1 lần (cùng mạng)". */
+export function moTaThietBi(nguoiXem){
+  const ds = dsThietBi(nguoiXem).sort((a, b) => (a.dau || 0) - (b.dau || 0));
+  const demMang = {}; ds.forEach(x => { if (x.mang) demMang[x.mang] = (demMang[x.mang] || 0) + 1; });
+  return ds.map(x => [TEN_MAY[x.may] || 'Thiết bị', TEN_APP[x.app] || 'trình duyệt', `${Number(x.soLan) || 0} lần`, x.tp].filter(Boolean).join(' · ') +
+    (x.mang && demMang[x.mang] > 1 ? ' (cùng mạng)' : '')).join('; ');
 }
 
 const dsLink = linkGui => Object.entries(linkGui || {}).filter(([, d]) => d && typeof d === 'object');
@@ -107,8 +136,9 @@ export function veKhoiDaGui(ds){
   return ds.map(d => {
     const phu = d.lanCuoi ? `Xem gần nhất ${hhmmNgay(d.lanCuoi)}` : d.taoLuc ? `Tạo link ${hhmmNgay(d.taoLuc)}` : '';
     const so = d.soLanMo ? `${Number(d.soLanMo)} lần mở` : '';
-    return `<div class="lg-link"><span class="lg-link-giua"><b>${esc(d.tenSp)}</b><small>${[so, phu].filter(Boolean).join(' · ')}</small></span>
-      <span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span></div>`;
+    const loai = loaiNguoiXem(d.nguoiXem), tb = moTaThietBi(d.nguoiXem);
+    return `<div class="lg-link"><span class="lg-link-giua"><b>${esc(d.tenSp)}</b><small>${[so, phu].filter(Boolean).join(' · ')}</small>${tb ? `<small class="lg-tb">${esc(tb)}</small>` : ''}</span>
+      <span class="lg-nhan-cot"><span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span>${loai ? `<span class="lg-nhan ${loai}">${TEN_NGUOI_XEM[loai]}</span>` : ''}</span></div>`;
   }).join('');
 }
 
@@ -225,7 +255,7 @@ export function veLanGui(ds, tatCa, { khoa, giam, origin }){
     const khach = d.khach && /^[A-Za-z0-9_-]+$/.test(String(d.leadId)) ? `<button type="button" class="vn-lk lg-mo-lead" onclick="openLead('${d.leadId}')">${ten}</button>` : ten;
     return `<tr><td>${esc(ddmmyyyy(d.ngayGui)) || '—'}</td><td>${khach}</td><td class="vn-c-ten">${esc(d.tenSp)}</td>
       <td class="so">${Number(d.soLanGui) || 0}</td><td class="so">${Number(d.soLanMo) || 0}</td>
-      <td><span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span></td>
+      <td><span class="lg-nhan ${esc(d.nhan)}">${esc(TEN_NHAN[d.nhan])}</span>${(l => l ? ` <span class="lg-nhan ${l}" title="${esc(moTaThietBi(d.nguoiXem))}">${TEN_NGUOI_XEM[l]}</span>` : '')(loaiNguoiXem(d.nguoiXem))}</td>
       <td>${d.lanCuoi ? hhmmNgay(d.lanCuoi) : '—'}</td>
       <td class="vn-c-thao"><button type="button" class="vn-lk" data-url="${esc(`${origin}/xem/${d.token}`)}" onclick="copyLinkGui(this)">Copy link</button></td></tr>`;
   }).join('');
