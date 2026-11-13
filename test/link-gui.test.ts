@@ -161,5 +161,61 @@ const p4 = chayTrang(L, {}, true);
 check('beacon loi van chuyen', p4.chuyen === L);
 check('link rong khong chuyen', chayTrang('').chuyen === '');
 
+console.log('\n>> JS_THEO_DOI: ma thiet bi');
+function chayCoBoNho(ls: Record<string, string>) {
+  const gui: any[] = [];
+  const ctx: any = {
+    navigator: { sendBeacon: (_u: string, b: any) => { gui.push(JSON.parse(b.noiDung)); return true; } },
+    localStorage: { getItem: (k: string) => ls[k] ?? null, setItem: (k: string, v: string) => { ls[k] = v; } },
+    crypto: globalThis.crypto, Uint8Array, Blob: function (this: any, a: string[]) { this.noiDung = a[0]; },
+    location: { replace: () => {} }, JSON,
+  };
+  ctx.window = ctx; ctx.__xem = { t: T, linkGoc: L };
+  vm.runInNewContext(mcp.JS_THEO_DOI, ctx);
+  return gui[0];
+}
+const boNho: Record<string, string> = {};
+const lan1 = chayCoBoNho(boNho), lan2 = chayCoBoNho(boNho);
+check('tao ma 12 ky tu, luu lai, lan sau dung lai', /^[A-Za-z0-9]{12}$/.test(lan1.tb) && lan2.tb === lan1.tb && boNho.crmTb === lan1.tb, [lan1, lan2]);
+check('ma cu hong thi tao lai', chayCoBoNho({ crmTb: '<x>' }).tb !== '<x>');
+
+console.log('\n>> thongTinNguoiXem');
+const UA = {
+  zalo: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) Mobile ZaloTheme/light ZaloLanguage/vi',
+  mess: 'Mozilla/5.0 (Linux; Android 14) Chrome/130 Mobile [FB_IAB/Orca-Android;FBAV/480.0]',
+  pc: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/130 Safari/537.36',
+};
+const n1 = mcp.thongTinNguoiXem('AbCdEf123456', UA.zalo, '1.2.3.4', 'H%C3%A0%20N%E1%BB%99i', T, 'k');
+check('iPhone Zalo, giai ma thanh pho', n1.tb === 'AbCdEf123456' && n1.app === 'zalo' && n1.may === 'iPhone' && n1.tp === 'Hà Nội' && /^[0-9a-f]{10}$/.test(n1.mang), n1);
+const n2 = mcp.thongTinNguoiXem(undefined, UA.mess, '1.2.3.4', '', T, 'k');
+check('Messenger Android, khong ma -> ma tu mang', n2.app === 'facebook' && n2.may === 'Android' && /^m[0-9a-f]{11}$/.test(n2.tb) && n2.mang === n1.mang, n2);
+const pc = mcp.thongTinNguoiXem('', UA.pc, '', '', T);
+check('may tinh trinh duyet', pc.may === 'mayTinh' && pc.app === 'trinhDuyet', pc);
+check('ma sai dang khong dung', mcp.thongTinNguoiXem('../x/y', UA.pc, '1.1.1.1', '', T).tb.startsWith('m'));
+check('cung IP khac link -> ma mang khac', mcp.thongTinNguoiXem('', UA.pc, '1.2.3.4', '', 'zzzzzzzzzz', 'k').mang !== n1.mang);
+check('thanh pho hong khong nem', mcp.thongTinNguoiXem('', UA.pc, '', '%E0%A4%A', T).tp === '');
+
+console.log('\n>> loaiNguoiXem');
+const tb = (o: Record<string, unknown>) => ({ soLan: 1, app: 'zalo', may: 'iPhone', tp: 'HCM', mang: 'a', ...o });
+const CA_XEM: Array<[unknown, string]> = [
+  [undefined, ''], [{}, ''],
+  [{ a: tb({}) }, 'motLan'],
+  [{ a: tb({ soLan: 4 }) }, 'xemLai'],
+  [{ a: tb({}), b: tb({ may: 'mayTinh', app: 'trinhDuyet' }) }, 'coThe'],
+  [{ a: tb({}), b: tb({ may: 'mayTinh', mang: 'b' }) }, 'coThe'],
+  [{ a: tb({}), b: tb({ tp: 'Ha Noi' }) }, 'chiaSe'],
+  [{ a: tb({}), b: tb({ app: 'facebook' }) }, 'chiaSe'],
+  [{ a: tb({}), b: tb({ may: 'Android' }) }, 'chiaSe'],
+  [{ a: tb({}), b: tb({ may: 'mayTinh' }), c: tb({ may: 'mayTinh', app: 'trinhDuyet' }) }, 'chiaSe'],
+];
+for (const [vao, ra] of CA_XEM) check(`${String(JSON.stringify(vao)).slice(0, 80)} -> ${ra || '(rong)'}`, web.loaiNguoiXem(vao) === ra, web.loaiNguoiXem(vao));
+const moTa = web.moTaThietBi({ b: tb({ dau: 2, may: 'mayTinh', app: 'trinhDuyet', tp: '' }), a: tb({ dau: 1, soLan: 3 }), c: tb({ dau: 3, mang: 'z', may: 'Android', app: 'facebook', tp: 'Ha Noi' }) });
+check('mo ta thiet bi theo thu tu mo, danh dau cung mang', moTa === 'iPhone · Zalo · 3 lần · HCM (cùng mạng); Máy tính · trình duyệt · 1 lần (cùng mạng); Android · Messenger/Facebook · 1 lần · Ha Noi', moTa);
+const khoi = web.veKhoiDaGui([{ tenSp: 'A', soLanMo: 2, nhan: 'quanTam', nguoiXem: { a: tb({ tp: '<img src=x onerror=1>' }), b: tb({ tp: 'HN' }) } }]);
+check('khoi da gui: nhan chia se + mo ta, chong XSS', khoi.includes('Đã chia sẻ') && khoi.includes('lg-tb') && !khoi.includes('<img src=x'), khoi);
+check('khoi da gui: link cu khong co thiet bi thi khong nhan', !web.veKhoiDaGui([{ tenSp: 'A', soLanMo: 2, nhan: 'quanTam' }]).includes('lg-tb'));
+const bangLg = web.veLanGui([{ token: 't', khach: 'K', leadId: 'L1', tenSp: 'A', soLanMo: 1, nhan: 'xemQua', ngayGui: '2026-11-13', nguoiXem: { a: tb({ tp: '"><b>x' }) } }], [{}], { khoa: 'guiLuc', giam: true, origin: 'https://x' });
+check('bang Lan gui: nhan 1 nguoi, title duoc escape', bangLg.includes('1 người, xem 1 lần') && !bangLg.includes('"><b>x'), bangLg);
+
 console.log(`\n${pass} OK, ${fail} FAIL`);
 if (fail) process.exit(1);

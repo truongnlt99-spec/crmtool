@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { createMcpHandler } from 'mcp-handler';
-import { createSign, randomInt } from 'node:crypto';
+import { createHmac, createSign, randomInt } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 /*
@@ -1521,7 +1521,7 @@ const mcpHandler = createMcpHandler(
       {
         title: 'Xem số liệu link sản phẩm đã gửi',
         description:
-          'Xem khách có bấm link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Lọc theo ngày gửi bằng tu / den (vd "tuần này gửi cho ai"). Mỗi link trả ngày gửi gần nhất (ngayGui), số lần gửi, số lần mở, lần mở gần nhất và nhãn quanTam (mở từ 2 lần) / xemQua (mở 1 lần) / chuaMo. Gửi lại cùng khách + sản phẩm thì ngayGui là lần gần nhất. clickTheoNgayToanKho là lượt click từng ngày của CẢ KHO trong khoảng tu..den (mặc định 14 ngày tới hôm nay, tối đa 92 ngày, bỏ ngày không có click), không tách theo khách hay sản phẩm, và chỉ có từ 31/10/2026. Chỉ đếm được lượt bấm link, không biết khách xem bao lâu trên Facebook hay YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận.',
+          'Xem khách có bấm link sản phẩm không: theo khách (lead), theo sản phẩm (venueId + id), hoặc để trống để xem cả kho. Lọc theo ngày gửi bằng tu / den (vd "tuần này gửi cho ai"). Mỗi link trả ngày gửi gần nhất (ngayGui), số lần gửi, số lần mở, lần mở gần nhất và nhãn quanTam (mở từ 2 lần) / xemQua (mở 1 lần) / chuaMo. Gửi lại cùng khách + sản phẩm thì ngayGui là lần gần nhất. clickTheoNgayToanKho là lượt click từng ngày của CẢ KHO trong khoảng tu..den (mặc định 14 ngày tới hôm nay, tối đa 92 ngày, bỏ ngày không có click), không tách theo khách hay sản phẩm, và chỉ có từ 31/10/2026. Chỉ đếm được lượt bấm link, không biết khách xem bao lâu trên Facebook hay YouTube. Có link nghĩa là đã tạo, chưa chắc khách đã nhận. thietBi (chỉ có cho lượt mở từ 13/11/2026) liệt kê từng thiết bị đã mở: số lần, app (zalo / facebook = Messenger hoặc Facebook / instagram / trinhDuyet), loại máy, thành phố, mã mạng. Dùng để đoán khách tự xem một mình, xem lại nhiều lần, hay đã chuyển cho người khác: khác thành phố, mở trong Messenger/Facebook (Trân gửi qua Zalo), hoặc có cả iPhone lẫn Android thì gần như chắc là người khác; 2 thiết bị cùng mã mạng có thể là cùng người (điện thoại + máy tính) hoặc cùng nhà. Một người mở bằng Zalo rồi mở lại bằng trình duyệt cũng thành 2 thiết bị, nên nói là "có thể" khi chỉ có số thiết bị.',
         inputSchema: z.object({
           lead: z.string().optional().describe('leadId hoặc tên khách'),
           venueId: z.string().optional(),
@@ -1554,6 +1554,11 @@ const mcpHandler = createMcpHandler(
               khach: tenKhach[d.leadId] ?? '(lead đã xoá)', leadId: d.leadId, tenSp: d.tenSp, nenTang: d.nenTang,
               ngayGui: luc ? ngayVN(luc) : null, soLanGui: d.soLanGui, soLanMo: d.soLanMo,
               lanCuoi: d.lanCuoi ? new Date(d.lanCuoi).toISOString() : null, nhan: nhanLink(d),
+              // Từ 13/11/2026 mới có; mỗi dòng một thiết bị. mang giống nhau = cùng mạng (cùng nhà/wifi)
+              thietBi: Object.values(d.nguoiXem || {}).map((x) => ({
+                soLan: x.soLan, app: x.app, may: x.may, thanhPho: x.tp, mang: x.mang,
+                dau: x.dau ? new Date(x.dau).toISOString() : null, cuoi: x.cuoi ? new Date(x.cuoi).toISOString() : null,
+              })),
             };
           })
           .filter((d) => (!args.tu || (d.ngayGui ?? '') >= args.tu) && (!args.den || (d.ngayGui ?? '') <= args.den))
@@ -3066,7 +3071,10 @@ interface LinkGui {
   leadId: string; venueId: string; spId: string; tenSp: string; nenTang: string; linkNguon: string;
   taoLuc: number; guiLuc: number; soLanGui: number; soLanMo: number;
   lanDau?: number; lanCuoi?: number;
+  nguoiXem?: Record<string, NguoiXem>;
 }
+/** Một thiết bị đã mở link. `mang` là mã băm địa chỉ mạng theo từng link, không lưu địa chỉ thật. */
+interface NguoiXem { soLan: number; dau: number; cuoi: number; app: string; may: string; tp: string; mang: string }
 
 /** Lượt click từng ngày trong khoảng tu..den (yyyy-mm-dd), bỏ ngày không có click. */
 export function clickTheoNgay(duLieu: Record<string, { mo?: number }> | null, tu: string, den: string) {
@@ -3264,8 +3272,18 @@ export function kiemTraSuKien(b: any): string | null {
 export const JS_THEO_DOI = `(function(){
   var c = window.__xem, noiBo = false;
   try { noiBo = localStorage.getItem('crmNoiBo') === '1'; } catch (e) {}
+  var tb = '';
   try {
-    if (!noiBo) navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify({ t: c.t, loai: 'mo' })], { type: 'text/plain' }));
+    tb = localStorage.getItem('crmTb') || '';
+    if (!/^[A-Za-z0-9]{12}$/.test(tb)) {
+      var chu = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789', so = crypto.getRandomValues(new Uint8Array(12));
+      tb = ''; for (var i = 0; i < 12; i++) tb += chu[so[i] % 62];
+      localStorage.setItem('crmTb', tb);
+    }
+  } catch (e) { tb = ''; }
+  try {
+    var sk = { t: c.t, loai: 'mo' }; if (tb) sk.tb = tb;
+    if (!noiBo) navigator.sendBeacon('/api/xem-su-kien', new Blob([JSON.stringify(sk)], { type: 'text/plain' }));
   } catch (e) {}
   if (c.linkGoc) location.replace(c.linkGoc);
 })();`;
@@ -3301,21 +3319,44 @@ async function xuLyXem(url: URL): Promise<Response> {
   return traLoiHtml(veTrangXem({ token: t, tieuDe: d.tieuDe, moTa: d.moTa, anh: d.anh, linkGoc: d.linkGoc }));
 }
 
+/**
+ * Thiết bị mở link, rút từ sự kiện + header Vercel. `tbGui` là mã thiết bị trang khách lưu trong trình duyệt;
+ * webview chặn bộ nhớ thì lấy mã từ mạng + trình duyệt. Mã mạng băm kèm token nên không so được giữa các link.
+ */
+export function thongTinNguoiXem(tbGui: unknown, ua: string, ip: string, tp: string, token: string, khoa = '') {
+  const bam = (x: string) => createHmac('sha256', khoa).update(`${x}|${token}`).digest('hex');
+  const app = /Zalo/i.test(ua) ? 'zalo' : /FBAN|FBAV|FB_IAB|Messenger/i.test(ua) ? 'facebook' : /Instagram/i.test(ua) ? 'instagram' : 'trinhDuyet';
+  const may = /iPhone|iPad|iPod/i.test(ua) ? 'iPhone' : /Android/i.test(ua) ? 'Android' : /Windows|Macintosh|CrOS|Linux/i.test(ua) ? 'mayTinh' : '';
+  let thanhPho = '';
+  try { thanhPho = decodeURIComponent(tp).slice(0, 60); } catch { /* header hỏng thì bỏ */ }
+  const tb = typeof tbGui === 'string' && /^[A-Za-z0-9]{12}$/.test(tbGui) ? tbGui : `m${bam(`${ip}|${ua}`).slice(0, 11)}`;
+  return { tb, app, may, tp: thanhPho, mang: ip ? bam(ip).slice(0, 10) : '' };
+}
+
 async function xuLyXemSuKien(request: Request): Promise<Response> {
   if (request.method !== 'POST') return traLoiJson({ loi: 'Chỉ nhận POST.' }, 405);
-  const t = kiemTraSuKien(await request.json().catch(() => null));
+  const b = await request.json().catch(() => null);
+  const t = kiemTraSuKien(b);
   if (!t) return traLoiJson({ loi: 'Sự kiện không hợp lệ.' }, 400);
   const ai = await readPath<string | null>(`linkXem/${t}/aiRoot`);
   if (!ai) return traLoiJson({ loi: 'Không tìm thấy link.' }, 404);
 
-  const banGhi = `${ai}/linkGui/${t}`;
+  const h = request.headers;
+  const ip = (h.get('x-forwarded-for') || h.get('x-real-ip') || '').split(',')[0].trim();
+  const nx = thongTinNguoiXem(b.tb, h.get('user-agent') || '', ip, h.get('x-vercel-ip-city') || '', t, process.env.FIREBASE_SERVICE_ACCOUNT || '');
+  const banGhi = `${ai}/linkGui/${t}`, thietBi = `${banGhi}/nguoiXem/${nx.tb}`;
   const tangMot = { '.sv': { increment: 1 } }, bayGio = { '.sv': 'timestamp' };
   const patch: Record<string, unknown> = {
     [`${banGhi}/soLanMo`]: tangMot,
     [`${banGhi}/lanCuoi`]: bayGio,
     [`${ai}/linkGuiNgay/${ngayVN(Date.now())}/mo`]: tangMot,
+    // shortcut: không giới hạn số thiết bị mỗi link (token chỉ khách nhận được mới biết), bị spam thì đếm khoá con trước khi ghi
+    [`${thietBi}/soLan`]: tangMot, [`${thietBi}/cuoi`]: bayGio,
+    [`${thietBi}/app`]: nx.app, [`${thietBi}/may`]: nx.may, [`${thietBi}/tp`]: nx.tp, [`${thietBi}/mang`]: nx.mang,
   };
-  if (!(await readPath(`${banGhi}/lanDau`))) patch[`${banGhi}/lanDau`] = bayGio;
+  const [lanDau, dauTb] = await Promise.all([readPath(`${banGhi}/lanDau`), readPath(`${thietBi}/dau`)]);
+  if (!lanDau) patch[`${banGhi}/lanDau`] = bayGio;
+  if (!dauTb) patch[`${thietBi}/dau`] = bayGio;
   await patchPath('', patch);
   return new Response(null, { status: 204 });
 }
