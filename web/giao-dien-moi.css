@@ -860,3 +860,36 @@ html[data-theme="dark"] .step.current .step-label{color:#10140F !important;}
 .box-label{color:var(--text-2) !important; font-weight:600 !important;}
 .bd-cot{fill:#C9B99F;}
 html[data-theme="dark"] .bd-cot{fill:#5A4E40;}
+
+/* =====================================================================
+   ĐĂNG NHẬP (13/11/2026): theo KIỂU TRỘN — nền kem, ảnh tulip trong khung bo góc,
+   câu của ngày nghiêng có chân, form gọn nút xanh rêu. Đè các lớp đăng nhập cũ trong index.html.
+   ===================================================================== */
+.lock-screen{background:var(--bg) !important; grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) !important; padding:16px !important; gap:16px;}
+.lock-visual{border-radius:10px; background:var(--well) !important;}
+.lock-photos::after{background:linear-gradient(180deg, rgba(20,24,20,.30) 0%, rgba(20,24,20,0) 28%, rgba(20,24,20,0) 52%, rgba(20,24,20,.66) 100%) !important;}
+.lock-hero{padding:30px 32px !important;}
+.lock-hero-brand{font:600 18px/1.1 var(--font-serif) !important;}
+.lock-hero-mark{width:32px !important; height:32px !important; border-radius:8px !important;}
+.lock-hero .lock-quote{font:italic 500 24px/1.38 var(--font-serif) !important; max-width:430px;}
+.lock-card{background:transparent !important; padding:40px max(28px, calc((100% - 360px) / 2)) !important;}
+.lock-date{font:italic 400 15px/1.4 var(--font-serif) !important; letter-spacing:0 !important; text-transform:none !important; color:var(--text-3) !important; margin-bottom:4px !important;}
+.lock-greeting{font:600 36px/1.12 var(--font-serif) !important; letter-spacing:-.01em; margin-bottom:8px !important;}
+.lock-phu{color:var(--text-2); font-size:14px; margin:0 0 28px;}
+.lock-label{text-transform:none !important; letter-spacing:0 !important; font-size:13px !important; font-weight:500 !important; color:var(--text-2) !important;}
+.lock-input{min-height:46px !important; border-radius:8px !important; background:var(--surface) !important; border:1px solid var(--border-strong) !important;}
+.lock-input:focus{border-color:var(--primary) !important; box-shadow:0 0 0 3px var(--primary-soft) !important; outline:none;}
+.lock-btn{min-height:48px !important; width:100%; justify-content:center; border-radius:8px !important; font:600 15px/1 var(--font-ui) !important; background:var(--primary) !important; margin-top:6px !important;}
+.lock-btn:hover{background:var(--primary-hover) !important; filter:none;}
+@media (max-width:860px){
+  .lock-screen{grid-template-columns:1fr !important; grid-template-rows:minmax(220px, 36vh) auto !important; padding:10px !important; gap:4px;}
+  .lock-hero{padding:20px !important;}
+  .lock-hero .lock-quote{font-size:19px !important;}
+  .lock-card{padding:22px 12px 28px !important;}
+  .lock-greeting{font-size:30px !important;}
+  .lock-phu{margin-bottom:22px;}
+}
+
+/* Dải hoa Hôm nay: câu của ngày dài hơn câu cũ, chừa chỗ cho hình tulip bên phải để chữ tự xuống dòng */
+.hn-hoa span{right:236px; line-height:1.35;}
+@media (max-width:760px){ .hn-hoa span{right:160px;} }

@@ -2311,8 +2311,9 @@
     </div>
   </div>
   <div class="lock-card">
-    <div class="lock-date"><span id="lockDate"></span> · <span id="lockEmoji">☀️</span></div>
-    <div class="lock-greeting" id="lockGreeting">Chào buổi sáng, em Trân Phóng sự cưới</div>
+    <div class="lock-date"><span id="lockDate"></span></div>
+    <div class="lock-greeting" id="lockGreeting">Chào buổi sáng</div>
+    <p class="lock-phu">Đăng nhập để xem việc hôm nay.</p>
     <div class="lock-divider"></div>
     <div class="lock-brand-row">
       <svg class="lock-icon-mini" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -3183,33 +3184,32 @@ function matchesFilters(lead){
 // Mật khẩu cũ '8386' đã bỏ: nó nằm ngay trong mã nguồn public nên ai xem source
 // cũng thấy, và Firebase không hề biết đến nó. Nay dùng Firebase Authentication thật.
 
-// Những câu động viên yêu thương - mỗi ngày một câu, tự đổi mỗi khi qua ngày mới
-const LOCK_LOVE_MESSAGES = [
-  "Ăn sáng chưa đó? Ăn no rồi vào coi lead cho có sức nha 🍚",
-  "Mấy cặp cô dâu chú rể đang chờ em tư vấn kìa, vào xem lẹ đi 💍",
-  "Hôm nay có lead mới nào chưa ta? Vào check thử coi 📋",
-  "Follow up mấy khách hôm qua tới đâu rồi, đừng để họ chờ lâu nha 💬",
-  "Nhớ uống nước, đừng ngồi lì một chỗ cả buổi sáng à nha 💧",
-  "Lead nào trễ hẹn là vào xử lý liền tay đi, để nguội là mất khách đó ⏰",
-  "Coi thử hôm nay có bao nhiêu khách đang chờ báo giá chưa 💰",
-  "Ngủ đủ giấc không đó? Dậy rồi làm ly cà phê cho tỉnh táo nha ☕",
-  "Xem thử tháng này còn bao nhiêu lead chưa chốt không 📊",
-  "Follow up lần 2, lần 3 của mấy khách cũ tới hạn chưa, kiểm tra thử coi 🔔",
-  "Có khách nào đang chờ tin nhắn của em không đó, vào coi lẹ 📩",
-  "Ăn trưa nhớ đúng giờ nha, đừng để bụng đói rồi quạu 🍜",
-  "Coi lại lịch cưới của mấy khách sắp tới xem có gì cần chuẩn bị không 📅",
-  "Hôm nay chắc có kha khá lead mới đó, vào xem thử coi sao 🌤️",
-  "Có nhắc nhở nào cần làm hôm nay không, mở lên coi kẻo quên 📌",
-  "Deadline nào gần tới rồi, xử lý trước cho nhẹ đầu nha ⏳",
-  "Giữ sức khỏe nha, đừng làm việc quá sức rồi mệt đó 🍃",
-  "Xem thử có lead nào im lặng lâu quá chưa follow up không 🔍",
-  "Chốt được lead nào thì nhớ update vào đây liền cho khỏi quên ✅",
-  "Nghỉ tay uống miếng nước rồi làm tiếp cũng được, đừng vội quá 🫖",
-  "Cuối ngày nhớ xem lại coi hôm nay làm được bao nhiêu việc rồi ha 📈",
-  "Khách nào hỏi giá lâu rồi mà chưa trả lời thì lẹ lẹ vào coi nha 💌",
-  "Trưa rồi đó, nhớ nghỉ ngơi chút xíu trước khi làm tiếp buổi chiều 😌",
-  "Lịch follow up hôm nay tới đâu rồi, vào check coi còn sót ai không 🗒️"
+// Câu của ngày: hiện ở dải hoa màn Hôm nay và màn đăng nhập, mỗi ngày một câu (cùng câu cả ngày).
+// Ngắn, thực tế, không sến. Thêm câu thì thêm vào cuối mảng.
+const CAU_HOM_NAY = [
+  'Lead mới chưa gọi là lead nguội nhanh nhất.',
+  'Khách im ba ngày chưa phải là khách từ chối.',
+  'Gửi báo giá xong, hẹn luôn ngày gọi lại.',
+  'Một tin follow up ngắn dễ được trả lời hơn mười tin dài.',
+  'Hỏi ngày cưới và địa điểm trước, báo giá sau.',
+  'Mẫu album đúng venue khách đặt giúp khách hình dung nhanh hơn.',
+  'Ghi chú ngay sau cuộc gọi, mai khỏi phải đoán.',
+  'Khách mở link nhiều lần là đang cân nhắc, nhắn hỏi thăm đúng lúc.',
+  'Trả lời trước khi khách phải nhắn lần hai.',
+  'Chốt lịch trước, gói có thể bàn thêm sau.',
+  'Khách so giá thì kể về bộ ảnh, đừng vội giảm giá.',
+  'Việc nhỏ làm trước, đầu óc nhẹ hơn cho việc khó.',
+  'Hôm nay nhắn lại một khách cũ đã lâu không liên lạc.',
+  'Khách hỏi nhiều là khách quan tâm, không phải khách khó.',
+  'Lead quá hạn liên hệ thì xử lý trước tiên.',
+  'Gửi ít mẫu nhưng đúng gu hơn gửi cả kho.',
+  'Cảm ơn khách đã chốt, khách vui sẽ giới thiệu thêm bạn bè.',
+  'Một ngày chốt được một khách là một ngày tốt.',
 ];
+function cauHomNay(d = new Date()){
+  const ngayTrongNam = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return CAU_HOM_NAY[ngayTrongNam % CAU_HOM_NAY.length];
+}
 
 /* Ảnh tulip màn đăng nhập: 4 ảnh bình hoa + 4 ảnh cánh đồng (Unsplash; giấy phép không bắt buộc ghi nguồn, tên tác giả giữ lại để tra cứu) */
 const ANH_DANG_NHAP = [
@@ -3253,28 +3253,23 @@ function initLockGreeting(){
   const now = new Date();
   const hour = now.getHours();
 
-  // Lời chào + icon theo khung giờ trong ngày
-  let timeGreeting, emoji;
-  if (hour < 11)      { timeGreeting = 'Chào buổi sáng'; emoji = '☀️'; }
-  else if (hour < 14)  { timeGreeting = 'Chào buổi trưa'; emoji = '🌼'; }
-  else if (hour < 18)  { timeGreeting = 'Chào buổi chiều'; emoji = '🌤️'; }
-  else                 { timeGreeting = 'Chào buổi tối'; emoji = '🌙'; }
+  // Lời chào theo khung giờ trong ngày
+  let timeGreeting;
+  if (hour < 11)      { timeGreeting = 'Chào buổi sáng'; }
+  else if (hour < 14)  { timeGreeting = 'Chào buổi trưa'; }
+  else if (hour < 18)  { timeGreeting = 'Chào buổi chiều'; }
+  else                 { timeGreeting = 'Chào buổi tối'; }
 
   const dayNames = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
   const dateStr = `${dayNames[now.getDay()]}, ${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}`;
 
-  // Câu động viên đổi theo ngày trong năm, để mỗi sáng mở lên là một câu mới
-  const start = new Date(now.getFullYear(), 0, 0);
-  const dayOfYear = Math.floor((now - start) / 86400000);
-  const quote = LOCK_LOVE_MESSAGES[dayOfYear % LOCK_LOVE_MESSAGES.length];
+  const quote = cauHomNay(now);
 
-  const emojiEl = document.getElementById('lockEmoji');
   const dateEl = document.getElementById('lockDate');
   const greetEl = document.getElementById('lockGreeting');
   const quoteEl = document.getElementById('lockQuote');
-  if (emojiEl) emojiEl.textContent = emoji;
   if (dateEl) dateEl.textContent = dateStr;
-  if (greetEl) greetEl.textContent = `${timeGreeting}, em Trân Phóng sự cưới`;
+  if (greetEl) greetEl.textContent = timeGreeting;
   if (quoteEl) quoteEl.textContent = quote;
 }
 initLockGreeting();
@@ -3936,7 +3931,7 @@ function renderHomNay(){
 
   wrap.innerHTML = `
   <div class="hn-trai">
-    <div class="hn-hoa" aria-hidden="true"><span>Mùa cưới · ${dangCham.length} cặp đôi đang chờ em</span></div>
+    <div class="hn-hoa" aria-hidden="true"><span>${esc(cauHomNay())}</span></div>
     <div class="hn-chao"><h2>${buoi}, Trân</h2><p>${tong ? `${tong} việc cần làm${cho.length ? ` · ${cho.length} khách đang chờ em trả lời` : ''}` : 'Không còn việc gấp hôm nay'}</p></div>
     <div class="hn-so">
       <button type="button" class="card-moi hn-so-o rong" onclick="setView('dashboard')"><span class="l">Doanh thu kỳ ${ddmm(tu)} – ${ddmm(den)}</span><span class="v">${tienGon(doanhThu)} <small>/ ${tienGon(planRevenue)}</small></span><span class="bar"><i style="width:${pct}%"></i></span></button>
